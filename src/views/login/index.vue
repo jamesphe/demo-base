@@ -3,7 +3,8 @@
     <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" autocomplete="on" label-position="left">
 
       <div class="title-container">
-        <h3 class="title">Login Form</h3>
+        <h3 class="title">后台管理系统</h3>
+        <div class="sub-title">欢迎回来，请登录您的账号</div>
       </div>
 
       <el-form-item prop="username">
@@ -45,7 +46,9 @@
         </el-form-item>
       </el-tooltip>
 
-      <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">Login</el-button>
+      <el-button :loading="loading" type="primary" class="login-button" @click.native.prevent="handleLogin">
+        {{ loading ? '登录中...' : '登录' }}
+      </el-button>
 
       <div style="position:relative">
         <div class="tips">
@@ -202,11 +205,11 @@ export default {
 
 <style lang="scss">
 /* 修复input 背景不协调 和光标变色 */
-/* Detail see https://github.com/PanJiaChen/vue-element-admin/pull/927 */
-
-$bg:#283443;
-$light_gray:#fff;
+$bg: #1f1f1f; // 深色背景
+$light_gray: #fff;
 $cursor: #fff;
+$theme-color: #1890ff;
+$card-bg: #2d2d2d; // 添加到全局样式中
 
 @supports (-webkit-mask: none) and (not (cater-color: $cursor)) {
   .login-container .el-input input {
@@ -222,35 +225,62 @@ $cursor: #fff;
     width: 85%;
 
     input {
-      background: transparent;
-      border: 0px;
-      -webkit-appearance: none;
-      border-radius: 0px;
-      padding: 12px 5px 12px 15px;
+      background: rgba(255, 255, 255, 0.04);
+      border: none;
+      border-radius: 4px;
+      padding: 12px 15px;
       color: $light_gray;
       height: 47px;
-      caret-color: $cursor;
+      transition: all 0.3s;
+
+      &:focus {
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 0 2px rgba($theme-color, 0.2);
+      }
 
       &:-webkit-autofill {
-        box-shadow: 0 0 0px 1000px $bg inset !important;
-        -webkit-text-fill-color: $cursor !important;
+        box-shadow: 0 0 0 1000px $card-bg inset !important;
+        -webkit-text-fill-color: $light_gray !important;
       }
     }
   }
 
   .el-form-item {
     border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(0, 0, 0, 0.1);
-    border-radius: 5px;
-    color: #454545;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+    transition: all 0.3s;
+
+    &:hover {
+      border-color: rgba($theme-color, 0.8);
+      background: rgba(255, 255, 255, 0.08);
+    }
+  }
+
+  .login-button {
+    width: 100%;
+    height: 47px;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.3s;
+    background: $theme-color;
+    border-color: $theme-color;
+    margin: 10px 0 30px 0;
+
+    &:hover {
+      background: lighten($theme-color, 10%);
+      border-color: lighten($theme-color, 10%);
+    }
   }
 }
 </style>
 
 <style lang="scss" scoped>
-$bg:#2d3a4b;
-$dark_gray:#889aa4;
-$light_gray:#eee;
+$bg: #1f1f1f;
+$dark_gray: #888;
+$light_gray: #fff;
+$card-bg: #2d2d2d; // 在 scoped 样式中保留
 
 .login-container {
   min-height: 100%;
@@ -264,19 +294,16 @@ $light_gray:#eee;
     max-width: 100%;
     padding: 160px 35px 0;
     margin: 0 auto;
-    overflow: hidden;
+    background: $card-bg;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    margin-top: 120px;
   }
 
   .tips {
     font-size: 14px;
-    color: #fff;
+    color: $dark_gray;
     margin-bottom: 10px;
-
-    span {
-      &:first-of-type {
-        margin-right: 16px;
-      }
-    }
   }
 
   .svg-container {
@@ -291,11 +318,18 @@ $light_gray:#eee;
     position: relative;
 
     .title {
-      font-size: 26px;
+      font-size: 28px;
       color: $light_gray;
-      margin: 0px auto 40px auto;
+      margin: 0px auto 20px auto;
       text-align: center;
       font-weight: bold;
+    }
+
+    .sub-title {
+      font-size: 14px;
+      color: $dark_gray;
+      text-align: center;
+      margin-bottom: 40px;
     }
   }
 
@@ -313,11 +347,13 @@ $light_gray:#eee;
     position: absolute;
     right: 0;
     bottom: 6px;
-  }
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: $light_gray;
 
-  @media only screen and (max-width: 470px) {
-    .thirdparty-button {
-      display: none;
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
     }
   }
 }
