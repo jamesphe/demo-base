@@ -156,7 +156,7 @@ export function getTrainingProjects(query) {
       }
     })
   }
-  
+
   return request({
     url: '/api/training-projects',
     method: 'get',
@@ -174,7 +174,7 @@ export function getTrainingProject(id) {
       data: project
     })
   }
-  
+
   return request({
     url: `/api/training-projects/${id}`,
     method: 'get'
@@ -205,4 +205,4 @@ export function deleteTrainingProject(id) {
     url: `/api/training-projects/${id}`,
     method: 'delete'
   })
-} 
+}

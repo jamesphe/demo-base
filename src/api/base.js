@@ -32,4 +32,4 @@ export function deleteBase(id) {
     url: `/base/${id}`,
     method: 'delete'
   })
-} 
+}

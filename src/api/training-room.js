@@ -39,7 +39,7 @@ export function getTrainingRoom(id) {
       data: mockDetail
     })
   }
-  
+
   return request({
     url: `/api/training-rooms/${id}`,
     method: 'get'
@@ -70,4 +70,4 @@ export function deleteTrainingRoom(id) {
     url: `/api/training-rooms/${id}`,
     method: 'delete'
   })
-} 
+}

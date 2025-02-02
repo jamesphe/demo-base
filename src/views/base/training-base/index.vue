@@ -193,7 +193,7 @@ export default {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(async () => {
+      }).then(async() => {
         try {
           await deleteBase(row.id)
           this.$message.success('删除成功')
@@ -208,7 +208,7 @@ export default {
       this.$router.push({ path: `/base/room/${row.id}` })
     },
     async submitForm() {
-      this.$refs['baseForm'].validate(async (valid) => {
+      this.$refs['baseForm'].validate(async(valid) => {
         if (valid) {
           try {
             if (this.baseForm.id) {
@@ -239,4 +239,4 @@ export default {
   margin-right: 10px;
   margin-bottom: 10px;
 }
-</style> 
+</style>

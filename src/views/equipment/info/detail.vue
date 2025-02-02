@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <el-card class="box-card" v-loading="loading" shadow="hover">
+    <el-card v-loading="loading" class="box-card" shadow="hover">
       <!-- 头部区域 -->
       <div slot="header" class="clearfix header-wrapper">
         <div class="left-area">
@@ -8,7 +8,7 @@
             <i class="el-icon-cpu" />
             设备详情
           </span>
-          <el-tag 
+          <el-tag
             :type="equipmentDetail.status | statusFilter"
             class="status-tag"
           >
@@ -247,13 +247,13 @@ $font-size-small: 13px;
   .left-area {
     display: flex;
     align-items: center;
-    
+
     .header-title {
       font-size: $font-size-large;
       font-weight: 600;
       margin-right: 15px;
       color: $text-primary;
-      
+
       i {
         margin-right: 8px;
         font-size: 20px;
@@ -280,7 +280,7 @@ $font-size-small: 13px;
     font-size: $font-size-medium;
     font-weight: 600;
     color: $text-primary;
-    
+
     i {
       margin-right: 8px;
       color: $primary-color;
@@ -295,21 +295,21 @@ $font-size-small: 13px;
 .detail-item {
   margin-bottom: 20px;
   line-height: 24px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
-  
+
   .label {
     display: inline-block;
     min-width: 100px;
     color: $text-secondary;
     font-weight: 500;
   }
-  
+
   .content {
     color: $text-regular;
-    
+
     &:empty::after {
       content: '暂无';
       color: $text-secondary;
@@ -326,16 +326,16 @@ $font-size-small: 13px;
 .el-card {
   border-radius: 8px;
   transition: all 0.3s;
-  
+
   &.box-card {
     margin-bottom: 20px;
   }
-  
+
   &::v-deep .el-card__header {
     padding: 15px 20px;
     border-bottom: 1px solid $border-color;
   }
-  
+
   &::v-deep .el-card__body {
     padding: 20px;
   }
@@ -352,24 +352,24 @@ $font-size-small: 13px;
   .el-col {
     width: 100% !important;
   }
-  
+
   .detail-item {
     margin-bottom: 15px;
-    
+
     .label {
       min-width: 90px;
       font-size: $font-size-small;
     }
-    
+
     .content {
       font-size: $font-size-small;
     }
   }
-  
+
   .header-wrapper {
     flex-direction: column;
     align-items: flex-start;
-    
+
     .right-area {
       margin-top: 10px;
       width: 100%;
@@ -385,31 +385,31 @@ $font-size-small: 13px;
 
   .el-empty {
     padding: 40px 0;
-    
+
     &__image {
       width: 160px;
       margin: 0 auto;
-      
+
       img {
         width: 100%;
         height: 100%;
         vertical-align: top;
       }
     }
-    
+
     &__description {
       margin-top: 20px;
-      
+
       p {
         margin: 0;
         font-size: 14px;
         color: #909399;
       }
     }
-    
+
     &__bottom {
       margin-top: 20px;
     }
   }
 }
-</style> 
+</style>

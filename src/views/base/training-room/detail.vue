@@ -1,6 +1,6 @@
 <template>
   <div class="app-container">
-    <el-card class="box-card" v-loading="loading" shadow="hover">
+    <el-card v-loading="loading" class="box-card" shadow="hover">
       <!-- 头部区域 -->
       <div slot="header" class="clearfix header-wrapper">
         <div class="left-area">
@@ -8,8 +8,8 @@
             <i class="el-icon-school" />
             实训室详情
           </span>
-          <el-tag 
-            v-if="roomDetail.status" 
+          <el-tag
+            v-if="roomDetail.status"
             :type="roomDetail.status | statusFilter"
             class="status-tag"
           >
@@ -167,7 +167,7 @@
         </el-card>
       </template>
 
-      <el-empty 
+      <el-empty
         v-else-if="!loading && !roomDetail.id"
         description="未找到实训室信息"
       >
@@ -259,13 +259,13 @@ $font-size-small: 13px;
   .left-area {
     display: flex;
     align-items: center;
-    
+
     .header-title {
       font-size: $font-size-large;
       font-weight: 600;
       margin-right: 15px;
       color: $text-primary;
-      
+
       i {
         margin-right: 8px;
         font-size: 20px;
@@ -290,7 +290,7 @@ $font-size-small: 13px;
 .detail-section {
   margin-bottom: 20px;
   border-radius: 8px;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -299,7 +299,7 @@ $font-size-small: 13px;
     font-size: $font-size-medium;
     font-weight: 600;
     color: $text-primary;
-    
+
     i {
       margin-right: 8px;
       color: $primary-color;
@@ -311,21 +311,21 @@ $font-size-small: 13px;
   margin-bottom: 20px;
   line-height: 24px;
   font-size: $font-size-base;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
-  
+
   .label {
     display: inline-block;
     min-width: 100px;
     color: $text-secondary;
     font-weight: 500;
   }
-  
+
   .content {
     color: $text-regular;
-    
+
     &:empty::after {
       content: '暂无';
       color: $text-secondary;
@@ -344,17 +344,17 @@ $font-size-small: 13px;
 .el-card {
   border-radius: 8px;
   transition: all 0.3s;
-  
+
   &.box-card {
     margin-bottom: 20px;
   }
-  
+
   &::v-deep .el-card__header {
     padding: 15px 20px;
     border-bottom: 1px solid $border-color;
     font-size: $font-size-base;
   }
-  
+
   &::v-deep .el-card__body {
     padding: 20px;
     font-size: $font-size-base;
@@ -365,11 +365,11 @@ $font-size-small: 13px;
     .el-tag {
       font-size: $font-size-small;
     }
-    
+
     .el-button {
       font-size: $font-size-base;
     }
-    
+
     .el-empty__description {
       font-size: $font-size-base;
     }
@@ -381,7 +381,7 @@ $font-size-small: 13px;
   .el-col {
     width: 50% !important;
   }
-  
+
   .detail-item {
     .label {
       font-size: $font-size-base;
@@ -396,46 +396,46 @@ $font-size-small: 13px;
   .el-col {
     width: 100% !important;
   }
-  
+
   .detail-item {
     margin-bottom: 15px;
-    
+
     .label {
       min-width: 90px;
       font-size: $font-size-small;
     }
-    
+
     .content {
       font-size: $font-size-small;
     }
   }
-  
+
   .header-wrapper {
     flex-direction: column;
     align-items: flex-start;
-    
+
     .left-area {
       .header-title {
         font-size: $font-size-medium;
       }
     }
-    
+
     .right-area {
       margin-top: 10px;
       width: 100%;
       display: flex;
       justify-content: flex-end;
-      
+
       .el-button {
         font-size: $font-size-small;
       }
     }
   }
-  
+
   .detail-section {
     .section-header {
       font-size: $font-size-base;
     }
   }
 }
-</style> 
+</style>

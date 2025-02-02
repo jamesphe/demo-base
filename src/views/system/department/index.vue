@@ -23,12 +23,12 @@
       style="width: 100%"
       border
     >
-      <el-table-column prop="name" label="院系名称" align="center"></el-table-column>
-      <el-table-column prop="code" label="院系代码" align="center"></el-table-column>
-      <el-table-column prop="director" label="院系主任" align="center"></el-table-column>
-      <el-table-column prop="contact" label="联系方式" align="center"></el-table-column>
-      <el-table-column prop="classCount" label="班级数" align="center"></el-table-column>
-      <el-table-column prop="studentCount" label="学生数" align="center"></el-table-column>
+      <el-table-column prop="name" label="院系名称" align="center" />
+      <el-table-column prop="code" label="院系代码" align="center" />
+      <el-table-column prop="director" label="院系主任" align="center" />
+      <el-table-column prop="contact" label="联系方式" align="center" />
+      <el-table-column prop="classCount" label="班级数" align="center" />
+      <el-table-column prop="studentCount" label="学生数" align="center" />
       <el-table-column label="操作" align="center" width="300">
         <template slot-scope="scope">
           <el-button type="primary" size="mini" @click="handleEdit(scope.row)">编辑</el-button>
@@ -50,16 +50,16 @@
     <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="500px">
       <el-form ref="departmentForm" :model="departmentForm" :rules="rules" label-width="100px">
         <el-form-item label="院系名称" prop="name">
-          <el-input v-model="departmentForm.name" placeholder="请输入院系名称"></el-input>
+          <el-input v-model="departmentForm.name" placeholder="请输入院系名称" />
         </el-form-item>
         <el-form-item label="院系代码" prop="code">
-          <el-input v-model="departmentForm.code" placeholder="请输入院系代码"></el-input>
+          <el-input v-model="departmentForm.code" placeholder="请输入院系代码" />
         </el-form-item>
         <el-form-item label="院系主任" prop="director">
-          <el-input v-model="departmentForm.director" placeholder="请输入院系主任姓名"></el-input>
+          <el-input v-model="departmentForm.director" placeholder="请输入院系主任姓名" />
         </el-form-item>
         <el-form-item label="联系方式" prop="contact">
-          <el-input v-model="departmentForm.contact" placeholder="请输入联系方式"></el-input>
+          <el-input v-model="departmentForm.contact" placeholder="请输入联系方式" />
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -154,7 +154,7 @@ export default {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(async () => {
+      }).then(async() => {
         try {
           await deleteDepartment(row.id)
           this.$message.success('删除成功')
@@ -169,7 +169,7 @@ export default {
       this.$router.push({ path: `/system/class/${row.id}` })
     },
     async submitForm() {
-      this.$refs['departmentForm'].validate(async (valid) => {
+      this.$refs['departmentForm'].validate(async(valid) => {
         if (valid) {
           try {
             if (this.departmentForm.id) {
@@ -200,4 +200,4 @@ export default {
   margin-right: 10px;
   margin-bottom: 10px;
 }
-</style> 
+</style>

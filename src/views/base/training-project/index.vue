@@ -15,24 +15,24 @@
         class="filter-item"
         @keyup.enter.native="handleFilter"
       />
-      <el-select 
-        v-model="listQuery.majorCode" 
-        placeholder="归口专业" 
-        style="width: 200px" 
+      <el-select
+        v-model="listQuery.majorCode"
+        placeholder="归口专业"
+        style="width: 200px"
         class="filter-item"
         clearable
       >
-        <el-option 
-          v-for="item in majorOptions" 
-          :key="item.code" 
-          :label="item.name" 
-          :value="item.code" 
+        <el-option
+          v-for="item in majorOptions"
+          :key="item.code"
+          :label="item.name"
+          :value="item.code"
         />
       </el-select>
-      <el-select 
-        v-model="listQuery.semester" 
-        placeholder="学期" 
-        style="width: 150px" 
+      <el-select
+        v-model="listQuery.semester"
+        placeholder="学期"
+        style="width: 150px"
         class="filter-item"
         clearable
       >
@@ -109,12 +109,12 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="项目编号" prop="projectCode">
-              <el-input v-model="temp.projectCode" placeholder="请输入项目编号"/>
+              <el-input v-model="temp.projectCode" placeholder="请输入项目编号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="项目名称" prop="name">
-              <el-input v-model="temp.name" placeholder="请输入项目名称"/>
+              <el-input v-model="temp.name" placeholder="请输入项目名称" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -122,12 +122,12 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="归口专业号" prop="majorCode">
-              <el-input v-model="temp.majorCode" placeholder="请输入专业编号"/>
+              <el-input v-model="temp.majorCode" placeholder="请输入专业编号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="归口专业名称" prop="majorName">
-              <el-input v-model="temp.majorName" placeholder="请输入专业名称"/>
+              <el-input v-model="temp.majorName" placeholder="请输入专业名称" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -135,7 +135,7 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="计划课程号" prop="courseCode">
-              <el-input v-model="temp.courseCode" placeholder="请输入课程编号"/>
+              <el-input v-model="temp.courseCode" placeholder="请输入课程编号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -152,12 +152,12 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="模块数量" prop="moduleCount">
-              <el-input-number v-model="temp.moduleCount" :min="1" style="width: 100%"/>
+              <el-input-number v-model="temp.moduleCount" :min="1" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="实训课时数" prop="trainingHours">
-              <el-input-number v-model="temp.trainingHours" :min="0" style="width: 100%"/>
+              <el-input-number v-model="temp.trainingHours" :min="0" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -165,7 +165,7 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="学年" prop="academicYear">
-              <el-input v-model="temp.academicYear" placeholder="如：2023-2024"/>
+              <el-input v-model="temp.academicYear" placeholder="如：2023-2024" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -188,23 +188,23 @@
         </el-row>
 
         <el-form-item label="配套实训资源" prop="trainingResources">
-          <el-input type="textarea" v-model="temp.trainingResources" :rows="2"/>
+          <el-input v-model="temp.trainingResources" type="textarea" :rows="2" />
         </el-form-item>
 
         <el-form-item label="典型任务名称" prop="typicalTasks">
-          <el-input type="textarea" v-model="temp.typicalTasks" :rows="2"/>
+          <el-input v-model="temp.typicalTasks" type="textarea" :rows="2" />
         </el-form-item>
 
         <el-form-item label="技能要求" prop="skillRequirements">
-          <el-input type="textarea" v-model="temp.skillRequirements" :rows="2"/>
+          <el-input v-model="temp.skillRequirements" type="textarea" :rows="2" />
         </el-form-item>
 
         <el-form-item label="考核方式" prop="assessmentMethod">
-          <el-input type="textarea" v-model="temp.assessmentMethod" :rows="2"/>
+          <el-input v-model="temp.assessmentMethod" type="textarea" :rows="2" />
         </el-form-item>
 
         <el-form-item label="其他实训地点" prop="otherTrainingLocations">
-          <el-input type="textarea" v-model="temp.otherTrainingLocations" :rows="2"/>
+          <el-input v-model="temp.otherTrainingLocations" type="textarea" :rows="2" />
         </el-form-item>
 
         <el-form-item label="校内实训室号" prop="trainingRoomCode">
@@ -410,4 +410,4 @@ export default {
 :deep(.el-input-number) {
   width: 100%;
 }
-</style> 
+</style>

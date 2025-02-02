@@ -63,4 +63,4 @@ export function getManagerOptions() {
     url: '/equipment/manager-options',
     method: 'get'
   })
-} 
+}

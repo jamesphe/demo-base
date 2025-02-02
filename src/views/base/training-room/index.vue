@@ -8,19 +8,19 @@
         class="filter-item"
         @keyup.enter.native="handleFilter"
       />
-      <el-select 
-        v-model="listQuery.baseId" 
-        placeholder="所属基地" 
-        clearable 
-        style="width: 200px" 
+      <el-select
+        v-model="listQuery.baseId"
+        placeholder="所属基地"
+        clearable
+        style="width: 200px"
         class="filter-item"
         @change="handleFilter"
       >
-        <el-option 
-          v-for="item in baseList" 
-          :key="item.id" 
-          :label="item.name" 
-          :value="item.id" 
+        <el-option
+          v-for="item in baseList"
+          :key="item.id"
+          :label="item.name"
+          :value="item.id"
         />
       </el-select>
       <el-select v-model="listQuery.status" placeholder="状态" clearable style="width: 120px" class="filter-item">
@@ -84,8 +84,8 @@
     />
 
     <!-- 编辑/新增对话框 -->
-    <el-dialog 
-      :title="dialogStatus === 'create' ? '新增实训室' : '编辑实训室'" 
+    <el-dialog
+      :title="dialogStatus === 'create' ? '新增实训室' : '编辑实训室'"
       :visible.sync="dialogFormVisible"
       width="65%"
       :close-on-click-modal="false"
@@ -100,12 +100,12 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="实训室号" prop="roomCode">
-              <el-input v-model="temp.roomCode" placeholder="请输入实训室编号"/>
+              <el-input v-model="temp.roomCode" placeholder="请输入实训室编号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="实训室名称" prop="name">
-              <el-input v-model="temp.name" placeholder="请输入实训室名称"/>
+              <el-input v-model="temp.name" placeholder="请输入实训室名称" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -114,11 +114,11 @@
           <el-col :span="12">
             <el-form-item label="所属基地" prop="baseId">
               <el-select v-model="temp.baseId" class="filter-item" placeholder="请选择基地" style="width: 100%">
-                <el-option 
-                  v-for="item in baseList" 
-                  :key="item.id" 
-                  :label="item.name" 
-                  :value="item.id" 
+                <el-option
+                  v-for="item in baseList"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
                 />
               </el-select>
             </el-form-item>
@@ -126,10 +126,10 @@
           <el-col :span="12">
             <el-form-item label="状态" prop="status">
               <el-select v-model="temp.status" class="filter-item" placeholder="请选择状态" style="width: 100%">
-                <el-option 
-                  v-for="item in statusOptions" 
-                  :key="item.value" 
-                  :label="item.label" 
+                <el-option
+                  v-for="item in statusOptions"
+                  :key="item.value"
+                  :label="item.label"
                   :value="item.value"
                 >
                   <el-tag :type="item.value | statusFilter" size="small">
@@ -144,12 +144,12 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="房间号" prop="physicalRoomNo">
-              <el-input v-model="temp.physicalRoomNo" placeholder="请输入房间号"/>
+              <el-input v-model="temp.physicalRoomNo" placeholder="请输入房间号" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="房间名称" prop="physicalRoomName">
-              <el-input v-model="temp.physicalRoomName" placeholder="请输入房间名称"/>
+              <el-input v-model="temp.physicalRoomName" placeholder="请输入房间名称" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -164,9 +164,9 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="建筑面积" prop="buildingArea">
-              <el-input-number 
-                v-model="temp.buildingArea" 
-                :min="0" 
+              <el-input-number
+                v-model="temp.buildingArea"
+                :min="0"
                 :precision="2"
                 style="width: 100%"
                 placeholder="请输入建筑面积"
@@ -177,9 +177,9 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="使用面积" prop="usableArea">
-              <el-input-number 
-                v-model="temp.usableArea" 
-                :min="0" 
+              <el-input-number
+                v-model="temp.usableArea"
+                :min="0"
                 :precision="2"
                 style="width: 100%"
                 placeholder="请输入使用面积"
@@ -190,8 +190,8 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="工位数" prop="capacity">
-              <el-input-number 
-                v-model="temp.capacity" 
+              <el-input-number
+                v-model="temp.capacity"
                 :min="1"
                 style="width: 100%"
                 placeholder="请输入工位数"
@@ -203,8 +203,8 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="设备台套数" prop="deviceCount">
-              <el-input-number 
-                v-model="temp.deviceCount" 
+              <el-input-number
+                v-model="temp.deviceCount"
                 :min="0"
                 style="width: 100%"
                 placeholder="请输入设备数量"
@@ -213,8 +213,8 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="每周课时数" prop="weeklyClassHours">
-              <el-input-number 
-                v-model="temp.weeklyClassHours" 
+              <el-input-number
+                v-model="temp.weeklyClassHours"
                 :min="0"
                 style="width: 100%"
                 placeholder="请输入课时数"
@@ -237,17 +237,17 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="合作企业" prop="cooperativeCompany">
-              <el-input v-model="temp.cooperativeCompany" placeholder="请输入合作企业名称"/>
+              <el-input v-model="temp.cooperativeCompany" placeholder="请输入合作企业名称" />
             </el-form-item>
           </el-col>
         </el-row>
 
         <el-form-item label="配套设施" prop="facilities">
-          <el-input type="textarea" v-model="temp.facilities" :rows="2" placeholder="请输入配套设施信息"/>
+          <el-input v-model="temp.facilities" type="textarea" :rows="2" placeholder="请输入配套设施信息" />
         </el-form-item>
 
         <el-form-item label="备注">
-          <el-input type="textarea" v-model="temp.remark" :rows="2" placeholder="请输入备注信息"/>
+          <el-input v-model="temp.remark" type="textarea" :rows="2" placeholder="请输入备注信息" />
         </el-form-item>
       </el-form>
 
@@ -270,16 +270,16 @@ export default {
   filters: {
     statusFilter(status) {
       const statusMap = {
-        available: 'success',    // 可用 - 绿色
-        maintenance: 'warning',  // 维护中 - 黄色
-        occupied: 'danger'       // 已预约 - 红色
+        available: 'success', // 可用 - 绿色
+        maintenance: 'warning', // 维护中 - 黄色
+        occupied: 'danger' // 已预约 - 红色
       }
       return statusMap[status]
     },
     statusTextFilter(status) {
       const statusMap = {
         available: '可用',
-        maintenance: '维护中', 
+        maintenance: '维护中',
         occupied: '已预约'
       }
       return statusMap[status]
@@ -488,4 +488,4 @@ export default {
 :deep(.el-input-number) {
   width: 100%;
 }
-</style> 
+</style>

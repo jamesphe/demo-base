@@ -33,4 +33,4 @@ export function deleteDepartment(id) {
     url: `/department/${id}`,
     method: 'delete'
   })
-} 
+}

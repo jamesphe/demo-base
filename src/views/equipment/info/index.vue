@@ -8,32 +8,32 @@
         class="filter-item"
         @keyup.enter.native="handleFilter"
       />
-      <el-select 
-        v-model="listQuery.status" 
-        placeholder="设备状态" 
-        style="width: 120px" 
+      <el-select
+        v-model="listQuery.status"
+        placeholder="设备状态"
+        style="width: 120px"
         class="filter-item"
         clearable
       >
-        <el-option 
-          v-for="item in statusOptions" 
-          :key="item.value" 
-          :label="item.label" 
-          :value="item.value" 
+        <el-option
+          v-for="item in statusOptions"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
         />
       </el-select>
-      <el-select 
-        v-model="listQuery.roomId" 
-        placeholder="所属实训室" 
-        style="width: 200px" 
+      <el-select
+        v-model="listQuery.roomId"
+        placeholder="所属实训室"
+        style="width: 200px"
         class="filter-item"
         clearable
       >
-        <el-option 
-          v-for="room in roomOptions" 
-          :key="room.id" 
-          :label="room.name" 
-          :value="room.id" 
+        <el-option
+          v-for="room in roomOptions"
+          :key="room.id"
+          :label="room.name"
+          :value="room.id"
         />
       </el-select>
       <el-button class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
@@ -106,12 +106,12 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="设备编号" prop="equipmentCode">
-              <el-input v-model="temp.equipmentCode" placeholder="请输入设备编号"/>
+              <el-input v-model="temp.equipmentCode" placeholder="请输入设备编号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="设备名称" prop="name">
-              <el-input v-model="temp.name" placeholder="请输入设备名称"/>
+              <el-input v-model="temp.name" placeholder="请输入设备名称" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -119,16 +119,16 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="设备型号" prop="model">
-              <el-input v-model="temp.model" placeholder="请输入设备型号"/>
+              <el-input v-model="temp.model" placeholder="请输入设备型号" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="设备状态" prop="status">
               <el-select v-model="temp.status" class="filter-item" placeholder="请选择状态" style="width: 100%">
-                <el-option 
-                  v-for="item in statusOptions" 
-                  :key="item.value" 
-                  :label="item.label" 
+                <el-option
+                  v-for="item in statusOptions"
+                  :key="item.value"
+                  :label="item.label"
                   :value="item.value"
                 />
               </el-select>
@@ -139,10 +139,10 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="价格" prop="price">
-              <el-input-number 
-                v-model="temp.price" 
-                :min="0" 
-                :precision="2" 
+              <el-input-number
+                v-model="temp.price"
+                :min="0"
+                :precision="2"
                 style="width: 100%"
                 placeholder="请输入价格"
               />
@@ -150,9 +150,9 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="数量" prop="quantity">
-              <el-input-number 
-                v-model="temp.quantity" 
-                :min="1" 
+              <el-input-number
+                v-model="temp.quantity"
+                :min="1"
                 style="width: 100%"
                 placeholder="请输入数量"
               />
@@ -160,9 +160,9 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="购买年限" prop="lifespan">
-              <el-input-number 
-                v-model="temp.lifespan" 
-                :min="1" 
+              <el-input-number
+                v-model="temp.lifespan"
+                :min="1"
                 style="width: 100%"
                 placeholder="请输入年限"
               />
@@ -173,24 +173,24 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="所属实训室" prop="roomId">
-              <el-select 
-                v-model="temp.roomId" 
+              <el-select
+                v-model="temp.roomId"
                 placeholder="请选择实训室"
                 style="width: 100%"
                 filterable
               >
-                <el-option 
-                  v-for="room in roomOptions" 
-                  :key="room.id" 
-                  :label="room.name" 
-                  :value="room.id" 
+                <el-option
+                  v-for="room in roomOptions"
+                  :key="room.id"
+                  :label="room.name"
+                  :value="room.id"
                 />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="负责人" prop="manager">
-              <el-input v-model="temp.manager" placeholder="请输入负责人"/>
+              <el-input v-model="temp.manager" placeholder="请输入负责人" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -209,17 +209,17 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="供应商" prop="supplier">
-              <el-input v-model="temp.supplier" placeholder="请输入供应商"/>
+              <el-input v-model="temp.supplier" placeholder="请输入供应商" />
             </el-form-item>
           </el-col>
         </el-row>
 
         <el-form-item label="生产厂家" prop="manufacturer">
-          <el-input v-model="temp.manufacturer" placeholder="请输入生产厂家"/>
+          <el-input v-model="temp.manufacturer" placeholder="请输入生产厂家" />
         </el-form-item>
 
         <el-form-item label="备注" prop="remark">
-          <el-input type="textarea" v-model="temp.remark" :rows="2"/>
+          <el-input v-model="temp.remark" type="textarea" :rows="2" />
         </el-form-item>
       </el-form>
 
@@ -351,7 +351,7 @@ export default {
       })
     },
     createData() {
-      this.$refs['dataForm'].validate(async (valid) => {
+      this.$refs['dataForm'].validate(async(valid) => {
         if (valid) {
           try {
             await addEquipment(this.temp)
@@ -376,7 +376,7 @@ export default {
       })
     },
     updateData() {
-      this.$refs['dataForm'].validate(async (valid) => {
+      this.$refs['dataForm'].validate(async(valid) => {
         if (valid) {
           try {
             await updateEquipment(this.temp)
@@ -397,7 +397,7 @@ export default {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(async () => {
+      }).then(async() => {
         try {
           await deleteEquipment(row.id)
           this.$message({
@@ -435,4 +435,4 @@ export default {
 :deep(.el-input-number) {
   width: 100%;
 }
-</style> 
+</style>
