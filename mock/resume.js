@@ -1,7 +1,7 @@
 const Mock = require('mockjs')
 
 const List = []
-const count = 100
+const count = 20
 
 const skillPool = [
   'Java', 'Spring Boot', 'Spring Cloud', 'MyBatis', 'MySQL',

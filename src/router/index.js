@@ -100,7 +100,8 @@ export const constantRoutes = [
   {
     path: '/candidate',
     component: Layout,
-    meta: { title: '候选人管理', icon: 'el-icon-user' },
+    name: 'Candidate',
+    meta: { title: '候选人管理', icon: 'peoples' },
     children: [
       {
         path: 'profile',
