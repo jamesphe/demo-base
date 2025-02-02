@@ -5,18 +5,24 @@ const user = require('./user')
 const role = require('./role')
 const article = require('./article')
 const search = require('./remote-search')
+const base = require('./base')
+const equipment = require('./equipment')
 
 const mocks = [
   ...user,
   ...role,
   ...article,
-  ...search
+  ...search,
+  ...base,
+  ...equipment
 ]
 
 // for front mock
 // please use it cautiously, it will redefine XMLHttpRequest,
 // which will cause many of your third-party libraries to be invalidated(like progress event).
 function mockXHR() {
+  console.log('Initializing Mock XHR')  // 添加日志
+  
   // mock patch
   // https://github.com/nuysoft/Mock/issues/300
   Mock.XHR.prototype.proxy_send = Mock.XHR.prototype.send
@@ -49,8 +55,11 @@ function mockXHR() {
     }
   }
 
+  // 统一注册所有mock接口
   for (const i of mocks) {
-    Mock.mock(new RegExp(i.url), i.type || 'get', XHR2ExpressReqWrap(i.response))
+    const url = '^' + process.env.VUE_APP_BASE_API + i.url
+    console.log('Registering mock:', url, i.type)  // 添加日志
+    Mock.mock(new RegExp(url), i.type || 'get', XHR2ExpressReqWrap(i.response))
   }
 }
 

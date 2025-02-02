@@ -18,6 +18,18 @@ export default {
     key() {
       return this.$route.path
     }
+  },
+  mounted() {
+    // 添加 passive 标志
+    window.addEventListener('scroll', this.handleScroll, { passive: true })
+  },
+  beforeDestroy() {
+    window.removeEventListener('scroll', this.handleScroll)
+  },
+  methods: {
+    handleScroll() {
+      // 处理滚动事件
+    }
   }
 }
 </script>
