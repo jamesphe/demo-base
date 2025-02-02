@@ -8,6 +8,7 @@
 import { isExternal } from '@/utils/validate'
 
 export default {
+  name: 'AppLink',
   props: {
     to: {
       type: String,
@@ -15,27 +16,24 @@ export default {
     }
   },
   computed: {
-    isExternal() {
-      return isExternal(this.to)
-    },
     type() {
-      if (this.isExternal) {
+      if (isExternal(this.to)) {
         return 'a'
       }
       return 'router-link'
     }
   },
   methods: {
-    linkProps(to) {
-      if (this.isExternal) {
+    linkProps(url) {
+      if (isExternal(url)) {
         return {
-          href: to,
+          href: url,
           target: '_blank',
           rel: 'noopener'
         }
       }
       return {
-        to: to
+        to: url
       }
     }
   }
