@@ -28,10 +28,13 @@ import * as filters from './filters' // global filters
  * Currently MockJs will be used in the development environment,
  * please remove it before going online ! ! !
  */
+// 注释掉这段代码以禁用mock服务
+/*
 if (process.env.NODE_ENV === 'development') {
   const { mockXHR } = require('../mock')
   mockXHR()
 }
+*/
 
 Vue.use(Element, {
   size: Cookies.get('size') || 'medium', // set element-ui default size

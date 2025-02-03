@@ -34,9 +34,9 @@ const actions = {
     const { username, password } = userInfo
     return new Promise((resolve, reject) => {
       login({ username: username.trim(), password: password }).then(response => {
-        const { data } = response
-        commit('SET_TOKEN', data.token)
-        setToken(data.token)
+        const { access_token } = response
+        commit('SET_TOKEN', access_token)
+        setToken(access_token)
         resolve()
       }).catch(error => {
         reject(error)
@@ -47,25 +47,21 @@ const actions = {
   // get user info
   getInfo({ commit, state }) {
     return new Promise((resolve, reject) => {
-      getInfo(state.token).then(response => {
-        const { data } = response
-
-        if (!data) {
-          reject('Verification failed, please Login again.')
+      getInfo().then(response => {
+        if (!response) {
+          reject('验证失败,请重新登录.')
         }
 
-        const { roles, name, avatar, introduction } = data
-
-        // roles must be a non-empty array
-        if (!roles || roles.length <= 0) {
-          reject('getInfo: roles must be a non-null array!')
-        }
-
+        // 设置角色
+        const roles = response.is_superuser ? ['admin'] : ['editor']
+        
+        // 设置用户信息
         commit('SET_ROLES', roles)
-        commit('SET_NAME', name)
-        commit('SET_AVATAR', avatar)
-        commit('SET_INTRODUCTION', introduction)
-        resolve(data)
+        commit('SET_NAME', response.username)
+        commit('SET_AVATAR', 'https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif') // 设置默认头像
+        commit('SET_INTRODUCTION', response.email)
+        
+        resolve({ roles })
       }).catch(error => {
         reject(error)
       })

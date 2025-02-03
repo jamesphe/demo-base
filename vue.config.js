@@ -36,7 +36,28 @@ module.exports = {
       warnings: false,
       errors: true
     },
-    before: require('./mock/mock-server.js')
+    proxy: {
+      '/dev-api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/dev-api': ''
+        },
+        secure: false,
+        ws: false,
+        onProxyReq: (proxyReq, req, res) => {
+          console.log('\n=== Proxy Request Details ===');
+          console.log('Original URL:', req.url);
+          console.log('Target URL:', `${proxyReq.protocol}//${proxyReq.host}${proxyReq.path}`);
+          console.log('Method:', req.method);
+        },
+        onError: (err, req, res) => {
+          console.log('\n=== Proxy Error Details ===');
+          console.log('Error:', err.message);
+          console.log('Error Code:', err.code);
+        }
+      }
+    }
   },
   configureWebpack: {
     // provide the app's title in webpack's name field, so that

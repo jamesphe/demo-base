@@ -1,5 +1,6 @@
 from typing import Optional
 from pydantic import BaseModel, EmailStr
+from pydantic import validator
 
 class UserBase(BaseModel):
     email: Optional[EmailStr] = None
@@ -10,7 +11,10 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     email: EmailStr
     password: str
-    username: str
+
+    @validator('email')
+    def email_as_username(cls, v):
+        return v
 
 class UserUpdate(UserBase):
     password: Optional[str] = None
