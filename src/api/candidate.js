@@ -19,20 +19,20 @@ export function getEvaluationList(params) {
 }
 
 // 获取职位列表
-export function getPositionList(params) {
+export function getPositionList(query) {
   return request({
-    url: '/vue-element-admin/position/list',
+    url: '/dev-api/vue-element-admin/position/list',
     method: 'get',
-    params
+    params: query
   })
 }
 
 // 获取推荐候选人列表
-export function getRecommendations(params) {
+export function getRecommendations(query) {
   return request({
-    url: '/vue-element-admin/candidate/recommendation',
+    url: '/dev-api/vue-element-admin/candidate/recommendation/list',
     method: 'get',
-    params
+    params: query
   })
 }
 

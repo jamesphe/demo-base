@@ -263,7 +263,7 @@ module.exports = [
 
   // 获取推荐候选人列表
   {
-    url: '/dev-api/vue-element-admin/candidate/recommendation',
+    url: '/dev-api/vue-element-admin/candidate/recommendation/list',
     type: 'get',
     response: config => {
       const { positionId, matchRate, page = 1, limit = 10 } = config.query
@@ -296,6 +296,13 @@ module.exports = [
       const { id } = config.query
       const recommendation = recommendationList.items.find(item => item.id === parseInt(id))
       
+      if (!recommendation) {
+        return {
+          code: 50404,
+          message: '候选人不存在'
+        }
+      }
+
       return {
         code: 20000,
         data: recommendation
@@ -308,18 +315,17 @@ module.exports = [
     url: '/dev-api/vue-element-admin/candidate/recommendation/contact',
     type: 'post',
     response: config => {
-      const { id, type } = config.body
+      const { id } = config.body
       
       return {
         code: 20000,
         data: {
           message: '操作成功',
-          // 模拟返回联系方式
-          contact: {
+          contact: Mock.mock({
             phone: /^1[3-9]\d{9}$/,
             email: '@email',
             wechat: /^[a-zA-Z][a-zA-Z\d_-]{5,19}$/
-          }
+          })
         }
       }
     }

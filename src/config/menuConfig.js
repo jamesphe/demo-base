@@ -2,7 +2,13 @@ export const menuItems = [
   {
     path: '/dashboard',
     title: '首页',
-    icon: 'el-icon-s-home'
+    icon: 'el-icon-house',
+    children: [
+      {
+        path: '/dashboard',
+        title: '首页'
+      }
+    ]
   },
   {
     title: '简历管理',
@@ -27,8 +33,8 @@ export const menuItems = [
     ]
   },
   {
-    title: '候选人管理',
-    icon: 'el-icon-user',
+    title: '候选管理',
+    icon: 'el-icon-s-custom',
     children: [
       {
         path: '/candidate/profile',
