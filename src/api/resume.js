@@ -89,7 +89,8 @@ export function searchResumes(params) {
 export function getResumeDetail(id) {
   return request({
     url: `/resume/detail/${id}`,
-    method: 'get'
+    method: 'get',
+    params: { id }
   })
 }
 
@@ -118,5 +119,28 @@ export function exportSearchResult(params) {
     method: 'get',
     params,
     responseType: 'blob'
+  })
+}
+
+export function getResumesByAIChat(message) {
+  return request({
+    url: '/api/resume/ai-chat',
+    method: 'post',
+    data: { message }
+  })
+}
+
+export function getChatHistory() {
+  return request({
+    url: '/api/resume/chat-history',
+    method: 'get'
+  })
+}
+
+export function saveChat(chatData) {
+  return request({
+    url: '/api/resume/save-chat',
+    method: 'post',
+    data: chatData
   })
 } 

@@ -2,13 +2,7 @@ export const menuItems = [
   {
     path: '/dashboard',
     title: '首页',
-    icon: 'el-icon-house',
-    children: [
-      {
-        path: '/dashboard',
-        title: '首页'
-      }
-    ]
+    icon: 'el-icon-house'
   },
   {
     title: '简历管理',
@@ -29,6 +23,10 @@ export const menuItems = [
       {
         path: '/resume/search',
         title: '简历检索'
+      },
+      {
+        path: '/resume/ai-chat',
+        title: 'AI简历助手'
       }
     ]
   },

@@ -93,6 +93,19 @@ export const constantRoutes = [
         component: () => import('@/views/resume/search'),
         name: 'ResumeSearch',
         meta: { title: '简历检索' }
+      },
+      {
+        path: 'ai-chat',
+        name: 'ResumeAIChat',
+        component: () => import('@/views/resume/ai-chat/index.vue'),
+        meta: { title: 'AI简历助手' }
+      },
+      {
+        path: 'detail/:id',
+        name: 'ResumeDetail',
+        component: () => import('@/views/resume/detail/index.vue'),
+        meta: { title: '简历详情' },
+        hidden: true
       }
     ]
   },

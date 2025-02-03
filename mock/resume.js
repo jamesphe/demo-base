@@ -1,4 +1,5 @@
 const Mock = require('mockjs')
+const { param2Obj } = require('./utils')
 
 const List = []
 const count = 20
@@ -394,6 +395,127 @@ module.exports = [
       code: 20000,
       data: 'export file content'
     }
+  },
+
+  // 获取聊天历史记录
+  {
+    url: '/api/resume/chat-history',
+    type: 'get',
+    response: () => {
+      return {
+        code: 20000,
+        data: chatList
+      }
+    }
+  },
+
+  // AI对话接口
+  {
+    url: '/api/resume/ai-chat',
+    type: 'post',
+    response: config => {
+      const { message } = config.body
+      
+      // 模拟AI根据关键词匹配简历
+      const matchedResumes = resumes.filter(resume => {
+        const keywords = message.toLowerCase()
+        return resume.skills.some(skill => keywords.includes(skill.toLowerCase())) ||
+               resume.title.toLowerCase().includes(keywords) ||
+               String(resume.experience).includes(keywords)
+      })
+
+      // 根据匹配数量返回不同的回复
+      let reply = ''
+      if (matchedResumes.length === 0) {
+        reply = '抱歉，没有找到完全匹配的简历，您可以尝试调整搜索条件或描述具体的技能要求。'
+      } else if (matchedResumes.length === 1) {
+        reply = `我找到了1份非常匹配的简历。这位候选人是${matchedResumes[0].name}，${matchedResumes[0].title}，有${matchedResumes[0].experience}年工作经验，教育背景为${matchedResumes[0].education}。`
+      } else {
+        reply = `我找到了${matchedResumes.length}份相关简历。您可以查看下面的简历卡片，了解每位候选人的具体情况。如果想要进一步筛选，您可以告诉我更具体的要求，比如：\n` +
+                '- 期望的工作年限\n' +
+                '- 具体的技术栈要求\n' +
+                '- 教育背景要求\n' +
+                '或者您也可以告诉我最关注哪方面的能力，我可以帮您重点推荐。'
+      }
+
+      // 计算每个简历的匹配度分数
+      const scoredResumes = matchedResumes.map(resume => {
+        const score = calculateMatchScore(resume, message)
+        return { ...resume, matchScore: score }
+      })
+
+      // 按匹配度排序
+      scoredResumes.sort((a, b) => b.matchScore - a.matchScore)
+
+      return {
+        code: 20000,
+        data: {
+          reply,
+          resumes: scoredResumes,
+          totalMatches: matchedResumes.length
+        }
+      }
+    }
+  },
+
+  // 保存对话记录
+  {
+    url: '/api/resume/save-chat',
+    type: 'post',
+    response: config => {
+      const chatData = config.body
+      const index = chatList.findIndex(chat => chat.id === chatData.id)
+      
+      if (index > -1) {
+        chatList[index] = chatData
+      } else {
+        chatList.unshift(chatData)
+      }
+
+      return {
+        code: 20000,
+        data: 'success'
+      }
+    }
+  },
+
+  // 获取简历详情
+  {
+    url: '/resume/detail/\\d+',
+    type: 'get',
+    response: ({ url, method, query }) => {
+      // 添加调试日志
+      console.log('Mock request:', { url, method, query })
+
+      try {
+        // 从 query 中获取 id
+        const id = parseInt(query.id)
+        console.log('Looking for resume with ID:', id)
+
+        // 从简历列表中查找详细信息
+        const resume = resumes.find(item => item.id === id)
+        console.log('Found resume:', resume)
+        
+        if (!resume) {
+          console.warn('Resume not found for ID:', id)
+          return {
+            code: 50404,
+            message: '简历不存在'
+          }
+        }
+
+        return {
+          code: 20000,
+          data: resume
+        }
+      } catch (error) {
+        console.error('Error in resume detail handler:', error)
+        return {
+          code: 50500,
+          message: '服务器内部错误'
+        }
+      }
+    }
   }
 ]
 
@@ -418,6 +540,346 @@ function calculateRelevanceScore(item, keyword) {
   score += item.workExperience.filter(work => 
     work.position.toLowerCase().includes(keyword)
   ).length * 2
+  
+  return score
+}
+
+const chatList = []
+const resumes = [
+  {
+    id: 1,
+    name: '张三',
+    title: '高级Java开发工程师',
+    gender: '男',
+    age: 28,
+    phone: '13800138001',
+    email: 'zhangsan@example.com',
+    location: '上海',
+    experience: 5,
+    education: '本科',
+    skills: ['Java', 'Spring Boot', 'MySQL', 'Redis', 'Microservices'],
+    workExperience: [
+      {
+        period: '2020-2024',
+        company: '阿里巴巴科技有限公司',
+        position: '高级Java开发工程师',
+        description: '负责公司核心电商系统的开发和维护，主导多个重要项目的技术方案设计和实现。',
+        achievements: [
+          '优化系统性能，将接口响应时间降低50%',
+          '设计并实现分布式缓存方案，提升系统稳定性',
+          '带领团队完成微服务架构转型'
+        ]
+      },
+      {
+        period: '2018-2020',
+        company: '腾讯科技有限公司',
+        position: 'Java开发工程师',
+        description: '参与支付系统的开发和维护，负责核心模块的代码重构。',
+        achievements: [
+          '实现支付系统的性能监控平台',
+          '获得年度最佳员工称号'
+        ]
+      }
+    ],
+    educationDetail: [
+      {
+        period: '2014-2018',
+        school: '浙江大学',
+        major: '计算机科学与技术',
+        degree: '本科',
+        achievements: [
+          '获得校级奖学金',
+          '参与多个开源项目的开发'
+        ]
+      }
+    ],
+    projects: [
+      {
+        name: '电商平台微服务改造项目',
+        period: '2022-2023',
+        description: '将传统单体应用拆分为微服务架构，提升系统的可扩展性和维护性。',
+        responsibility: '负责整体技术方案设计，核心服务的拆分和实现，团队协调和进度把控。'
+      },
+      {
+        name: '支付系统重构项目',
+        period: '2019-2020',
+        description: '对历史遗留系统进行重构，提升代码质量和系统性能。',
+        responsibility: '负责支付核心模块的重构，引入设计模式，实现代码解耦。'
+      }
+    ],
+    selfEvaluation: '拥有扎实的Java基础和丰富的分布式系统开发经验，对微服务架构有深入理解。善于解决技术难题，具有良好的团队协作能力。热爱技术，持续学习，期望在技术领域不断突破。',
+    starred: false
+  },
+  {
+    id: 2,
+    name: '李四',
+    title: '前端开发工程师',
+    gender: '女',
+    age: 26,
+    phone: '13800138002',
+    email: 'lisi@example.com',
+    location: '北京',
+    experience: 3,
+    education: '硕士',
+    skills: ['Vue', 'React', 'JavaScript', 'Node.js', 'TypeScript'],
+    workExperience: [
+      {
+        period: '2021-2024',
+        company: '字节跳动科技有限公司',
+        position: '前端开发工程师',
+        description: '负责公司内部管理系统的前端开发，参与多个项目的技术选型和架构设计。',
+        achievements: [
+          '构建前端组件库，提升开发效率30%',
+          '推动前端自动化测试的落地'
+        ]
+      }
+    ],
+    educationDetail: [
+      {
+        period: '2018-2021',
+        school: '北京大学',
+        major: '软件工程',
+        degree: '硕士',
+        achievements: [
+          '发表学术论文2篇',
+          '参与国家级科研项目'
+        ]
+      }
+    ],
+    projects: [
+      {
+        name: '企业级中后台前端框架',
+        period: '2022-2023',
+        description: '基于Vue3和TypeScript开发的企业级前端框架，包含丰富的业务组件。',
+        responsibility: '负责框架的核心功能开发，组件库设计，文档编写。'
+      }
+    ],
+    selfEvaluation: '具有扎实的前端开发功底，对现代前端框架和工具链有深入理解。追求代码质量，注重用户体验，有较强的产品意识。',
+    starred: false
+  },
+  {
+    id: 3,
+    name: '王五',
+    title: 'Python开发工程师',
+    gender: '男',
+    age: 30,
+    phone: '13800138003',
+    email: 'wangwu@example.com',
+    location: '广州',
+    experience: 4,
+    education: '本科',
+    skills: ['Python', 'Django', 'Flask', 'MongoDB', 'Redis'],
+    workExperience: [
+      {
+        period: '2020-2024',
+        company: '腾讯科技有限公司',
+        position: 'Python开发工程师',
+        description: '负责公司内部管理系统的前端开发，参与多个项目的技术选型和架构设计。',
+        achievements: [
+          '构建前端组件库，提升开发效率30%',
+          '推动前端自动化测试的落地'
+        ]
+      }
+    ],
+    educationDetail: [
+      {
+        period: '2016-2020',
+        school: '北京大学',
+        major: '计算机科学与技术',
+        degree: '本科',
+        achievements: [
+          '获得校级奖学金',
+          '参与多个开源项目的开发'
+        ]
+      }
+    ],
+    projects: [
+      {
+        name: '电商平台微服务改造项目',
+        period: '2022-2023',
+        description: '将传统单体应用拆分为微服务架构，提升系统的可扩展性和维护性。',
+        responsibility: '负责整体技术方案设计，核心服务的拆分和实现，团队协调和进度把控。'
+      }
+    ],
+    selfEvaluation: '拥有扎实的Python基础和丰富的分布式系统开发经验，对微服务架构有深入理解。善于解决技术难题，具有良好的团队协作能力。热爱技术，持续学习，期望在技术领域不断突破。',
+    starred: false
+  },
+  {
+    id: 4,
+    name: '赵六',
+    title: '全栈开发工程师',
+    gender: '女',
+    age: 29,
+    phone: '13800138004',
+    email: 'zhaoliu@example.com',
+    location: '北京',
+    experience: 5,
+    education: '本科',
+    skills: ['Java', 'Vue', 'MySQL', 'Spring Boot', 'JavaScript'],
+    workExperience: [
+      {
+        period: '2020-2024',
+        company: '字节跳动科技有限公司',
+        position: '全栈开发工程师',
+        description: '负责公司内部管理系统的前端开发，参与多个项目的技术选型和架构设计。',
+        achievements: [
+          '构建前端组件库，提升开发效率30%',
+          '推动前端自动化测试的落地'
+        ]
+      }
+    ],
+    educationDetail: [
+      {
+        period: '2015-2019',
+        school: '清华大学',
+        major: '计算机科学与技术',
+        degree: '本科',
+        achievements: [
+          '获得校级奖学金',
+          '参与多个开源项目的开发'
+        ]
+      }
+    ],
+    projects: [
+      {
+        name: '电商平台微服务改造项目',
+        period: '2022-2023',
+        description: '将传统单体应用拆分为微服务架构，提升系统的可扩展性和维护性。',
+        responsibility: '负责整体技术方案设计，核心服务的拆分和实现，团队协调和进度把控。'
+      }
+    ],
+    selfEvaluation: '拥有扎实的全栈开发功底和丰富的分布式系统开发经验，对微服务架构有深入理解。善于解决技术难题，具有良好的团队协作能力。热爱技术，持续学习，期望在技术领域不断突破。',
+    starred: false
+  },
+  {
+    id: 5,
+    name: '钱七',
+    title: '后端开发工程师',
+    gender: '男',
+    age: 32,
+    phone: '13800138005',
+    email: 'qianqi@example.com',
+    location: '上海',
+    experience: 3,
+    education: '硕士',
+    skills: ['Java', 'Spring Cloud', 'MySQL', 'Redis', 'Docker'],
+    workExperience: [
+      {
+        period: '2021-2024',
+        company: '腾讯科技有限公司',
+        position: '后端开发工程师',
+        description: '负责公司内部管理系统的前端开发，参与多个项目的技术选型和架构设计。',
+        achievements: [
+          '构建前端组件库，提升开发效率30%',
+          '推动前端自动化测试的落地'
+        ]
+      }
+    ],
+    educationDetail: [
+      {
+        period: '2018-2021',
+        school: '北京大学',
+        major: '软件工程',
+        degree: '硕士',
+        achievements: [
+          '发表学术论文2篇',
+          '参与国家级科研项目'
+        ]
+      }
+    ],
+    projects: [
+      {
+        name: '电商平台微服务改造项目',
+        period: '2022-2023',
+        description: '将传统单体应用拆分为微服务架构，提升系统的可扩展性和维护性。',
+        responsibility: '负责整体技术方案设计，核心服务的拆分和实现，团队协调和进度把控。'
+      }
+    ],
+    selfEvaluation: '拥有扎实的Java基础和丰富的分布式系统开发经验，对微服务架构有深入理解。善于解决技术难题，具有良好的团队协作能力。热爱技术，持续学习，期望在技术领域不断突破。',
+    starred: false
+  },
+  {
+    id: 6,
+    name: '孙八',
+    title: '前端开发工程师',
+    gender: '女',
+    age: 27,
+    phone: '13800138006',
+    email: 'sunba@example.com',
+    location: '北京',
+    experience: 4,
+    education: '本科',
+    skills: ['Vue', 'React', 'TypeScript', 'Webpack', 'Node.js'],
+    workExperience: [
+      {
+        period: '2020-2024',
+        company: '字节跳动科技有限公司',
+        position: '前端开发工程师',
+        description: '负责公司内部管理系统的前端开发，参与多个项目的技术选型和架构设计。',
+        achievements: [
+          '构建前端组件库，提升开发效率30%',
+          '推动前端自动化测试的落地'
+        ]
+      }
+    ],
+    educationDetail: [
+      {
+        period: '2016-2020',
+        school: '北京大学',
+        major: '软件工程',
+        degree: '本科',
+        achievements: [
+          '获得校级奖学金',
+          '参与多个开源项目的开发'
+        ]
+      }
+    ],
+    projects: [
+      {
+        name: '电商平台微服务改造项目',
+        period: '2022-2023',
+        description: '将传统单体应用拆分为微服务架构，提升系统的可扩展性和维护性。',
+        responsibility: '负责整体技术方案设计，核心服务的拆分和实现，团队协调和进度把控。'
+      }
+    ],
+    selfEvaluation: '具有扎实的前端开发功底和丰富的分布式系统开发经验，对微服务架构有深入理解。善于解决技术难题，具有良好的团队协作能力。热爱技术，持续学习，期望在技术领域不断突破。',
+    starred: false
+  }
+]
+
+// 添加计算简历匹配度的函数
+function calculateMatchScore(resume, message) {
+  let score = 0
+  const keywords = message.toLowerCase().split(/\s+/)
+  
+  // 技能匹配度评分
+  keywords.forEach(keyword => {
+    resume.skills.forEach(skill => {
+      if (skill.toLowerCase().includes(keyword)) {
+        score += 10
+      }
+    })
+  })
+  
+  // 职位匹配度评分
+  keywords.forEach(keyword => {
+    if (resume.title.toLowerCase().includes(keyword)) {
+      score += 8
+    }
+  })
+  
+  // 经验年限匹配度评分
+  const yearPattern = /(\d+)年/
+  const messageYears = message.match(yearPattern)
+  if (messageYears) {
+    const targetYears = parseInt(messageYears[1])
+    const diff = Math.abs(resume.experience - targetYears)
+    if (diff === 0) {
+      score += 10
+    } else if (diff <= 2) {
+      score += 5
+    }
+  }
   
   return score
 } 

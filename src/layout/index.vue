@@ -2,6 +2,7 @@
   <div class="app-wrapper">
     <sidebar class="sidebar-container" />
     <div class="main-container">
+      <navbar />
       <div class="content">
         <router-view />
       </div>
@@ -10,12 +11,13 @@
 </template>
 
 <script>
-import { Sidebar } from './components'
+import { Sidebar, Navbar } from './components'
 
 export default {
   name: 'Layout',
   components: {
-    Sidebar
+    Sidebar,
+    Navbar
   }
 }
 </script>
