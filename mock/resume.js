@@ -544,7 +544,7 @@ function calculateRelevanceScore(item, keyword) {
   return score
 }
 
-const chatList = []
+// 先定义 resumes 数组
 const resumes = [
   {
     id: 1,
@@ -844,6 +844,169 @@ const resumes = [
     ],
     selfEvaluation: '具有扎实的前端开发功底和丰富的分布式系统开发经验，对微服务架构有深入理解。善于解决技术难题，具有良好的团队协作能力。热爱技术，持续学习，期望在技术领域不断突破。',
     starred: false
+  }
+]
+
+// 然后再定义 chatList
+const chatList = [
+  {
+    id: 1,
+    title: '寻找Java高级开发工程师',
+    createTime: '2024-03-15 14:30:00',
+    messages: [
+      {
+        id: 11,
+        role: 'user',
+        content: '需要一位5年以上Java开发经验，精通Spring Cloud微服务架构的高级工程师',
+        timestamp: '2024-03-15 14:30:00'
+      },
+      {
+        id: 12,
+        role: 'assistant',
+        content: '我找到了2份非常匹配的简历。这些候选人都具有丰富的Java开发经验和微服务架构实践。',
+        timestamp: '2024-03-15 14:30:02',
+        resumes: [
+          resumes[0], // 张三
+          resumes[4]  // 钱七
+        ]
+      },
+      {
+        id: 13,
+        role: 'user',
+        content: '他们都有Docker经验吗？',
+        timestamp: '2024-03-15 14:31:00'
+      },
+      {
+        id: 14,
+        role: 'assistant',
+        content: '在这两位候选人中，钱七有Docker相关经验。他目前在腾讯负责容器化相关工作。您想了解更多细节吗？',
+        timestamp: '2024-03-15 14:31:02',
+        resumes: [
+          resumes[4]  // 钱七
+        ]
+      }
+    ]
+  },
+  {
+    id: 2,
+    title: '招聘全栈开发工程师',
+    createTime: '2024-03-14 10:15:00',
+    messages: [
+      {
+        id: 21,
+        role: 'user',
+        content: '需要招聘一位全栈开发工程师，要求同时熟悉Java后端和Vue前端开发',
+        timestamp: '2024-03-14 10:15:00'
+      },
+      {
+        id: 22,
+        role: 'assistant',
+        content: '为您找到一位非常合适的候选人。赵六是一位经验丰富的全栈工程师，同时精通Java后端和Vue前端开发。',
+        timestamp: '2024-03-14 10:15:02',
+        resumes: [
+          resumes[3]  // 赵六
+        ]
+      }
+    ]
+  },
+  {
+    id: 3,
+    title: '前端开发团队招聘',
+    createTime: '2024-03-13 16:45:00',
+    messages: [
+      {
+        id: 31,
+        role: 'user',
+        content: '我们在组建前端开发团队，需要有Vue和React经验的工程师',
+        timestamp: '2024-03-13 16:45:00'
+      },
+      {
+        id: 32,
+        role: 'assistant',
+        content: '我找到了3位优秀的前端开发工程师，他们都具有Vue和React的项目经验。',
+        timestamp: '2024-03-13 16:45:02',
+        resumes: [
+          resumes[1],  // 李四
+          resumes[5],  // 孙八
+          resumes[3]   // 赵六
+        ]
+      },
+      {
+        id: 33,
+        role: 'user',
+        content: '谁的TypeScript经验最丰富？',
+        timestamp: '2024-03-13 16:46:00'
+      },
+      {
+        id: 34,
+        role: 'assistant',
+        content: '李四和孙八都有丰富的TypeScript经验。特别是李四，在字节跳动主导过基于TypeScript的前端框架开发。',
+        timestamp: '2024-03-13 16:46:02',
+        resumes: [
+          resumes[1],  // 李四
+          resumes[5]   // 孙八
+        ]
+      }
+    ]
+  },
+  {
+    id: 4,
+    title: 'Python开发工程师招聘',
+    createTime: '2024-03-12 09:20:00',
+    messages: [
+      {
+        id: 41,
+        role: 'user',
+        content: '寻找Python开发工程师，最好有Django和Flask经验',
+        timestamp: '2024-03-12 09:20:00'
+      },
+      {
+        id: 42,
+        role: 'assistant',
+        content: '找到了一位非常匹配的候选人。王五同时具有Django和Flask的开发经验，并且熟悉MongoDB数据库。',
+        timestamp: '2024-03-12 09:20:02',
+        resumes: [
+          resumes[2]  // 王五
+        ]
+      }
+    ]
+  },
+  {
+    id: 5,
+    title: '高学历Java开发',
+    createTime: '2024-03-11 11:30:00',
+    messages: [
+      {
+        id: 51,
+        role: 'user',
+        content: '需要一位硕士学历的Java开发工程师',
+        timestamp: '2024-03-11 11:30:00'
+      },
+      {
+        id: 52,
+        role: 'assistant',
+        content: '为您找到一位符合要求的候选人。钱七是硕士学历，专注于Java后端开发，特别擅长微服务架构。',
+        timestamp: '2024-03-11 11:30:02',
+        resumes: [
+          resumes[4]  // 钱七
+        ]
+      },
+      {
+        id: 53,
+        role: 'user',
+        content: '他有什么项目经验？',
+        timestamp: '2024-03-11 11:31:00'
+      },
+      {
+        id: 54,
+        role: 'assistant',
+        content: '钱七在腾讯主导过多个微服务项目，包括电商平台的微服务改造。他有丰富的Spring Cloud和Docker经验。',
+        timestamp: '2024-03-11 11:31:02',
+        resumes: [
+          resumes[4]  // 钱七
+        ]
+      }
+    ]
   }
 ]
 
