@@ -64,3 +64,38 @@ export function getManagerOptions() {
     method: 'get'
   })
 }
+
+// 获取设备申报审核列表
+export function getEquipmentApprovalList(query) {
+  return request({
+    url: '/equipment/approval/list',
+    method: 'get',
+    params: query
+  })
+}
+
+// 审核通过设备申请
+export function approveEquipment(id) {
+  return request({
+    url: `/equipment/approval/approve/${id}`,
+    method: 'post'
+  })
+}
+
+// 拒绝设备申请
+export function rejectEquipment(data) {
+  return request({
+    url: `/equipment/approval/reject/${data.id}`,
+    method: 'post',
+    data
+  })
+}
+
+// 批量审核通过设备申请
+export function batchApproveEquipment(ids) {
+  return request({
+    url: '/equipment/approval/batch-approve',
+    method: 'post',
+    data: { ids }
+  })
+}

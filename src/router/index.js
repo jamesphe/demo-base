@@ -122,9 +122,9 @@ export const asyncRoutes = [
         hidden: true
       },
       {
-        path: 'apply',
-        component: () => import('@/views/equipment/apply'),
-        name: 'EquipmentApply',
+        path: 'approval',
+        component: () => import('@/views/equipment/approval/index'),
+        name: 'EquipmentApproval',
         meta: { title: '设备申报审核' }
       },
       {

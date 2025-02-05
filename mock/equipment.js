@@ -58,6 +58,34 @@ for (let i = 0; i < count; i++) {
 
 console.log(`Generated ${equipmentList.length} mock equipment items:`, equipmentList)
 
+// 生成设备申报数据
+const approvalList = []
+const approvalCount = 15
+
+for (let i = 0; i < approvalCount; i++) {
+  const mockApproval = {
+    id: Mock.mock('@increment(1)'),
+    applyCode: `AP${String(100000 + i + 1).slice(1)}`,
+    equipmentName: Mock.mock('@cword(3,5)') + '设备',
+    model: `${Mock.Random.string('upper', 5)}${Mock.Random.integer(100, 999)}`,
+    price: Mock.Random.float(1000, 100000, 2, 2),
+    quantity: Mock.Random.integer(1, 20),
+    applyReason: Mock.mock('@cparagraph(1)'),
+    applicant: Mock.Random.pick(['张三', '李四', '王五', '赵六']),
+    applyDate: Mock.Random.date('yyyy-MM-dd'),
+    status: Mock.Random.pick(['pending', 'approved', 'rejected']),
+    rejectReason: '',
+    createTime: Mock.Random.datetime(),
+    updateTime: Mock.Random.datetime()
+  }
+  
+  if (mockApproval.status === 'rejected') {
+    mockApproval.rejectReason = Mock.mock('@cparagraph(1)')
+  }
+  
+  approvalList.push(mockApproval)
+}
+
 module.exports = [
   {
     url: '/equipment/list',
@@ -200,6 +228,97 @@ module.exports = [
       return {
         code: 20000,
         data: managerList
+      }
+    }
+  },
+  // 获取设备申报审核列表
+  {
+    url: '/equipment/approval/list',
+    type: 'get',
+    response: config => {
+      const { keyword, status, page = 1, limit = 10 } = config.query
+
+      let mockList = approvalList.filter(item => {
+        if (keyword && !item.equipmentName.includes(keyword) && !item.applicant.includes(keyword)) return false
+        if (status && item.status !== status) return false
+        return true
+      })
+
+      const pageList = mockList.filter((item, index) => index < limit * page && index >= limit * (page - 1))
+
+      return {
+        code: 20000,
+        data: {
+          total: mockList.length,
+          items: pageList
+        }
+      }
+    }
+  },
+  // 审核通过设备申请
+  {
+    url: '/equipment/approval/approve/\\d+',
+    type: 'post',
+    response: config => {
+      const id = parseInt(config.url.match(/\/approve\/(\d+)/)[1])
+      const index = approvalList.findIndex(item => item.id === id)
+      if (index > -1) {
+        approvalList[index].status = 'approved'
+        approvalList[index].updateTime = Mock.Random.datetime()
+      }
+      return {
+        code: 20000,
+        data: '审核通过成功'
+      }
+    }
+  },
+  // 拒绝设备申请
+  {
+    url: '/equipment/approval/reject/\\d+',
+    type: 'post',
+    response: config => {
+      const id = parseInt(config.url.match(/\/reject\/(\d+)/)[1])
+      const index = approvalList.findIndex(item => item.id === id)
+      if (index > -1) {
+        approvalList[index].status = 'rejected'
+        approvalList[index].rejectReason = config.body.reason
+        approvalList[index].updateTime = Mock.Random.datetime()
+      }
+      return {
+        code: 20000,
+        data: '已拒绝申请'
+      }
+    }
+  },
+  // 批量审核通过
+  {
+    url: '/equipment/approval/batch-approve',
+    type: 'post',
+    response: config => {
+      const { ids } = config.body
+      ids.forEach(id => {
+        const index = approvalList.findIndex(item => item.id === id)
+        if (index > -1) {
+          approvalList[index].status = 'approved'
+          approvalList[index].updateTime = Mock.Random.datetime()
+        }
+      })
+      return {
+        code: 20000,
+        data: '批量审核通过成功'
+      }
+    }
+  },
+  // 获取设备申报详情
+  {
+    url: '/equipment/approval/detail/\\d+',
+    type: 'get',
+    response: config => {
+      const id = parseInt(config.url.match(/\/detail\/(\d+)/)[1])
+      const item = approvalList.find(item => item.id === id)
+      return {
+        code: 20000,
+        data: item || null
       }
     }
   }
