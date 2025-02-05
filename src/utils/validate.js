@@ -15,8 +15,24 @@ export function isExternal(path) {
  * @returns {Boolean}
  */
 export function validUsername(str) {
-  const valid_map = ['admin', 'editor']
-  return valid_map.indexOf(str.trim()) >= 0
+  if (!str || str.length === 0) {
+    return false
+  }
+  
+  // 检查是否为邮箱格式
+  const emailReg = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
+  if (emailReg.test(str)) {
+    return true
+  }
+
+  // 如果不是邮箱,则检查是否为合法用户名
+  // 用户名长度限制在3-20个字符
+  if (str.length < 3 || str.length > 20) {
+    return false
+  }
+  // 只允许字母、数字、下划线
+  const usernameReg = /^[a-zA-Z0-9_]+$/
+  return usernameReg.test(str)
 }
 
 /**

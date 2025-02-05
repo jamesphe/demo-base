@@ -11,19 +11,24 @@ from app.core.config import settings
 
 router = APIRouter()
 
-@router.post("/login/access-token", response_model=schemas.Token)
-def login_access_token(
-    db: Session = Depends(deps.get_db),
-    form_data: OAuth2PasswordRequestForm = Depends()
-) -> Any:
+@router.post("/login/access-token")
+async def login_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(deps.get_db)
+):
     """
-    OAuth2 兼容的token登录
+    OAuth2 compatible token login
     """
     user = crud.user.authenticate(
-        db, email=form_data.username, password=form_data.password
+        db, 
+        email=form_data.username,  # 使用username字段作为email
+        password=form_data.password
     )
     if not user:
-        raise HTTPException(status_code=400, detail="邮箱或密码错误")
+        raise HTTPException(
+            status_code=400,
+            detail="Incorrect email or password"
+        )
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="用户未激活")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

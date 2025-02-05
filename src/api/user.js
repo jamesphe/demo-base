@@ -2,9 +2,13 @@ import request from '@/utils/request'
 
 export function login(data) {
   return request({
-    url: '/vue-element-admin/user/login',
+    url: '/login/access-token',
     method: 'post',
-    data
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    data: `username=${encodeURIComponent(data.username)}&password=${encodeURIComponent(data.password)}`,
+    withCredentials: true
   })
 }
 

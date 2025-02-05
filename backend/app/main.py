@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from starlette.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.api_v1.api import api_router
 
@@ -10,14 +10,13 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# Set all CORS enabled origins
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# 添加CORS中间件配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:9527"],  # 允许的前端源
+    allow_credentials=True,  # 允许携带cookie
+    allow_methods=["*"],    # 允许的HTTP方法
+    allow_headers=["*"],    # 允许的HTTP头
+)
 
 app.include_router(api_router, prefix=settings.API_V1_STR) 

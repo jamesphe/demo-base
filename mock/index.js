@@ -7,6 +7,7 @@ const article = require('./article')
 const search = require('./remote-search')
 const resume = require('./resume')
 const candidate = require('./candidate')
+const position = require('./position')
 
 const mocks = [
   ...user,
@@ -14,7 +15,8 @@ const mocks = [
   ...article,
   ...search,
   ...resume,
-  ...candidate
+  ...candidate,
+  ...position
 ]
 
 // for front mock
