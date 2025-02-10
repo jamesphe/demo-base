@@ -61,6 +61,20 @@ const actions = {
   }
 }
 
+// 添加 HRMS 相关权限
+export const adminPermission = {
+  roles: ['admin'], // 管理员角色
+  permissions: [
+    'hrms.view',
+    'hrms.staff.manage',
+    'hrms.recruitment.manage',
+    'hrms.training.manage',
+    'hrms.attendance.manage',
+    'hrms.assessment.manage',
+    'hrms.system.manage'
+  ]
+}
+
 export default {
   namespaced: true,
   state,

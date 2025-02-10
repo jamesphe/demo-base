@@ -1,12 +1,12 @@
 <template>
-  <div :class="{'hidden':hidden}" class="pagination-container">
+  <div v-if="!hidden" class="pagination-container">
     <el-pagination
       :background="background"
       :current-page.sync="currentPage"
       :page-size.sync="pageSize"
       :layout="layout"
       :page-sizes="pageSizes"
-      :total="total"
+      :total="Number(total) || 0"
       v-bind="$attrs"
       @size-change="handleSizeChange"
       @current-change="handleCurrentChange"
@@ -22,7 +22,8 @@ export default {
   props: {
     total: {
       required: true,
-      type: Number
+      type: [Number, String],
+      default: 0
     },
     page: {
       type: Number,

@@ -1,5 +1,14 @@
 import Vue from 'vue'
 import Router from 'vue-router'
+import hrmsRouter from './modules/hrms' // 引入人事管理系统路由模块
+import recruitmentRouter from './modules/recruitment'
+import laborRouter from './modules/labor'
+import salaryRouter from './modules/salary'
+import socialRouter from './modules/social'
+import attendanceRouter from './modules/attendance'
+import transferRouter from './modules/transfer'
+import evaluationRouter from './modules/evaluation'
+import systemRouter from './modules/system'
 
 Vue.use(Router)
 
@@ -71,48 +80,16 @@ export const constantRoutes = [
  * 需要根据用户角色动态加载的路由
  */
 export const asyncRoutes = [
-  {
-    path: '/system',
-    component: Layout,
-    redirect: '/system/user',
-    name: 'System',
-    meta: {
-      title: '系统管理',
-      icon: 'system',
-      roles: ['admin']
-    },
-    children: [
-      {
-        path: 'user',
-        component: () => import('@/views/system/user'),
-        name: 'User',
-        meta: {
-          title: '用户管理',
-          icon: 'user'
-        }
-      },
-      {
-        path: 'role',
-        component: () => import('@/views/system/role'),
-        name: 'Role',
-        meta: {
-          title: '角色管理',
-          icon: 'peoples'
-        }
-      },
-      {
-        path: 'menu',
-        component: () => import('@/views/system/menu'),
-        name: 'Menu',
-        meta: {
-          title: '菜单管理',
-          icon: 'tree'
-        }
-      }
-    ]
-  },
-
-  // 404 页面必须放在最后
+  hrmsRouter,
+  recruitmentRouter,
+  laborRouter,
+  salaryRouter,
+  socialRouter,
+  attendanceRouter,
+  transferRouter,
+  evaluationRouter,
+  systemRouter,
+  // 404 page must be placed at the end !!!
   { path: '*', redirect: '/404', hidden: true }
 ]
 
