@@ -1,26 +1,24 @@
 const Mock = require('mockjs')
-const { param2Obj } = require('./utils')
+const { param2Obj } = require('../src/utils')
 
 const user = require('./user')
 const role = require('./role')
 const article = require('./article')
 const search = require('./remote-search')
-const base = require('./base')
-const equipment = require('./equipment')
+const consumable = require('./consumable')
 
 const mocks = [
   ...user,
   ...role,
   ...article,
   ...search,
-  ...base,
-  ...equipment
+  ...consumable
 ]
 
 // for front mock
 // please use it cautiously, it will redefine XMLHttpRequest,
 // which will cause many of your third-party libraries to be invalidated(like progress event).
-function mockXHR() {
+exports.mockXHR = function() {
   console.log('Initializing Mock XHR')  // 添加日志
   
   // mock patch
@@ -63,7 +61,18 @@ function mockXHR() {
   }
 }
 
-module.exports = {
-  mocks,
-  mockXHR
+// for mock server
+const responseFake = (url, type, respond) => {
+  return {
+    url: new RegExp(`${process.env.VUE_APP_BASE_API}${url}`),
+    type: type || 'get',
+    response(req, res) {
+      console.log('request invoke:' + req.path)
+      res.json(Mock.mock(respond instanceof Function ? respond(req, res) : respond))
+    }
+  }
 }
+
+module.exports = mocks.map(route => {
+  return responseFake(route.url, route.type, route.response)
+})

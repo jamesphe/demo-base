@@ -154,13 +154,13 @@ export const asyncRoutes = [
     component: Layout,
     redirect: '/consumable/apply',
     name: 'Consumable',
-    meta: { title: '耗材管理', icon: 'el-icon-box', roles: ['admin', 'teacher'] },
+    meta: { title: '耗材管理', icon: 'el-icon-goods' },
     children: [
       {
         path: 'apply',
-        component: () => import('@/views/consumable/apply'),
+        component: () => import('@/views/consumable/apply/index'),
         name: 'ConsumableApply',
-        meta: { title: '耗材申报审核' }
+        meta: { title: '耗材申报与审核' }
       },
       {
         path: 'purchase',

@@ -17,7 +17,7 @@ module.exports = {
   lintOnSave: false,
   productionSourceMap: false,
   devServer: {
-    port: port,
+    port: 9527,
     open: true,
     overlay: {
       warnings: false,
@@ -39,9 +39,10 @@ module.exports = {
       }
     },
     // 当不使用mock时,代理到真实后端
-    proxy: process.env.VUE_APP_MOCK === 'true' ? null : {
+    proxy: {
+      // 详细配置参考 https://cli.vuejs.org/config/#devserver-proxy
       [process.env.VUE_APP_BASE_API]: {
-        target: process.env.VUE_APP_BASE_URL || 'http://localhost:8080',
+        target: `http://localhost:${port}/mock`,
         changeOrigin: true,
         pathRewrite: {
           ['^' + process.env.VUE_APP_BASE_API]: ''
