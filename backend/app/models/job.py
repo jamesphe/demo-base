@@ -1,5 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
+from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
 class Job(Base):
@@ -17,4 +18,7 @@ class Job(Base):
         DateTime, 
         default=datetime.utcnow, 
         onupdate=datetime.utcnow
-    ) 
+    )
+
+    # 添加与候选人的关联
+    candidates = relationship("Candidate", back_populates="job") 

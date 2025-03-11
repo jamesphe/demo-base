@@ -1,7 +1,7 @@
-from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
+
 
 class Candidate(Base):
     __tablename__ = "candidates"
@@ -16,4 +16,10 @@ class Candidate(Base):
     updated_at = Column(DateTime)
     
     # 关联关系
-    interviews = relationship("Interview", back_populates="candidate") 
+    interviews = relationship("Interview", back_populates="candidate")
+    resumes = relationship("Resume", back_populates="candidate")
+    
+    # 添加职位关联
+    job_id = Column(Integer, ForeignKey("jobs.id"))
+    job = relationship("Job", back_populates="candidates")
+ 

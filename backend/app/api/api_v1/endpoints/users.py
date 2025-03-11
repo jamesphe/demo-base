@@ -75,4 +75,25 @@ def update_user_me(
     if email is not None:
         user_in.email = email
     user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
-    return user 
+    return user
+
+
+@router.get("/info", response_model=schemas.UserInfoResponse)
+def get_user_info(
+    current_user: models.User = Depends(deps.get_current_user),
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """
+    获取当前登录用户的详细信息
+    """
+    user_info = schemas.UserInfo(
+        name=current_user.username,
+        avatar="https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif",
+        introduction="I am a super administrator" if current_user.is_superuser else "I am an editor",
+        roles=["admin"] if current_user.is_superuser else ["editor"]
+    )
+    
+    return {
+        "code": 20000,
+        "data": user_info
+    } 

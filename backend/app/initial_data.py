@@ -13,9 +13,9 @@ def init() -> None:
 
 
 def main() -> None:
-    logger.info("Creating initial data")
+    logger.info("创建初始数据")
     init()
-    logger.info("Initial data created")
+    logger.info("初始数据创建完成")
 
 
 if __name__ == "__main__":

@@ -6,4 +6,11 @@ from app.db.session import SessionLocal, engine  # noqa: F401
 __all__ = ["Base", "SessionLocal", "engine"]
 
 # Import all models here for Alembic
-from app.models import user, job, candidate, interview  # noqa: F401 
+from app.models import (  # noqa: F401
+    user, 
+    job, 
+    candidate, 
+    interview, 
+    resume,
+    resume_repository
+) 

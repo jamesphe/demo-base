@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr
 
 class UserBase(BaseModel):
@@ -18,11 +18,26 @@ class UserUpdate(UserBase):
 class UserInDBBase(UserBase):
     id: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class User(UserInDBBase):
     pass
 
 class UserInDB(UserInDBBase):
-    hashed_password: str 
+    hashed_password: str
+
+class UserInfo(BaseModel):
+    name: str
+    avatar: Optional[str] = None
+    introduction: Optional[str] = None
+    roles: List[str]
+    
+    model_config = {
+        "from_attributes": True
+    }
+
+class UserInfoResponse(BaseModel):
+    code: int = 20000
+    data: UserInfo 
