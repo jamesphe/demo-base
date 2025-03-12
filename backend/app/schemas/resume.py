@@ -7,6 +7,7 @@ class ResumeBase(BaseModel):
     resume_id: Optional[str] = None
     repository_id: Optional[int] = None
     resume_type: Optional[str] = "general"
+    tenant_id: Optional[int] = None
     
     # 文件信息
     file_name: Optional[str] = None
@@ -77,36 +78,49 @@ class ResumeBase(BaseModel):
     hobbies: Optional[str] = None
     awards: Optional[str] = None
     summary: Optional[str] = None
+    
+    processing_status: Optional[str] = "pending"
+    processing_message: Optional[str] = None
 
 
-class ResumeCreate(ResumeBase):
+class ResumeCreate(BaseModel):
+    resume_id: str
+    repository_id: int
+    tenant_id: Optional[int] = None
     file_name: str
     file_path: str
-    repository_id: int
-    resume_type: str = "general"
+    file_type: str
+    processing_status: str = "pending"
+    created_at: datetime = datetime.utcnow()
 
 
-class ResumeUpdate(ResumeBase):
+class ResumeUpdate(BaseModel):
+    content: Optional[str] = None
+    parsed_data: Optional[Dict[str, Any]] = None
     processing_status: Optional[str] = None
     processing_message: Optional[str] = None
-    processing_started_at: Optional[datetime] = None
-    processing_completed_at: Optional[datetime] = None
     processing_error: Optional[str] = None
+    talent_id: Optional[int] = None
+    
+    # 可选的个人信息字段
+    name: Optional[str] = None
+    gender: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    highest_education: Optional[str] = None
+    major: Optional[str] = None
+    graduate_school: Optional[str] = None
+    skills: Optional[list] = None
 
 
 class ResumeInDBBase(ResumeBase):
     id: int
-    processing_status: str
-    processing_message: Optional[str] = None
-    processing_started_at: Optional[datetime] = None
-    processing_completed_at: Optional[datetime] = None
-    processing_error: Optional[str] = None
+    resume_id: str
     created_at: datetime
     updated_at: datetime
 
-    model_config = {
-        "from_attributes": True
-    }
+    class Config:
+        from_attributes = True
 
 
 class Resume(ResumeInDBBase):

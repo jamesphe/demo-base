@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
@@ -9,6 +9,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenant.tenant_id"), nullable=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     username = Column(String(255))
     hashed_password = Column(String(255), nullable=False)
@@ -17,7 +18,32 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(
+        DateTime, 
+        default=datetime.utcnow, 
+        onupdate=datetime.utcnow
+    )
 
     # 关联关系
-    interviews = relationship("Interview", back_populates="interviewer") 
+    tenant = relationship("Tenant", back_populates="users")
+    interviews = relationship("Interview", back_populates="interviewer")
+    roles = relationship(
+        "Role",
+        secondary="user_role",
+        back_populates="users",
+        primaryjoin="user_role.c.user_id == User.id",
+        secondaryjoin="user_role.c.role_id == Role.id"
+    )
+    notifications = relationship("Notification", back_populates="user")
+
+    def has_permission(self, permission_name: str) -> bool:
+        """检查用户是否拥有指定权限"""
+        # 超级管理员拥有所有权限
+        if self.is_superuser:
+            return True
+            
+        for role in self.roles:
+            for permission in role.permissions:
+                if permission.name == permission_name:
+                    return True
+        return False 

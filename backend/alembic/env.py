@@ -20,9 +20,10 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # 导入配置和模型
-from app.db.base import Base  # noqa
-from app.core.config import settings  # noqa
+from app.db.base import Base  # 这里应该导入了所有模型
+from app.core.config import settings
 
+config.set_main_option("sqlalchemy.url", settings.SQLALCHEMY_DATABASE_URI)
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,

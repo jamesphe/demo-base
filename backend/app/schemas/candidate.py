@@ -1,34 +1,39 @@
+from typing import Optional, List
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
+from .interview import Interview
 
 
 class CandidateBase(BaseModel):
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
+    name: str
+    email: Optional[str] = None
     phone: Optional[str] = None
     resume_url: Optional[str] = None
     status: Optional[str] = None
+    tenant_id: Optional[int] = None
+    job_id: Optional[int] = None
 
 
 class CandidateCreate(CandidateBase):
-    name: str
-    email: EmailStr
+    pass
 
 
 class CandidateUpdate(CandidateBase):
     pass
 
 
-class CandidateInDBBase(CandidateBase):
+class Candidate(CandidateBase):
     id: int
     created_at: datetime
     updated_at: datetime
 
-    model_config = {
-        "from_attributes": True
-    }
+    class Config:
+        from_attributes = True
 
 
-class Candidate(CandidateInDBBase):
-    pass 
+# 添加带有面试信息的 Candidate Schema
+class CandidateWithInterviews(Candidate):
+    interviews: List[Interview] = []
+
+    class Config:
+        from_attributes = True 

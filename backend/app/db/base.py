@@ -8,4 +8,5 @@ from app.models.candidate import Candidate  # noqa
 from app.models.interview import Interview  # noqa
 from app.models.job import Job  # noqa
 from app.models.resume import Resume  # noqa
-from app.models.resume_repository import ResumeRepository  # noqa 
+from app.models.resume_repository import ResumeRepository  # noqa
+from app.models.talent import Talent  # noqa 

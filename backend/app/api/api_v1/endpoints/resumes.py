@@ -9,16 +9,24 @@ from app.core.config import settings
 from datetime import datetime
 import uuid
 import aiofiles
-from app.services.resume_service import ResumeService
+from app.services import resume_service
 
 router = APIRouter()
-resume_service = ResumeService()
 
 def validate_file_extension(filename: str) -> bool:
     allowed_extensions = settings.ALLOWED_EXTENSIONS
     return filename.split(".")[-1].lower() in allowed_extensions
 
-@router.post("/upload")
+@router.post(
+    "/upload",
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["resume_create"]
+            )
+        )
+    ]
+)
 async def upload_files(
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
@@ -27,103 +35,177 @@ async def upload_files(
     description: str = Form(None),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
-):
-    """批量上传简历文件到指定简历库"""
-    try:
-        # 1. 创建简历库
-        repository = await resume_service.create_repository(
-            db, 
-            repository_name,
-            resume_type, 
-            description
-        )
-        
-        # 2. 异步保存文件
-        saved_files = []
-        for file in files:
-            file_info = await resume_service.save_file(
-                file, 
-                repository.id
-            )
-            saved_files.append(file_info)
-        
-        # 3. 创建简历记录
-        resumes = []
-        for file_info in saved_files:
-            resume = await resume_service.create_resume(
-                db,
-                file_info,
-                repository.id,
-                resume_type
-            )
-            resumes.append(resume)
-        
-        db.commit()
-
-        # 4. 添加后台处理任务
-        background_tasks.add_task(
-            resume_service.process_resumes_in_chunks,
-            repository.id,
-            [{"id": r.id, "file_path": r.file_path} for r in resumes],
-            db
-        )
-
-        return {
-            "code": 200,
-            "message": "上传成功", 
-            "repository_id": repository.id,
-            "files": [{"name": r.file_name, "id": r.id} for r in resumes]
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/{resume_id}", response_model=schemas.Resume)
-def get_resume(
-    *,
-    resume_id: int,
-    db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
-    """
-    获取简历信息
-    """
+    """批量上传简历文件到指定简历库"""
+    # 验证文件类型
+    for file in files:
+        if not resume_service.validate_file_extension(file.filename):
+            raise HTTPException(
+                status_code=400,
+                detail=f"不支持的文件类型: {file.filename}"
+            )
+    
+    # 创建或获取简历库
+    repository = await resume_service.get_or_create_repository(
+        db,
+        name=repository_name,
+        resume_type=resume_type,
+        description=description,
+        tenant_id=current_user.tenant_id
+    )
+    
+    # 异步处理文件上传和解析
+    for file in files:
+        background_tasks.add_task(
+            resume_service.process_resume_file,
+            db,
+            file,
+            repository.id,
+            current_user.tenant_id
+        )
+    
+    return {"message": "简历上传成功,正在处理中"}
+
+@router.get(
+    "/",
+    response_model=List[schemas.Resume],
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["resume_read"]
+            )
+        )
+    ]
+)
+def read_resumes(
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """获取简历列表"""
+    if current_user.is_superuser:
+        resumes = crud.resume.get_multi(db, skip=skip, limit=limit)
+    else:
+        resumes = crud.resume.get_multi_by_tenant(
+            db,
+            tenant_id=current_user.tenant_id,
+            skip=skip,
+            limit=limit
+        )
+    return resumes
+
+@router.get(
+    "/{resume_id}",
+    response_model=schemas.Resume,
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["resume_read"]
+            )
+        )
+    ]
+)
+def read_resume(
+    *,
+    db: Session = Depends(deps.get_db),
+    resume_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """获取简历详情"""
     resume = crud.resume.get(db=db, id=resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="简历不存在")
+    
+    # 检查租户权限
+    if not current_user.is_superuser and resume.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="无权访问该简历")
+    
     return resume
 
-@router.get("/candidate/{candidate_id}", response_model=list[schemas.Resume])
+@router.get(
+    "/candidate/{candidate_id}",
+    response_model=List[schemas.Resume],
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["resume_read", "candidate_read"]
+            )
+        )
+    ]
+)
 def get_candidate_resumes(
     *,
     candidate_id: int,
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
-    """
-    获取候选人的所有简历
-    """
-    resumes = crud.resume.get_by_candidate_id(db=db, candidate_id=candidate_id)
+    """获取候选人的所有简历"""
+    # 验证候选人是否存在
+    candidate = crud.candidate.get(db=db, id=candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="候选人不存在")
+    
+    # 检查租户权限
+    if not current_user.is_superuser and candidate.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="无权访问该候选人的简历")
+    
+    resumes = crud.resume.get_by_candidate(db=db, candidate_id=candidate_id)
     return resumes
 
-@router.get("/parse")
+@router.post(
+    "/parse",
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["resume_parse"]
+            )
+        )
+    ]
+)
 async def parse_resume(
     *,
     file_url: str,
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
-    """
-    解析简历内容
-    """
-    # TODO: 实现简历解析逻辑
-    return {
-        "parsed_data": {
-            "name": "示例姓名",
-            "email": "example@email.com",
-            "skills": ["Python", "FastAPI"]
-        }
-    } 
+    """解析简历内容"""
+    # 验证文件权限
+    resume = crud.resume.get_by_file_url(db, file_url=file_url)
+    if resume and not current_user.is_superuser and resume.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="无权解析该简历")
+    
+    parsed_data = await resume_service.parse_resume(file_url)
+    return {"parsed_data": parsed_data}
+
+@router.delete(
+    "/{resume_id}",
+    response_model=schemas.Resume,
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["resume_delete"]
+            )
+        )
+    ]
+)
+def delete_resume(
+    *,
+    db: Session = Depends(deps.get_db),
+    resume_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user)
+) -> Any:
+    """删除简历"""
+    resume = crud.resume.get(db=db, id=resume_id)
+    if not resume:
+        raise HTTPException(status_code=404, detail="简历不存在")
+    
+    # 检查租户权限
+    if not current_user.is_superuser and resume.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="无权删除该简历")
+    
+    # 删除关联的文件
+    resume_service.delete_resume_file(resume.file_url)
+    
+    resume = crud.resume.remove(db=db, id=resume_id)
+    return resume 

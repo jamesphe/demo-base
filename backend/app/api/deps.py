@@ -1,6 +1,6 @@
-from typing import Generator
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from typing import Generator, List, Any, Callable
+from fastapi import Depends, HTTPException, status, Security
+from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from jose import jwt
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -55,4 +55,64 @@ def get_current_active_superuser(
         raise HTTPException(
             status_code=400, detail="该操作需要超级管理员权限"
         )
-    return current_user 
+    return current_user
+
+def check_permissions(
+    security_scopes: SecurityScopes,
+    current_user: User = Depends(get_current_active_user),
+) -> bool:
+    """检查当前用户是否拥有所需权限"""
+    if not security_scopes.scopes:
+        return True
+        
+    for scope in security_scopes.scopes:
+        if not current_user.has_permission(scope):
+            raise HTTPException(
+                status_code=403,
+                detail=f"权限不足。需要权限: {scope}"
+            )
+    return True
+
+def get_current_user_with_tenant_permission(
+    required_permissions: List[str] = [],
+    check_tenant: bool = True
+) -> Callable:
+    """创建一个依赖,用于检查用户权限和租户权限"""
+    def dependency(
+        security_scopes: SecurityScopes,
+        current_user: User = Depends(get_current_active_user),
+        db: Session = Depends(get_db),
+        tenant_id: int = None,
+    ) -> User:
+        # 检查基本权限
+        for permission in required_permissions:
+            if not current_user.has_permission(permission):
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"权限不足。需要权限: {permission}"
+                )
+        
+        # 检查租户权限
+        if check_tenant and tenant_id:
+            if not check_tenant_permission(db, current_user, tenant_id):
+                raise HTTPException(
+                    status_code=403,
+                    detail="无权访问该租户数据"
+                )
+        
+        return current_user
+
+    return dependency
+
+def check_tenant_permission(
+    db: Session,
+    current_user: User,
+    resource_tenant_id: int
+) -> bool:
+    """检查用户是否有权限访问指定租户的数据"""
+    # 超级管理员可以访问所有租户数据
+    if current_user.is_superuser:
+        return True
+        
+    # 检查用户是否属于该租户
+    return current_user.tenant_id == resource_tenant_id 

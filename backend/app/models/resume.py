@@ -74,4 +74,14 @@ class Resume(Base):
     repository = relationship("ResumeRepository", back_populates="resumes")
     
     candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=True)
-    candidate = relationship("Candidate", back_populates="resumes") 
+    candidate = relationship("Candidate", back_populates="resumes")
+    
+    talent_id = Column(Integer, ForeignKey("talent.talent_id"))
+    talent = relationship("Talent", back_populates="resumes")
+
+    # 关联关系
+    repository = relationship("ResumeRepository", back_populates="resumes")
+    candidate = relationship("Candidate", back_populates="resumes")
+    talent = relationship("Talent", back_populates="resumes")
+
+    tenant_id = Column(Integer, ForeignKey("tenant.tenant_id"), nullable=True) 

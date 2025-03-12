@@ -1,0 +1,185 @@
+from typing import List, Dict, Any, Optional
+from sqlalchemy.orm import Session
+from fastapi import HTTPException
+from datetime import datetime
+from sqlalchemy import and_, or_
+
+from app import models, schemas
+from app.schemas.tenant import TenantCreate, TenantUpdate
+from .base import BaseService
+
+
+class TenantService(BaseService[models.Tenant, TenantCreate, TenantUpdate]):
+    """租户服务"""
+    
+    def __init__(self):
+        super().__init__(models.Tenant)
+
+    def get_by_code(
+        self,
+        db: Session,
+        *,
+        code: str
+    ) -> Optional[models.Tenant]:
+        """根据租户代码获取租户"""
+        return db.query(models.Tenant).filter(
+            models.Tenant.code == code
+        ).first()
+
+    async def create_tenant(
+        self,
+        db: Session,
+        *,
+        obj_in: TenantCreate
+    ) -> models.Tenant:
+        """创建租户"""
+        # 检查租户代码是否已存在
+        existing = self.get_by_code(db, code=obj_in.code)
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="租户代码已存在"
+            )
+            
+        # 创建租户
+        tenant = self.create(db=db, obj_in=obj_in)
+        
+        # 创建默认配置
+        await self.create_default_configs(db, tenant_id=tenant.id)
+        
+        return tenant
+
+    async def create_default_configs(
+        self,
+        db: Session,
+        *,
+        tenant_id: int
+    ) -> None:
+        """创建租户的默认配置"""
+        from app.services import llm_config_service
+        
+        # 创建默认LLM配置
+        default_llm_config = {
+            "name": "默认LLM配置",
+            "provider": "openai",
+            "api_key": "",
+            "model_name": "gpt-3.5-turbo",
+            "tenant_id": tenant_id,
+            "is_default": True,
+            "is_active": True
+        }
+        await llm_config_service.create_config(
+            db,
+            obj_in=schemas.LLMConfigCreate(**default_llm_config)
+        )
+
+    async def get_tenant_statistics(
+        self,
+        db: Session,
+        *,
+        tenant_id: int
+    ) -> Dict[str, Any]:
+        """获取租户统计信息"""
+        tenant = self.get(db, id=tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="租户不存在")
+            
+        # 统计用户数量
+        user_count = db.query(models.User).filter(
+            models.User.tenant_id == tenant_id
+        ).count()
+        
+        # 统计职位数量
+        job_count = db.query(models.Job).filter(
+            models.Job.tenant_id == tenant_id
+        ).count()
+        
+        # 统计候选人数量
+        candidate_count = db.query(models.Candidate).filter(
+            models.Candidate.tenant_id == tenant_id
+        ).count()
+        
+        # 统计简历数量
+        resume_count = db.query(models.Resume).filter(
+            models.Resume.tenant_id == tenant_id
+        ).count()
+        
+        # 统计面试数量
+        interview_count = db.query(models.Interview).filter(
+            models.Interview.tenant_id == tenant_id
+        ).count()
+        
+        return {
+            "user_count": user_count,
+            "job_count": job_count,
+            "candidate_count": candidate_count,
+            "resume_count": resume_count,
+            "interview_count": interview_count,
+            "created_at": tenant.created_at,
+            "last_active": tenant.last_active
+        }
+
+    def update_tenant_status(
+        self,
+        db: Session,
+        *,
+        tenant_id: int,
+        is_active: bool,
+        note: Optional[str] = None
+    ) -> models.Tenant:
+        """更新租户状态"""
+        tenant = self.get(db, id=tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="租户不存在")
+            
+        # 创建状态变更记录
+        status_change = models.TenantStatusChange(
+            tenant_id=tenant_id,
+            from_status=tenant.is_active,
+            to_status=is_active,
+            note=note,
+            created_at=datetime.utcnow()
+        )
+        db.add(status_change)
+        
+        # 更新租户状态
+        tenant = self.update(
+            db,
+            db_obj=tenant,
+            obj_in=TenantUpdate(
+                is_active=is_active,
+                last_active=datetime.utcnow() if is_active else tenant.last_active
+            )
+        )
+        
+        return tenant
+
+    def get_status_history(
+        self,
+        db: Session,
+        *,
+        tenant_id: int
+    ) -> List[Dict[str, Any]]:
+        """获取租户状态变更历史"""
+        history = db.query(models.TenantStatusChange).filter(
+            models.TenantStatusChange.tenant_id == tenant_id
+        ).order_by(
+            models.TenantStatusChange.created_at.desc()
+        ).all()
+        
+        return [
+            {
+                "from_status": h.from_status,
+                "to_status": h.to_status,
+                "note": h.note,
+                "created_at": h.created_at
+            }
+            for h in history
+        ]
+
+
+# 创建服务实例
+tenant_service = TenantService()
+
+# 只导出实例
+__all__ = ["tenant_service"] 
