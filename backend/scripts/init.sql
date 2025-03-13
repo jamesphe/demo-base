@@ -90,18 +90,17 @@ CREATE TABLE resume_repositories (
 
 -- 7. 创建简历表
 CREATE TABLE resumes (
+    -- 基本信息
     id SERIAL PRIMARY KEY,
     resume_id VARCHAR(100) UNIQUE,
-    repository_id INTEGER REFERENCES resume_repositories(id),
-    tenant_id INTEGER REFERENCES tenant(tenant_id),
-    candidate_id INTEGER REFERENCES candidates(id),
-    talent_id INTEGER REFERENCES talent(talent_id),
+    
+    -- 文件信息
     file_name VARCHAR(255) NOT NULL,
     file_path VARCHAR(500) NOT NULL,
-    file_type VARCHAR(50),  -- pdf, doc, docx
+    file_type VARCHAR(50),
     resume_type VARCHAR(20) DEFAULT 'general',
     content TEXT,
-    parsed_data JSONB,
+    parsed_data JSON,
     
     -- 处理状态
     processing_status VARCHAR(20) DEFAULT 'pending',
@@ -110,13 +109,19 @@ CREATE TABLE resumes (
     processing_completed_at TIMESTAMP,
     processing_error TEXT,
     
-    -- 个人信息
+    -- 个人基本信息
     name VARCHAR(100),
     gender VARCHAR(10),
     birthdate TIMESTAMP,
     id_number VARCHAR(50),
     phone VARCHAR(20),
     email VARCHAR(100),
+    
+    -- 个人状态信息
+    political_status VARCHAR(50),
+    marital_status VARCHAR(20),
+    hukou VARCHAR(100),
+    current_address VARCHAR(255),
     
     -- 教育信息
     highest_education VARCHAR(50),
@@ -130,7 +135,7 @@ CREATE TABLE resumes (
     current_company VARCHAR(100),
     current_position VARCHAR(100),
     current_salary VARCHAR(50),
-    work_history JSONB,
+    work_history JSON,
     
     -- 求职意向
     expected_position VARCHAR(100),
@@ -138,11 +143,33 @@ CREATE TABLE resumes (
     expected_location VARCHAR(100),
     
     -- 技能与证书
-    skills JSONB,
-    certificates JSONB,
+    skills JSON,
+    certificates JSON,
     
+    -- 匹配状态
+    matching_status VARCHAR(20) CHECK (matching_status IN ('待匹配', '已匹配', '待确认', '新人才')) DEFAULT '待匹配',
+    matching_score INTEGER,
+    
+    -- 版本信息
+    resume_version INTEGER DEFAULT 1,
+    is_latest BOOLEAN DEFAULT true,
+    
+    -- 来源信息
+    source_channel VARCHAR(50),
+    source_batch VARCHAR(100),
+    
+    -- 质量评分
+    completeness_score INTEGER,
+    
+    -- 时间戳
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- 关联关系
+    repository_id INTEGER REFERENCES resume_repositories(id),
+    candidate_id INTEGER REFERENCES candidates(id),
+    talent_id INTEGER REFERENCES talent(talent_id),
+    tenant_id INTEGER REFERENCES tenant(tenant_id)
 );
 
 -- 8. 创建面试表
@@ -172,6 +199,8 @@ CREATE INDEX idx_resumes_resume_id ON resumes(resume_id);
 CREATE INDEX idx_resumes_candidate ON resumes(candidate_id);
 CREATE INDEX idx_resumes_talent ON resumes(talent_id);
 CREATE INDEX idx_resumes_tenant ON resumes(tenant_id);
+CREATE INDEX idx_matching_status ON resumes(matching_status);
+CREATE INDEX idx_is_latest ON resumes(is_latest);
 
 -- 10. 人才认证表
 CREATE TABLE talent_certification (
@@ -412,4 +441,9 @@ INSERT INTO users (
     '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',  -- 密码: admin
     true,
     true
-); 
+);
+
+-- 添加新的索引
+CREATE INDEX idx_resumes_source_channel ON resumes(source_channel);
+CREATE INDEX idx_resumes_matching_status ON resumes(matching_status);
+CREATE INDEX idx_resumes_source_batch ON resumes(source_batch); 

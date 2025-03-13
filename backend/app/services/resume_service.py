@@ -48,6 +48,18 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     
     def __init__(self):
         super().__init__(models.Resume)
+        self._setup_logger()
+
+    def _setup_logger(self) -> None:
+        """配置日志"""
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(
+            logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+        )
+        logger.addHandler(console_handler)
+        logger.setLevel(logging.DEBUG)
 
     def validate_file_extension(self, filename: str) -> bool:
         """验证文件扩展名是否允许"""
@@ -75,42 +87,6 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             )
         return repository
 
-    async def save_file(
-        self,
-        file: UploadFile,
-        repository_id: int
-    ) -> Dict[str, str]:
-        """保存上传的文件并返回文件信息"""
-        # 验证文件扩展名
-        if not self.validate_file_extension(file.filename):
-            raise HTTPException(
-                status_code=400,
-                detail=f"不支持的文件类型: {file.filename}"
-            )
-            
-        # 生成唯一文件名和简历ID
-        resume_id = str(uuid.uuid4())
-        ext = file.filename.split(".")[-1].lower()
-        unique_filename = f"{resume_id}.{ext}"
-        repository_path = os.path.join(settings.UPLOAD_DIR, str(repository_id))
-        
-        # 确保目录存在
-        os.makedirs(repository_path, exist_ok=True)
-        
-        file_path = os.path.join(repository_path, unique_filename)
-        
-        # 异步保存文件
-        async with aiofiles.open(file_path, 'wb') as out_file:
-            content = await file.read()
-            await out_file.write(content)
-            
-        return {
-            "resume_id": resume_id,
-            "file_name": file.filename,
-            "file_path": file_path,
-            "file_type": ext
-        }
-
     async def process_resume_file(
         self,
         db: Session,
@@ -119,167 +95,321 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         tenant_id: Optional[int] = None
     ) -> models.Resume:
         """处理简历文件"""
-        file_info = None
         try:
-            logger.debug("=== Processing Resume File ===")
-            logger.debug(f"File name: {file.filename}")
-            logger.debug(f"Content type: {file.content_type}")
-            logger.debug(f"Tenant ID: {tenant_id}")
-
             # 保存文件
-            file_info = await self.save_file(file, repository_id)
-            logger.debug(f"File saved: {pformat(file_info)}")
-
-            # 解析简历文本 - 使用已保存的文件路径
-            resume_text = await parser_service.parse_resume(file_info["file_path"])
-            logger.debug(f"Parsed resume text (first 500 chars): {resume_text[:500]}...")
-
-            # 获取 LLM 配置
-            llm_config = await llm_service.get_default_config(db)
-            logger.debug(f"LLM config: {pformat(llm_config.__dict__)}")
-
-            # 生成简历分析提示词
-            system_prompt = self._get_system_prompt()
-            prompt = self._get_analysis_prompt(resume_text)
-            logger.debug(f"System prompt: {system_prompt}")
-            logger.debug(f"Analysis prompt: {prompt}")
-
-            # 调用 LLM 分析简历
-            try:
-                result = await llm_service.generate_completion(
-                    prompt=prompt,
-                    llm_config=llm_config,
-                    system_prompt=system_prompt
-                )
-                logger.debug(f"LLM analysis result: {pformat(result)}")
-            except Exception as e:
-                logger.error("LLM analysis failed", exc_info=True)
-                raise ValueError(f"简历分析失败: {str(e)}")
-
-            # 解析 LLM 返回的 JSON
-            try:
-                analysis_result = json.loads(result["content"])
-                logger.debug(f"Parsed analysis result: {pformat(analysis_result)}")
-            except json.JSONDecodeError as e:
-                logger.error("Failed to parse LLM response as JSON", exc_info=True)
-                logger.error(f"Raw response: {result['content']}")
-                raise ValueError("简历分析结果格式错误")
-
-            # 创建人才记录
-            try:
-                talent_data = {
-                    "tenant_id": tenant_id,
-                    "data_source": "个人用户",
-                    **analysis_result  # 展开分析结果
-                }
-                logger.debug(f"Talent create data: {pformat(talent_data)}")
-                
-                talent_create = TalentCreate(**talent_data)
-                logger.debug(f"Talent create model: {pformat(talent_create.__dict__)}")
-                
-                # 创建人才记录
-                talent_service = TalentService(db)
-                talent = talent_service.create_talent(talent_create)
-                logger.debug(f"Talent created: {talent.talent_id}")
-                
-                # 创建简历记录
-                resume = await self.create_resume(
-                    db,
-                    file_path=file_info["file_path"],
-                    repository_id=repository_id,
-                    original_filename=file.filename,
-                    tenant_id=tenant_id
-                )
-                
-                # 更新简历信息，关联人才ID
-                resume = self.update(
-                    db=db,
-                    db_obj=resume,
-                    obj_in=ResumeUpdate(
-                        content=resume_text,
-                        parsed_data=talent_data,
-                        talent_id=talent.talent_id,
-                        processing_status="completed"
-                    )
-                )
-                
-                return {
-                    "talent": talent,
-                    "resume": resume
-                }
-                
-            except ValidationError as e:
-                logger.error("Talent data validation failed", exc_info=True)
-                logger.error(f"Validation errors: {e.errors()}")
-                raise ValueError(f"人才数据验证失败: {str(e)}")
-
-        except HTTPException as e:
-            # 清理文件
-            if file_info and "file_path" in file_info:
-                self.delete_file(file_info["file_path"])
-            raise  # 重新抛出 HTTP 异常
+            file_info = await self._save_file(file, repository_id)
+            
+            # 解析和分析简历
+            resume_data = await self._parse_and_analyze_resume(db, file_info)
+            
+            logger.info(f"解析和分析简历: {pformat(resume_data)}")
+            
+            # 创建简历记录
+            resume = await self._create_resume_record(
+                db, 
+                file_info, 
+                resume_data, 
+                repository_id, 
+                tenant_id
+            )
+            
+            return resume
             
         except Exception as e:
             # 清理文件
-            if file_info and "file_path" in file_info:
-                self.delete_file(file_info["file_path"])
+            if 'file_info' in locals() and file_info.get('file_path'):
+                self._delete_file(file_info['file_path'])
+            logger.error(f"Resume processing failed: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=500,
                 detail=f"简历处理失败: {str(e)}"
             )
 
-    async def _parse_resume_file(self, file: UploadFile) -> str:
-        """解析简历文件内容"""
-        try:
-            logger.debug(f"Parsing resume file: {file.filename}")
+    async def _save_file(
+        self, 
+        file: UploadFile, 
+        repository_id: int
+    ) -> Dict[str, str]:
+        """保存上传的文件"""
+        if not self.validate_file_extension(file.filename):
+            raise HTTPException(
+                status_code=400,
+                detail=f"不支持的文件类型: {file.filename}"
+            )
             
-            # 创建临时文件
-            temp_dir = os.path.join(settings.UPLOAD_DIR, "temp")
-            os.makedirs(temp_dir, exist_ok=True)
-            temp_path = os.path.join(temp_dir, file.filename)
-            
-            # 先读取文件内容
+        file_info = self._generate_file_info(file, repository_id)
+        await self._write_file(file, file_info['file_path'])
+        
+        return file_info
+
+    def _validate_file_extension(self, filename: str) -> bool:
+        """验证文件扩展名"""
+        ext = filename.split(".")[-1].lower()
+        return ext in settings.ALLOWED_EXTENSIONS
+
+    def _generate_file_info(
+        self, 
+        file: UploadFile, 
+        repository_id: int
+    ) -> Dict[str, str]:
+        """生成文件信息"""
+        resume_id = str(uuid.uuid4())
+        ext = file.filename.split(".")[-1].lower()
+        unique_filename = f"{resume_id}.{ext}"
+        
+        repository_path = os.path.join(
+            settings.UPLOAD_DIR, 
+            str(repository_id)
+        )
+        os.makedirs(repository_path, exist_ok=True)
+        
+        return {
+            "resume_id": resume_id,
+            "file_name": file.filename,
+            "file_path": os.path.join(repository_path, unique_filename),
+            "file_type": ext
+        }
+
+    async def _write_file(self, file: UploadFile, file_path: str) -> None:
+        """写入文件"""
+        async with aiofiles.open(file_path, 'wb') as out_file:
             content = await file.read()
-            # 重置文件指针，这样后续还能读取
-            await file.seek(0)
-            
-            # 保存上传的文件到临时目录
-            try:
-                async with aiofiles.open(temp_path, 'wb') as out_file:
-                    await out_file.write(content)
-                logger.debug(f"Saved temp file: {temp_path}")
-                
-                # 使用 parser_service 解析文件
-                resume_text = await parser_service.parse_resume(temp_path)
-                logger.debug("Resume parsing successful")
-                
-                return resume_text
-                
-            finally:
-                # 清理临时文件
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
-                    logger.debug(f"Cleaned up temp file: {temp_path}")
-                    
+            await out_file.write(content)
+
+    async def _parse_and_analyze_resume(
+        self, 
+        db: Session,
+        file_info: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """解析和分析简历"""
+        # 解析简历文本
+        resume_text = await parser_service.parse_resume(file_info["file_path"])
+        
+        # 获取LLM配置并分析简历
+        llm_config = await llm_service.get_default_config(db)
+        analysis_result = await self._analyze_resume_with_llm(
+            resume_text, 
+            llm_config
+        )
+        
+        return {
+            "content": resume_text,
+            "parsed_data": analysis_result
+        }
+
+    async def _analyze_resume_with_llm(
+        self, 
+        resume_text: str,
+        llm_config: Any
+    ) -> Dict[str, Any]:
+        """使用LLM分析简历"""
+        system_prompt = self._get_system_prompt()
+        prompt = self._get_analysis_prompt(resume_text)
+        
+        try:
+            result = await llm_service.generate_completion(
+                prompt=prompt,
+                llm_config=llm_config,
+                system_prompt=system_prompt
+            )
+            return json.loads(result["content"])
+        except json.JSONDecodeError as e:
+            logger.error("Failed to parse LLM response", exc_info=True)
+            raise ValueError("简历分析结果格式错误") from e
         except Exception as e:
-            logger.error("Resume parsing failed", exc_info=True)
-            raise ValueError(f"简历解析失败: {str(e)}")
+            logger.error("LLM analysis failed", exc_info=True)
+            raise ValueError(f"简历分析失败: {str(e)}") from e
+
+    async def _create_resume_record(
+        self,
+        db: Session,
+        file_info: Dict[str, str],
+        resume_data: Dict[str, Any],
+        repository_id: int,
+        tenant_id: Optional[int]
+    ) -> models.Resume:
+        """创建简历记录"""
+        resume = await self.create_resume(
+            db,
+            file_path=file_info["file_path"],
+            repository_id=repository_id,
+            original_filename=file_info["file_name"],
+            tenant_id=tenant_id
+        )
+        
+        resume_fields = self._extract_resume_fields(resume_data["parsed_data"])
+        resume = self.update(
+            db=db,
+            db_obj=resume,
+            obj_in=ResumeUpdate(
+                content=resume_data["content"],
+                parsed_data=resume_data["parsed_data"],
+                processing_status="completed",
+                **resume_fields
+            )
+        )
+        
+        return resume
+
+    def _extract_resume_fields(self, parsed_data: Dict[str, Any]) -> Dict[str, Any]:
+        """从解析数据中提取简历字段"""
+        basic_info = parsed_data.get("basic_info", {})
+        education_info = parsed_data.get("education", {})
+        work_info = parsed_data.get("work_experience", {})
+        
+        # 将技能列表转换为字典
+        skills_list = parsed_data.get("skills", [])
+        skills_dict = {
+            "items": skills_list,
+            "count": len(skills_list),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        # 将证书列表转换为字典
+        certificates_list = parsed_data.get("certificates", [])
+        certificates_dict = {
+            "items": certificates_list,
+            "count": len(certificates_list),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        fields = {
+            # 个人基本信息
+            "name": basic_info.get("name"),
+            "gender": basic_info.get("gender"),
+            "birthdate": basic_info.get("birthdate"),
+            "id_number": basic_info.get("id_number"),
+            "phone": basic_info.get("phone"),
+            "email": basic_info.get("email"),
+            
+            # 个人状态信息
+            "political_status": basic_info.get("political_status"),
+            "marital_status": basic_info.get("marital_status"),
+            "hukou": basic_info.get("hukou"),
+            "current_address": basic_info.get("current_address"),
+            
+            # 教育信息
+            "highest_education": education_info.get("highest_education"),
+            "highest_degree": education_info.get("highest_degree"),
+            "major": education_info.get("major"),
+            "graduate_school": education_info.get("school"),
+            "graduation_date": education_info.get("graduation_date"),
+            
+            # 工作经验
+            "experience_years": work_info.get("total_years"),
+            "current_company": work_info.get("current_company"),
+            "current_position": work_info.get("current_position"),
+            "current_salary": work_info.get("current_salary"),
+            "work_history": work_info.get("history"),
+            
+            # 求职意向
+            "expected_position": parsed_data.get("job_intention", {}).get("position"),
+            "expected_salary": parsed_data.get("job_intention", {}).get("salary"),
+            "expected_location": parsed_data.get("job_intention", {}).get("location"),
+            
+            # 技能与证书
+            "skills": skills_dict,
+            "certificates": certificates_dict,
+        }
+        
+        # 过滤掉None值
+        return {k: v for k, v in fields.items() if v is not None}
+
+    def delete_resume_file(self, file_path: str) -> None:
+        """删除简历文件"""
+        if not file_path:
+            logger.warning("Attempted to delete file with empty file path")
+            return
+        return self._delete_file(file_path)
+
+    def _delete_file(self, file_path: str) -> None:
+        """删除文件"""
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            logger.error(f"Failed to delete file {file_path}: {str(e)}")
+
+    def delete_resume(self, resume_id: int) -> bool:
+        """删除简历"""
+        resume = self.get_resume(resume_id)
+        if resume:
+            self.delete_resume_file(resume.file_path)
+            self.db.delete(resume)
+            self.db.commit()
+            return True
+        return False
+
+    def get_resume(self, resume_id: int) -> Optional[models.Resume]:
+        """获取简历"""
+        return self.db.query(models.Resume).filter(
+            models.Resume.id == resume_id
+        ).first()
+
+    def update_resume(
+        self, 
+        resume_id: int, 
+        resume_update: ResumeUpdate
+    ) -> Optional[models.Resume]:
+        """更新简历"""
+        resume = self.get_resume(resume_id)
+        if resume:
+            for field, value in resume_update.dict(exclude_unset=True).items():
+                setattr(resume, field, value)
+            self.db.commit()
+            self.db.refresh(resume)
+        return resume
 
     def _get_system_prompt(self) -> str:
         """获取系统提示词"""
         return """你是一个专业的简历分析助手。请从简历文本中提取关键信息，并以JSON格式返回。
-        确保提取以下字段：
-        - name: 姓名
-        - gender: 性别 (M/F)
-        - birth_date: 出生日期 (YYYY-MM-DD)
-        - phone: 电话
-        - email: 邮箱
-        - address: 地址
-        - profile_summary: 个人简介
-        - primary_job_type: 主要职业类型
-        - job_location_preference: 期望工作地点
-        - expected_salary: 期望薪资
-        """
+
+请严格按照以下字段结构解析并返回JSON：
+{
+    "name": "姓名",
+    "gender": "性别(M/F)",
+    "birthdate": "出生日期(YYYY-MM-DD格式)",
+    "id_number": "身份证号",
+    "phone": "电话号码",
+    "email": "电子邮箱",
+    
+    "highest_education": "最高学历(如:本科/硕士/博士)",
+    "highest_degree": "最高学位(如:学士/硕士/博士)",
+    "major": "专业",
+    "graduate_school": "毕业院校",
+    "graduation_date": "毕业时间(YYYY-MM-DD格式)",
+    
+    "experience_years": "工作年限(数字)",
+    "current_company": "当前公司",
+    "current_position": "当前职位",
+    "current_salary": "当前薪资",
+    "work_history": [
+        {
+            "company": "公司名称",
+            "position": "职位",
+            "start_date": "开始时间(YYYY-MM-DD)",
+            "end_date": "结束时间(YYYY-MM-DD)",
+            "description": "工作描述"
+        }
+    ],
+    
+    "expected_position": "期望职位",
+    "expected_salary": "期望薪资",
+    "expected_location": "期望工作地点",
+    
+    "skills": ["技能1", "技能2"],
+    "certificates": ["证书1", "证书2"]
+}
+
+解析要求：
+1. 所有日期必须使用YYYY-MM-DD格式
+2. 性别必须使用M/F表示
+3. 工作年限必须是数字
+4. 如果某字段在简历中未找到，返回null
+5. skills和certificates必须是字符串数组格式
+6. work_history必须是数组格式，包含工作经历详情
+
+请确保返回的JSON格式正确且可以被解析。"""
 
     def _get_analysis_prompt(self, resume_text: str) -> str:
         """生成分析提示词"""
@@ -306,23 +436,6 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             },
             "skills": ["Python", "FastAPI", "SQLAlchemy"]
         }
-
-    def extract_resume_fields(self, parsed_data: Dict[str, Any]) -> Dict[str, Any]:
-        """从解析数据中提取简历字段"""
-        return {
-            "name": parsed_data.get("name"),
-            "email": parsed_data.get("email"),
-            "phone": parsed_data.get("phone"),
-            "highest_education": parsed_data.get("education", {}).get("degree"),
-            "graduate_school": parsed_data.get("education", {}).get("school"),
-            "major": parsed_data.get("education", {}).get("major"),
-            "skills": parsed_data.get("skills")
-        }
-
-    def delete_file(self, file_path: str) -> None:
-        """删除简历文件"""
-        if os.path.exists(file_path):
-            os.remove(file_path)
 
     def get_by_resume_id(self, db: Session, *, resume_id: str) -> Optional[models.Resume]:
         """根据简历ID获取简历"""
@@ -360,7 +473,12 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                 file_name=original_filename,
                 file_path=file_path,
                 file_type=file_path.split(".")[-1].lower(),
-                processing_status="pending"
+                processing_status="pending",
+                matching_status='待匹配',
+                resume_version=1,
+                is_latest=True,
+                source_channel=None,
+                source_batch=None
             )
             
             return self.create(db=db, obj_in=resume_in)
@@ -379,31 +497,6 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                 detail=error_msg
             )
 
-    async def update_resume_status(
-        self,
-        db: Session,
-        *,
-        resume_id: str,
-        status: str,
-        error: Optional[str] = None
-    ) -> models.Resume:
-        """更新简历处理状态"""
-        resume = self.get_by_resume_id(db, resume_id=resume_id)
-        if not resume:
-            raise HTTPException(status_code=404, detail="简历不存在")
-        
-        update_data = {
-            "processing_status": status,
-            "processing_error": error,
-            "processing_completed_at": datetime.utcnow() if status == "completed" else None
-        }
-        
-        return self.update(
-            db=db,
-            db_obj=resume,
-            obj_in=ResumeUpdate(**update_data)
-        )
-
     async def retry_failed_resume(
         self,
         db: Session,
@@ -421,7 +514,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         try:
             # 重新解析简历
             parsed_data = await self.parse_resume(resume.file_path)
-            resume_fields = self.extract_resume_fields(parsed_data)
+            resume_fields = self._extract_resume_fields(parsed_data)
             
             # 更新简历信息
             resume = self.update(
@@ -604,7 +697,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                 )
                 
             # 删除文件和记录
-            self.delete_file(resume.file_path)
+            self._delete_file(resume.file_path)
             self.remove(db=db, id=resume.id)
 
     async def analyze_resume(
@@ -880,7 +973,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             
             # 删除其他简历
             for resume in other_resumes:
-                self.delete_file(resume.file_path)
+                self._delete_file(resume.file_path)
                 self.remove(db=db, id=resume.id)
                 
             return primary_resume
@@ -1070,6 +1163,41 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         
         return comparison
 
+    @staticmethod
+    async def update_resume_matching_status(
+        db: Session, 
+        resume_id: int, 
+        status: str,
+        matching_score: Optional[int] = None
+    ) -> models.Resume:
+        resume = db.query(models.Resume).filter(models.Resume.id == resume_id).first()
+        if resume:
+            resume.matching_status = status
+            if matching_score is not None:
+                resume.matching_score = matching_score
+            db.commit()
+            db.refresh(resume)
+        return resume
+
+    @staticmethod
+    async def update_resume_version(
+        db: Session,
+        old_resume_id: int,
+        new_resume: ResumeCreate
+    ) -> models.Resume:
+        # 将旧简历标记为非最新
+        old_resume = db.query(models.Resume).filter(models.Resume.id == old_resume_id).first()
+        if old_resume:
+            old_resume.is_latest = False
+            
+        # 创建新版本简历
+        new_resume_version = old_resume.resume_version + 1 if old_resume else 1
+        db_resume = models.Resume(
+            # ... existing fields ...
+            resume_version=new_resume_version,
+            is_latest=True
+        )
+        # ... existing code ...
 
 # 创建服务实例
 resume_service = ResumeService()

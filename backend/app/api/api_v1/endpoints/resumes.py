@@ -110,7 +110,7 @@ def read_resume(
     *,
     db: Session = Depends(deps.get_db),
     resume_id: int,
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
     """获取简历详情"""
     resume = crud.resume.get(db=db, id=resume_id)
@@ -205,7 +205,7 @@ def delete_resume(
         raise HTTPException(status_code=403, detail="无权删除该简历")
     
     # 删除关联的文件
-    resume_service.delete_resume_file(resume.file_url)
+    resume_service.delete_resume_file(resume.file_path)
     
     resume = crud.resume.remove(db=db, id=resume_id)
     return resume 
