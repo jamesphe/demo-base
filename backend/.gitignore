@@ -22,3 +22,10 @@ var/
 .venv
 venv/
 ENV/ 
+*.pdf
+*.docx
+*.doc
+*.xls
+*.xlsx
+*.ppt
+*.pptx

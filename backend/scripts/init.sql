@@ -174,7 +174,7 @@ CREATE INDEX idx_resumes_talent ON resumes(talent_id);
 CREATE INDEX idx_resumes_tenant ON resumes(tenant_id);
 
 -- 10. 人才认证表
-CREATE TABLE candidate_certification (
+CREATE TABLE talent_certification (
     certification_id SERIAL PRIMARY KEY,
     talent_id INTEGER REFERENCES talent(talent_id) NOT NULL,
     certification_name VARCHAR(100) NOT NULL,
@@ -185,7 +185,7 @@ CREATE TABLE candidate_certification (
 );
 
 -- 11. 教育经历表
-CREATE TABLE candidate_education (
+CREATE TABLE talent_education (
     education_id SERIAL PRIMARY KEY,
     talent_id INTEGER REFERENCES talent(talent_id) NOT NULL,
     institution_name VARCHAR(255) NOT NULL,
@@ -198,7 +198,7 @@ CREATE TABLE candidate_education (
 );
 
 -- 12. 工作经历表
-CREATE TABLE candidate_experience (
+CREATE TABLE talent_experience (
     experience_id SERIAL PRIMARY KEY,
     talent_id INTEGER REFERENCES talent(talent_id) NOT NULL,
     company_name VARCHAR(255) NOT NULL,
@@ -381,9 +381,9 @@ INSERT INTO llm_configs (
 CREATE INDEX idx_talent_tenant ON talent(tenant_id);
 CREATE INDEX idx_talent_phone ON talent(phone);
 CREATE INDEX idx_talent_email ON talent(email);
-CREATE INDEX idx_certification_talent ON candidate_certification(talent_id);
-CREATE INDEX idx_education_talent ON candidate_education(talent_id);
-CREATE INDEX idx_experience_talent ON candidate_experience(talent_id);
+CREATE INDEX idx_certification_talent ON talent_certification(talent_id);
+CREATE INDEX idx_education_talent ON talent_education(talent_id);
+CREATE INDEX idx_experience_talent ON talent_experience(talent_id);
 CREATE INDEX idx_talent_skill_talent ON talent_skill(talent_id);
 CREATE INDEX idx_talent_skill_skill ON talent_skill(skill_id);
 CREATE INDEX idx_talent_pool_tenant ON talent_pool(tenant_id);

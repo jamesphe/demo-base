@@ -2,8 +2,8 @@ from sqlalchemy import Column, Integer, String, Date, Text, ForeignKey
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
 
-class CandidateEducation(Base):
-    __tablename__ = "candidate_education"
+class TalentEducation(Base):
+    __tablename__ = "talent_education"
 
     education_id = Column(Integer, primary_key=True, index=True)
     talent_id = Column(Integer, ForeignKey("talent.talent_id"), nullable=False)

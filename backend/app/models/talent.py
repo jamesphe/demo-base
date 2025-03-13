@@ -33,12 +33,9 @@ class Talent(Base):
 
     # 关联关系
     tenant = relationship("Tenant", back_populates="talents")
-    certifications = relationship(
-        "CandidateCertification",
-        back_populates="talent"
-    )
-    education = relationship("CandidateEducation", back_populates="talent")
-    experience = relationship("CandidateExperience", back_populates="talent")
+    certifications = relationship("TalentCertification", back_populates="talent")
+    education = relationship("TalentEducation", back_populates="talent")
+    experience = relationship("TalentExperience", back_populates="talent")
     skills = relationship("TalentSkill", back_populates="talent")
     resumes = relationship(
         "Resume",

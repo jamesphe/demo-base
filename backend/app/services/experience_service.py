@@ -1,6 +1,6 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.models.candidate_experience import CandidateExperience
+from app.models.talent_experience import TalentExperience
 from app.schemas.experience import ExperienceCreate, ExperienceUpdate
 
 
@@ -11,9 +11,9 @@ class ExperienceService:
     def create_experience(
         self,
         experience: ExperienceCreate
-    ) -> CandidateExperience:
+    ) -> TalentExperience:
         """创建工作经验"""
-        db_experience = CandidateExperience(
+        db_experience = TalentExperience(
             talent_id=experience.talent_id,
             company_name=experience.company_name,
             position=experience.position,
@@ -31,26 +31,26 @@ class ExperienceService:
     def get_experience(
         self,
         experience_id: int
-    ) -> Optional[CandidateExperience]:
+    ) -> Optional[TalentExperience]:
         """获取单个工作经验"""
-        return (self.db.query(CandidateExperience)
-                .filter(CandidateExperience.experience_id == experience_id)
+        return (self.db.query(TalentExperience)
+                .filter(TalentExperience.experience_id == experience_id)
                 .first())
     
     def list_talent_experiences(
         self,
         talent_id: int
-    ) -> List[CandidateExperience]:
+    ) -> List[TalentExperience]:
         """获取人才的所有工作经验"""
-        return (self.db.query(CandidateExperience)
-                .filter(CandidateExperience.talent_id == talent_id)
+        return (self.db.query(TalentExperience)
+                .filter(TalentExperience.talent_id == talent_id)
                 .all())
     
     def update_experience(
         self,
         experience_id: int,
         experience: ExperienceUpdate
-    ) -> Optional[CandidateExperience]:
+    ) -> Optional[TalentExperience]:
         """更新工作经验"""
         db_experience = self.get_experience(experience_id)
         if not db_experience:

@@ -11,9 +11,9 @@ from .role_permission import RolePermission  # noqa: F401
 from .tenant import Tenant  # noqa: F401
 from .llm_config import LLMConfig  # noqa: F401
 from .talent import Talent  # noqa: F401
-from .candidate_certification import CandidateCertification  # noqa: F401
-from .candidate_education import CandidateEducation  # noqa: F401
-from .candidate_experience import CandidateExperience  # noqa: F401
+from .talent_certification import TalentCertification  # noqa: F401
+from .talent_education import TalentEducation  # noqa: F401
+from .talent_experience import TalentExperience  # noqa: F401
 from .skill import Skill  # noqa: F401
 from .talent_skill import TalentSkill  # noqa: F401
 from .notification import Notification  # noqa: F401
@@ -33,9 +33,9 @@ __all__ = [
     "Tenant",
     "LLMConfig",
     "Talent",
-    "CandidateCertification",
-    "CandidateEducation",
-    "CandidateExperience",
+    "TalentCertification",
+    "TalentEducation",
+    "TalentExperience",
     "Skill",
     "TalentSkill",
     "Notification",

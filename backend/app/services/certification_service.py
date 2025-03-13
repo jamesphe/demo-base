@@ -1,6 +1,6 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.models.candidate_certification import CandidateCertification
+from app.models.talent_certification import TalentCertification
 from app.schemas.certification import CertificationCreate, CertificationUpdate
 
 
@@ -11,9 +11,9 @@ class CertificationService:
     def create_certification(
         self,
         certification: CertificationCreate
-    ) -> CandidateCertification:
+    ) -> TalentCertification:
         """创建认证信息"""
-        db_certification = CandidateCertification(
+        db_certification = TalentCertification(
             talent_id=certification.talent_id,
             certification_name=certification.certification_name,
             issuing_organization=certification.issuing_organization,
@@ -29,27 +29,27 @@ class CertificationService:
     def get_certification(
         self,
         certification_id: int
-    ) -> Optional[CandidateCertification]:
+    ) -> Optional[TalentCertification]:
         """获取单个认证详情"""
-        query = self.db.query(CandidateCertification)
+        query = self.db.query(TalentCertification)
         return (query.filter(
-            CandidateCertification.certification_id == certification_id
+            TalentCertification.certification_id == certification_id
         ).first())
     
     def list_talent_certifications(
         self,
         talent_id: int
-    ) -> List[CandidateCertification]:
+    ) -> List[TalentCertification]:
         """获取人才的所有认证"""
-        return (self.db.query(CandidateCertification)
-                .filter(CandidateCertification.talent_id == talent_id)
+        return (self.db.query(TalentCertification)
+                .filter(TalentCertification.talent_id == talent_id)
                 .all())
     
     def update_certification(
         self,
         certification_id: int,
         certification: CertificationUpdate
-    ) -> Optional[CandidateCertification]:
+    ) -> Optional[TalentCertification]:
         """更新认证信息"""
         db_certification = self.get_certification(certification_id)
         if not db_certification:

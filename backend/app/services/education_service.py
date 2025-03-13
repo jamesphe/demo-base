@@ -1,6 +1,6 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.models.candidate_education import CandidateEducation
+from app.models.talent_education import TalentEducation
 from app.schemas.education import EducationCreate, EducationUpdate
 
 
@@ -11,9 +11,9 @@ class EducationService:
     def create_education(
         self,
         education: EducationCreate
-    ) -> CandidateEducation:
+    ) -> TalentEducation:
         """创建教育经历"""
-        db_education = CandidateEducation(
+        db_education = TalentEducation(
             talent_id=education.talent_id,
             institution_name=education.institution_name,
             degree=education.degree,
@@ -31,26 +31,26 @@ class EducationService:
     def get_education(
         self,
         education_id: int
-    ) -> Optional[CandidateEducation]:
+    ) -> Optional[TalentEducation]:
         """获取单个教育经历"""
-        return (self.db.query(CandidateEducation)
-                .filter(CandidateEducation.education_id == education_id)
+        return (self.db.query(TalentEducation)
+                .filter(TalentEducation.education_id == education_id)
                 .first())
     
     def list_talent_educations(
         self,
         talent_id: int
-    ) -> List[CandidateEducation]:
+    ) -> List[TalentEducation]:
         """获取人才的所有教育经历"""
-        return (self.db.query(CandidateEducation)
-                .filter(CandidateEducation.talent_id == talent_id)
+        return (self.db.query(TalentEducation)
+                .filter(TalentEducation.talent_id == talent_id)
                 .all())
     
     def update_education(
         self,
         education_id: int,
         education: EducationUpdate
-    ) -> Optional[CandidateEducation]:
+    ) -> Optional[TalentEducation]:
         """更新教育经历"""
         db_education = self.get_education(education_id)
         if not db_education:
