@@ -23,7 +23,7 @@ class TalentPoolResponse(TalentPoolBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class TalentPoolMemberBase(BaseModel):
@@ -45,4 +45,4 @@ class TalentPoolMemberResponse(TalentPoolMemberBase):
     added_at: datetime
 
     class Config:
-        orm_mode = True 
+        from_attributes = True 
