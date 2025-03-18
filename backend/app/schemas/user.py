@@ -38,6 +38,7 @@ class UserInfo(BaseModel):
     id: int
     email: EmailStr
     username: str
+    name: str
     avatar: Optional[str] = None
     introduction: Optional[str] = None
     roles: List[str]

@@ -1,14 +1,9 @@
-import os
-import shutil
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.api import deps
 from app.core.config import settings
-from datetime import datetime
-import uuid
-import aiofiles
 from app.services import resume_service
 
 router = APIRouter()
@@ -68,7 +63,7 @@ async def upload_files(
 
 @router.get(
     "/",
-    response_model=List[schemas.Resume],
+    response_model=schemas.ResumeList,
     dependencies=[
         Depends(
             deps.get_current_user_with_tenant_permission(
@@ -79,13 +74,16 @@ async def upload_files(
 )
 def read_resumes(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    limit: int = 10,
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """获取简历列表"""
+    skip = (page - 1) * limit
+    
     if current_user.is_superuser:
         resumes = crud.resume.get_multi(db, skip=skip, limit=limit)
+        total = crud.resume.count(db)
     else:
         resumes = crud.resume.get_multi_by_tenant(
             db,
@@ -93,7 +91,17 @@ def read_resumes(
             skip=skip,
             limit=limit
         )
-    return resumes
+        total = crud.resume.count_by_tenant(db, tenant_id=current_user.tenant_id)
+    
+    # 将 SQLAlchemy 模型转换为 Pydantic 模型
+    resume_list = [schemas.Resume.model_validate(resume) for resume in resumes]
+    
+    return {
+        "data": {
+            "items": resume_list,
+            "total": total
+        }
+    }
 
 @router.get(
     "/{resume_id}",

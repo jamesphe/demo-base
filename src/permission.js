@@ -72,3 +72,19 @@ router.afterEach(() => {
   // finish progress bar
   NProgress.done()
 })
+
+async function getPermissionList() {
+  try {
+    console.log('开始获取权限列表...')
+    const res = await getList()
+    console.log('获取权限列表结果:', res)
+    return res
+  } catch (error) {
+    console.error('获取权限列表详细错误:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response
+    })
+    throw error
+  }
+}

@@ -20,7 +20,7 @@ from .interview import (  # noqa: F401
     InterviewUpdate,
     InterviewWithDetails
 )
-from .resume import Resume, ResumeCreate, ResumeUpdate  # noqa: F401
+from .resume import Resume, ResumeCreate, ResumeUpdate, ResumeList, ResumeBasicInfo
 from .resume_repository import (
     ResumeRepository,
     ResumeRepositoryCreate,
@@ -61,6 +61,8 @@ __all__ = [
     "Resume",
     "ResumeCreate",
     "ResumeUpdate",
+    "ResumeList",
+    "ResumeBasicInfo",
     "ResumeRepository",
     "ResumeRepositoryCreate",
     "ResumeRepositoryUpdate",

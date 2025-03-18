@@ -12,7 +12,7 @@ class Notification(Base):
     content = Column(Text, nullable=False)
     type = Column(String(50), nullable=False)  # system, resume, interview 等
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    tenant_id = Column(Integer, ForeignKey("tenant.tenant_id"), nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenant.id"), nullable=True)
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(

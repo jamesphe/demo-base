@@ -42,41 +42,58 @@ service.interceptors.response.use(
    */
   response => {
     const res = response.data
+    
+    // 添加响应数据日志
+    console.log('接口响应数据:', {
+      url: response.config.url,
+      status: response.status,
+      data: res
+    })
 
     // 处理登录成功的情况
     if (res.access_token) {
       return res
     }
 
-    // 处理错误情况
-    if (res.code !== 20000) {
-      Message({
-        message: res.detail || res.message || 'Error',
-        type: 'error',
-        duration: 5 * 1000
-      })
-      return Promise.reject(new Error(res.detail || res.message || 'Error'))
+    // 如果响应中包含 data 字段，说明是正常的业务数据
+    if (res.data !== undefined) {
+      return res
     }
 
-    // 返回正常响应数据
-    return res
+    // 处理错误情况
+    const errorMsg = res.detail || res.message || 'Error'
+    Message({
+      message: errorMsg,
+      type: 'error',
+      duration: 5 * 1000
+    })
+    return Promise.reject(new Error(errorMsg))
   },
   error => {
-    console.log('err:', error)
+    console.error('请求错误:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      params: error.config?.params,
+      data: error.config?.data,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data,
+      errorMessage: error.message
+    })
+
     const errMsg = error.response?.data?.detail || error.message || 'Error'
-    
     Message({
       message: errMsg,
       type: 'error',
       duration: 5 * 1000
     })
-    
+
     if (error.response?.status === 401) {
       store.dispatch('user/resetToken').then(() => {
         location.reload()
       })
     }
-    
+
     return Promise.reject(error)
   }
 )

@@ -1,12 +1,13 @@
 -- 1. 首先创建租户表
 CREATE TABLE tenant (
-    tenant_id SERIAL PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     tenant_name VARCHAR(100) NOT NULL,
     contact_person VARCHAR(100),
     phone VARCHAR(20),
     email VARCHAR(100),
     address VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive'))
 );
 
@@ -26,7 +27,7 @@ CREATE TABLE jobs (
 -- 3. 创建用户表
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    tenant_id INTEGER REFERENCES tenant(tenant_id),
+    tenant_id INTEGER REFERENCES tenant(id),
     email VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(255),
     hashed_password VARCHAR(255) NOT NULL,
@@ -41,7 +42,7 @@ CREATE TABLE users (
 -- 4. 创建人才表
 CREATE TABLE talent (
     talent_id SERIAL PRIMARY KEY,
-    tenant_id INTEGER REFERENCES tenant(tenant_id),
+    tenant_id INTEGER REFERENCES tenant(id),
     name VARCHAR(100) NOT NULL,
     gender VARCHAR(10) CHECK (gender IN ('M', 'F')),
     birth_date DATE,
@@ -62,7 +63,7 @@ CREATE TABLE talent (
 -- 5. 创建候选人表
 CREATE TABLE candidates (
     id SERIAL PRIMARY KEY,
-    tenant_id INTEGER REFERENCES tenant(tenant_id),
+    tenant_id INTEGER REFERENCES tenant(id),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     phone VARCHAR(20),
@@ -135,6 +136,7 @@ CREATE TABLE resumes (
     current_company VARCHAR(100),
     current_position VARCHAR(100),
     current_salary VARCHAR(50),
+    work_time VARCHAR(50),
     work_history JSON,
     
     -- 求职意向
@@ -169,7 +171,29 @@ CREATE TABLE resumes (
     repository_id INTEGER REFERENCES resume_repositories(id),
     candidate_id INTEGER REFERENCES candidates(id),
     talent_id INTEGER REFERENCES talent(talent_id),
-    tenant_id INTEGER REFERENCES tenant(tenant_id)
+    tenant_id INTEGER REFERENCES tenant(id),
+    
+    -- 需要添加的个人基本信息字段
+    stature VARCHAR(20),
+    weight VARCHAR(20),
+    nation VARCHAR(50),
+    english_level VARCHAR(50),
+    city VARCHAR(100),
+    district VARCHAR(100),
+    
+    -- 需要添加的职称信息字段
+    talent_name VARCHAR(100),
+    talent_team VARCHAR(100),
+    talent_type VARCHAR(100),
+    title_rank VARCHAR(100),
+    
+    -- 需要添加的经历信息字段
+    edu_experience JSON,
+    awards JSON,
+    
+    -- 需要添加的其他信息字段
+    family_situation VARCHAR(255),
+    other_info VARCHAR(255)
 );
 
 -- 8. 创建面试表
@@ -257,7 +281,7 @@ CREATE TABLE talent_skill (
 -- 15. 人才库表
 CREATE TABLE talent_pool (
     pool_id SERIAL PRIMARY KEY,
-    tenant_id INTEGER REFERENCES tenant(tenant_id) NOT NULL,
+    tenant_id INTEGER REFERENCES tenant(id) NOT NULL,
     pool_name VARCHAR(100) NOT NULL,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -319,7 +343,8 @@ CREATE TABLE llm_configs (
 );
 
 -- 创建触发器函数来自动更新updated_at
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+DROP FUNCTION IF EXISTS update_updated_at_column CASCADE;
+CREATE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = CURRENT_TIMESTAMP;
@@ -328,6 +353,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 为所有表添加更新时间触发器
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW
@@ -446,4 +472,33 @@ INSERT INTO users (
 -- 添加新的索引
 CREATE INDEX idx_resumes_source_channel ON resumes(source_channel);
 CREATE INDEX idx_resumes_matching_status ON resumes(matching_status);
-CREATE INDEX idx_resumes_source_batch ON resumes(source_batch); 
+CREATE INDEX idx_resumes_source_batch ON resumes(source_batch);
+
+-- 为租户表添加触发器（确保在文件最后部分的触发器创建部分）
+CREATE TRIGGER update_tenant_updated_at
+    BEFORE UPDATE ON tenant
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 创建通知表
+CREATE TABLE notifications (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL,  -- system, resume, interview 等
+    user_id INTEGER REFERENCES users(id) NOT NULL,
+    tenant_id INTEGER REFERENCES tenant(id),
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 添加索引
+CREATE INDEX idx_notifications_user ON notifications(user_id);
+CREATE INDEX idx_notifications_tenant ON notifications(tenant_id);
+
+-- 添加更新时间触发器
+CREATE TRIGGER update_notifications_updated_at
+    BEFORE UPDATE ON notifications
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column(); 

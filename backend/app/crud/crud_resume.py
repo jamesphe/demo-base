@@ -57,5 +57,11 @@ class CRUDResume(CRUDBase[Resume, ResumeCreate, ResumeUpdate]):
             .all()
         )
 
+    def count(self, db: Session) -> int:
+        return db.query(Resume).count()
+
+    def count_by_tenant(self, db: Session, tenant_id: int) -> int:
+        return db.query(Resume).filter(Resume.tenant_id == tenant_id).count()
+
 
 resume = CRUDResume(Resume) 

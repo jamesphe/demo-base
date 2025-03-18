@@ -10,13 +10,17 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# 设置 CORS
+# 配置CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 允许所有源访问，生产环境建议设置具体的域名
-    allow_credentials=True,
-    allow_methods=["*"],  # 允许所有 HTTP 方法
-    allow_headers=["*"],  # 允许所有 headers
+    # 允许的源列表，生产环境中应该设置为具体的域名
+    allow_origins=[
+        "http://localhost:9527",  # 开发环境前端地址
+        "http://127.0.0.1:9527"
+    ],
+    allow_credentials=True,  # 允许携带凭证
+    allow_methods=["*"],  # 允许的HTTP方法
+    allow_headers=["*"],  # 允许的HTTP头
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)

@@ -16,7 +16,7 @@ from fastapi import BackgroundTasks
 from app import models, crud
 from app.core.config import settings
 from app.schemas.resume_repository import ResumeRepositoryCreate
-from app.schemas.resume import ResumeCreate, ResumeUpdate
+from app.schemas.resume import ResumeCreate, ResumeUpdate, SkillInfo, CertificateInfo
 from .base import BaseService
 from app.services import repository_service, llm_config_service
 from app.services.parser_service import parser_service
@@ -43,12 +43,21 @@ console_handler.setFormatter(formatter)
 if not logger.handlers:
     logger.addHandler(console_handler)
 
+class DateTimeEncoder(json.JSONEncoder):
+    """处理datetime的JSON编码器"""
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
 class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     """简历服务"""
     
     def __init__(self):
         super().__init__(models.Resume)
         self._setup_logger()
+        # 设置JSON编码器
+        self.json_encoder = DateTimeEncoder()
 
     def _setup_logger(self) -> None:
         """配置日志"""
@@ -229,6 +238,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         tenant_id: Optional[int]
     ) -> models.Resume:
         """创建简历记录"""
+        # 1. 首先创建基础简历记录
         resume = await self.create_resume(
             db,
             file_path=file_info["file_path"],
@@ -237,13 +247,67 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             tenant_id=tenant_id
         )
         
-        resume_fields = self._extract_resume_fields(resume_data["parsed_data"])
+        # 2. 处理解析数据
+        parsed_data = resume_data["parsed_data"]
+        
+        # 3. 处理日期格式
+        if parsed_data.get('edu_experience'):
+            for edu in parsed_data['edu_experience']:
+                if edu.get('start_date'):
+                    # 添加时间部分
+                    edu['start_date'] = f"{edu['start_date']}-01T00:00:00"
+                if edu.get('end_date'):
+                    edu['end_date'] = f"{edu['end_date']}-01T00:00:00"
+        
+        # 4. 处理技能和证书
+        if parsed_data.get('skills') and isinstance(parsed_data['skills'], dict):
+            skills_items = parsed_data['skills'].get('items', [])
+            # 创建 SkillInfo 实例
+            parsed_data['skills'] = [
+                SkillInfo(
+                    name=skill,
+                    level=None,
+                    description=None
+                ) for skill in skills_items
+            ]
+        
+        if parsed_data.get('certificates') and isinstance(parsed_data['certificates'], dict):
+            cert_items = parsed_data['certificates'].get('items', [])
+            # 创建 CertificateInfo 实例
+            parsed_data['certificates'] = [
+                CertificateInfo(
+                    name=cert,
+                    issuer=None,
+                    issue_date=None,
+                    expire_date=None
+                ) for cert in cert_items
+            ]
+        
+        # 5. 使用自定义编码器序列化parsed_data
+        if parsed_data:
+            parsed_data = json.loads(
+                self.json_encoder.encode(parsed_data)
+            )
+        
+        # 6. 提取和更新简历字段
+        resume_fields = self._extract_resume_fields(parsed_data)
+        
+        # 7. 使用自定义编码器序列化resume_fields中的JSON字段
+        if resume_fields.get('work_history'):
+            resume_fields['work_history'] = json.loads(
+                self.json_encoder.encode(resume_fields['work_history'])
+            )
+        if resume_fields.get('edu_experience'):
+            resume_fields['edu_experience'] = json.loads(
+                self.json_encoder.encode(resume_fields['edu_experience'])
+            )
+        
         resume = self.update(
             db=db,
             db_obj=resume,
             obj_in=ResumeUpdate(
                 content=resume_data["content"],
-                parsed_data=resume_data["parsed_data"],
+                parsed_data=parsed_data,
                 processing_status="completed",
                 **resume_fields
             )
@@ -253,66 +317,115 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
 
     def _extract_resume_fields(self, parsed_data: Dict[str, Any]) -> Dict[str, Any]:
         """从解析数据中提取简历字段"""
-        basic_info = parsed_data.get("basic_info", {})
-        education_info = parsed_data.get("education", {})
-        work_info = parsed_data.get("work_experience", {})
+        def convert_to_datetime(date_str: Optional[str]) -> Optional[str]:
+            """将日期字符串转换为datetime格式的字符串"""
+            if not date_str:
+                return None
+            
+            # 如果已经是datetime对象则转换为字符串
+            if isinstance(date_str, datetime):
+                return date_str.strftime("%Y-%m-%dT%H:%M:%S")
+            
+            # 移除可能存在的时间部分
+            if "T" in date_str:
+                date_str = date_str.split("T")[0]
+            
+            try:
+                # 转换为datetime对象再转回特定格式的字符串
+                dt = datetime.strptime(date_str, "%Y-%m-%d")
+                return dt.strftime("%Y-%m-%dT%H:%M:%S")
+            except (ValueError, TypeError):
+                return None
+
+        # 处理birthdate格式
+        birthdate = parsed_data.get("birthdate")
+        if birthdate:
+            birthdate = convert_to_datetime(birthdate)
         
-        # 将技能列表转换为字典
-        skills_list = parsed_data.get("skills", [])
-        skills_dict = {
-            "items": skills_list,
-            "count": len(skills_list),
-            "updated_at": datetime.utcnow().isoformat()
-        }
+        # 处理graduation_date格式
+        graduation_date = parsed_data.get("graduation_date")
+        if graduation_date:
+            graduation_date = convert_to_datetime(graduation_date)
         
-        # 将证书列表转换为字典
-        certificates_list = parsed_data.get("certificates", [])
-        certificates_dict = {
-            "items": certificates_list,
-            "count": len(certificates_list),
-            "updated_at": datetime.utcnow().isoformat()
-        }
+        # 处理工作经历日期
+        work_history = parsed_data.get("work_history", [])
+        if work_history:
+            for work in work_history:
+                if work.get("start_date"):
+                    work["start_date"] = convert_to_datetime(work["start_date"])
+                if work.get("end_date"):
+                    work["end_date"] = convert_to_datetime(work["end_date"])
         
+        # 处理教育经历日期
+        edu_experience = parsed_data.get("edu_experience", [])
+        if edu_experience:
+            for edu in edu_experience:
+                if edu.get("start_date"):
+                    edu["start_date"] = convert_to_datetime(edu["start_date"])
+                if edu.get("end_date"):
+                    edu["end_date"] = convert_to_datetime(edu["end_date"])
+
         fields = {
             # 个人基本信息
-            "name": basic_info.get("name"),
-            "gender": basic_info.get("gender"),
-            "birthdate": basic_info.get("birthdate"),
-            "id_number": basic_info.get("id_number"),
-            "phone": basic_info.get("phone"),
-            "email": basic_info.get("email"),
+            "name": parsed_data.get("name"),
+            "gender": parsed_data.get("gender"),
+            "birthdate": birthdate,
+            "id_number": parsed_data.get("id_number"),
+            "phone": parsed_data.get("phone"),
+            "email": parsed_data.get("email"),
             
             # 个人状态信息
-            "political_status": basic_info.get("political_status"),
-            "marital_status": basic_info.get("marital_status"),
-            "hukou": basic_info.get("hukou"),
-            "current_address": basic_info.get("current_address"),
+            "political_status": parsed_data.get("political_status"),
+            "marital_status": parsed_data.get("marital_status"),
+            "hukou": parsed_data.get("hukou"),
+            "current_address": parsed_data.get("current_address"),
             
             # 教育信息
-            "highest_education": education_info.get("highest_education"),
-            "highest_degree": education_info.get("highest_degree"),
-            "major": education_info.get("major"),
-            "graduate_school": education_info.get("school"),
-            "graduation_date": education_info.get("graduation_date"),
+            "highest_education": parsed_data.get("highest_education"),
+            "highest_degree": parsed_data.get("highest_degree"),
+            "major": parsed_data.get("major"),
+            "graduate_school": parsed_data.get("graduate_school"),
+            "graduation_date": graduation_date,
             
             # 工作经验
-            "experience_years": work_info.get("total_years"),
-            "current_company": work_info.get("current_company"),
-            "current_position": work_info.get("current_position"),
-            "current_salary": work_info.get("current_salary"),
-            "work_history": work_info.get("history"),
+            "experience_years": parsed_data.get("experience_years"),
+            "current_company": parsed_data.get("current_company"),
+            "current_position": parsed_data.get("current_position"),
+            "current_salary": parsed_data.get("current_salary"),
+            "work_history": work_history,
             
             # 求职意向
-            "expected_position": parsed_data.get("job_intention", {}).get("position"),
-            "expected_salary": parsed_data.get("job_intention", {}).get("salary"),
-            "expected_location": parsed_data.get("job_intention", {}).get("location"),
+            "expected_position": parsed_data.get("expected_position"),
+            "expected_salary": parsed_data.get("expected_salary"), 
+            "expected_location": parsed_data.get("expected_location"),
             
             # 技能与证书
-            "skills": skills_dict,
-            "certificates": certificates_dict,
+            "skills": parsed_data.get("skills", []),
+            "certificates": parsed_data.get("certificates", []),
+            
+            # 新增个人基本信息
+            "stature": parsed_data.get("stature"),
+            "weight": parsed_data.get("weight"),
+            "nation": parsed_data.get("nation"),
+            "english_level": parsed_data.get("english_level"),
+            "city": parsed_data.get("city"),
+            "district": parsed_data.get("district"),
+            
+            # 新增职称信息
+            "talent_name": parsed_data.get("talent_name"),
+            "talent_team": parsed_data.get("talent_team"),
+            "talent_type": parsed_data.get("talent_type"),
+            "title_rank": parsed_data.get("title_rank"),
+            
+            # 新增经历信息
+            "edu_experience": edu_experience,
+            "awards": parsed_data.get("awards"),
+            
+            # 新增其他信息
+            "family_situation": parsed_data.get("family_situation"),
+            "other_info": parsed_data.get("other_info"),
         }
         
-        # 过滤掉None值
         return {k: v for k, v in fields.items() if v is not None}
 
     def delete_resume_file(self, file_path: str) -> None:
@@ -383,6 +496,38 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     "current_company": "当前公司",
     "current_position": "当前职位",
     "current_salary": "当前薪资",
+    
+    "stature": "身高",
+    "weight": "体重",
+    "nation": "民族",
+    "english_level": "英语水平",
+    "city": "城市",
+    "district": "区域",
+    
+    "talent_name": "人才名称",
+    "talent_team": "所属团队",
+    "talent_type": "人才类型",
+    "title_rank": "职称等级",
+    
+    "edu_experience": [
+        {
+            "school": "学校名称",
+            "degree": "学位",
+            "major": "专业",
+            "start_date": "开始时间",
+            "end_date": "结束时间"
+        }
+    ],
+    "awards": [
+        {
+            "name": "奖项名称",
+            "level": "奖项级别",
+            "date": "获奖时间"
+        }
+    ],
+    
+    "family_situation": "家庭情况",
+    "other_info": "其他信息",
     "work_history": [
         {
             "company": "公司名称",
@@ -397,8 +542,21 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     "expected_salary": "期望薪资",
     "expected_location": "期望工作地点",
     
-    "skills": ["技能1", "技能2"],
-    "certificates": ["证书1", "证书2"]
+    "skills": [
+        {
+            "name": "技能名称",
+            "level": "技能水平",
+            "description": "技能描述"
+        }
+    ],
+    "certificates": [
+        {
+            "name": "证书名称",
+            "issuer": "发证机构",
+            "issue_date": "发证日期",
+            "expire_date": "到期日期"
+        }
+    ]
 }
 
 解析要求：
@@ -406,7 +564,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
 2. 性别必须使用M/F表示
 3. 工作年限必须是数字
 4. 如果某字段在简历中未找到，返回null
-5. skills和certificates必须是字符串数组格式
+5. skills和certificates必须按照指定格式返回，包含所有必要字段
 6. work_history必须是数组格式，包含工作经历详情
 
 请确保返回的JSON格式正确且可以被解析。"""
@@ -418,8 +576,12 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
 简历文本：
 {resume_text}
 
-请确保返回的JSON包含所有必需字段，对于无法确定的字段请返回null。
-"""
+请特别注意：
+1. 技能信息需要包含 name、level、description 字段
+2. 证书信息需要包含 name、issuer、issue_date、expire_date 字段
+3. 如果某些字段信息不存在，使用 null 表示
+
+请确保返回的JSON包含所有必需字段，对于无法确定的字段请返回null。"""
 
     async def parse_resume(self, file_path: str) -> Dict[str, Any]:
         """解析简历内容"""

@@ -38,7 +38,7 @@ def create_tenant(
     if tenant:
         raise HTTPException(
             status_code=400,
-            detail="该租户名已存在"
+            detail="租户名称已存在"
         )
     tenant = crud.tenant.create(db=db, obj_in=tenant_in)
     return tenant

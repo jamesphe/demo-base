@@ -7,13 +7,14 @@ from app.db.base_class import Base
 class Tenant(Base):
     __tablename__ = "tenant"
 
-    tenant_id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     tenant_name = Column(String(100), nullable=False)
     contact_person = Column(String(100))
     phone = Column(String(20))
     email = Column(String(100))
     address = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = Column(
         Enum('active', 'inactive', name='tenant_status'),
         default='active'
@@ -25,3 +26,4 @@ class Tenant(Base):
     talents = relationship("Talent", back_populates="tenant")
     notifications = relationship("Notification", back_populates="tenant")
     talent_pools = relationship("TalentPool", back_populates="tenant")
+    resumes = relationship("Resume", back_populates="tenant")

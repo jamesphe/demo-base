@@ -12,24 +12,27 @@ export function uploadResume(data) {
 // 获取简历解析列表
 export function getParseList(params) {
   return request({
-    url: '/resume/parse/list',
+    url: '/resumes',
     method: 'get',
     params
   })
 }
 
 // 解析简历
-export function parseResume(id) {
+export function parseResume(fileUrl) {
   return request({
-    url: `/resume/parse/${id}`,
-    method: 'post'
+    url: '/resumes/parse',
+    method: 'post',
+    data: {
+      file_url: fileUrl
+    }
   })
 }
 
 // 获取解析结果
 export function getParseResult(id) {
   return request({
-    url: `/resume/parse/result/${id}`,
+    url: `/resumes/${id}`,
     method: 'get'
   })
 }
@@ -37,7 +40,7 @@ export function getParseResult(id) {
 // 删除解析记录
 export function deleteParseRecord(id) {
   return request({
-    url: `/resume/parse/${id}`,
+    url: `/resumes/${id}`,
     method: 'delete'
   })
 }

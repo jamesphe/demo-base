@@ -24,7 +24,10 @@ class Resume(Base):
     parsed_data = Column(JSON)
     
     # 处理状态
-    processing_status = Column(String(20), default="pending")  # pending, processing, completed, failed
+    processing_status = Column(
+        String(20), 
+        default="pending"
+    )  # pending, processing, completed, failed
     processing_message = Column(String(200))
     processing_started_at = Column(DateTime)
     processing_completed_at = Column(DateTime)
@@ -37,6 +40,12 @@ class Resume(Base):
     id_number = Column(String(50))
     phone = Column(String(20))
     email = Column(String(100))
+    stature = Column(String(20))
+    weight = Column(String(20))
+    nation = Column(String(50))
+    english_level = Column(String(50))
+    city = Column(String(100))
+    district = Column(String(100))
     
     # 个人状态信息
     political_status = Column(String(50))
@@ -56,6 +65,7 @@ class Resume(Base):
     current_company = Column(String(100))
     current_position = Column(String(100))
     current_salary = Column(String(50))
+    work_time = Column(String(50))
     work_history = Column(JSON)
     
     # 求职意向
@@ -108,4 +118,21 @@ class Resume(Base):
     talent_id = Column(Integer, ForeignKey("talent.talent_id"))
     talent = relationship("Talent", back_populates="resumes")
     
-    tenant_id = Column(Integer, ForeignKey("tenant.tenant_id"), nullable=True) 
+    tenant_id = Column(Integer, ForeignKey("tenant.id"), nullable=True)
+    tenant = relationship("Tenant")
+    
+    # 职称信息
+    talent_name = Column(String(100))
+    talent_team = Column(String(100))
+    talent_type = Column(String(100))
+    title_rank = Column(String(100))
+    
+    # 经历信息
+    edu_experience = Column(JSON)
+    awards = Column(JSON)
+    
+    # 其他信息
+    family_situation = Column(String(255))
+    
+    # 其他信息
+    other_info = Column(String(255)) 

@@ -22,9 +22,9 @@ class TenantUpdate(TenantBase):
 
 
 class TenantInDBBase(TenantBase):
-    tenant_id: int
+    id: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
 
     model_config = {
         "from_attributes": True

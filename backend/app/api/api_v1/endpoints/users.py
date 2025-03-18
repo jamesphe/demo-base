@@ -80,17 +80,20 @@ def update_user_me(
 
 @router.get("/info", response_model=schemas.UserInfoResponse)
 def get_user_info(
-    current_user: models.User = Depends(deps.get_current_user),
-    db: Session = Depends(deps.get_db)
-) -> Any:
-    """
-    获取当前登录用户的详细信息
-    """
+    current_user: models.User = Depends(deps.get_current_user)
+):
+    """获取当前登录用户信息"""
     user_info = schemas.UserInfo(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
         name=current_user.username,
-        avatar="https://wpimg.wallstcn.com/f778738c-e4f8-4870-b634-56703b4acafe.gif",
-        introduction="I am a super administrator" if current_user.is_superuser else "I am an editor",
-        roles=["admin"] if current_user.is_superuser else ["editor"]
+        avatar=current_user.avatar,
+        introduction=current_user.introduction,
+        roles=current_user.get_roles(),
+        is_active=current_user.is_active,
+        is_superuser=current_user.is_superuser,
+        tenant_id=current_user.tenant_id
     )
     
     return {

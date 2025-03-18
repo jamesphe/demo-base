@@ -8,7 +8,7 @@ class Candidate(Base):
     __tablename__ = "candidates"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenant.tenant_id"), nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenant.id"), nullable=True)
     name = Column(String(255))
     email = Column(String(255), unique=True, index=True)
     phone = Column(String(20))

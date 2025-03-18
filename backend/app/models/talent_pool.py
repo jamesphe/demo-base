@@ -10,7 +10,7 @@ class TalentPool(Base):
     pool_id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(
         Integer,
-        ForeignKey("tenant.tenant_id"),
+        ForeignKey("tenant.id"),
         nullable=False
     )
     pool_name = Column(String(100), nullable=False)

@@ -106,7 +106,7 @@ def init_tenants(db: Session) -> None:
     for tenant in tenants:
         db_tenant = crud["tenant"].get_by_name(
             db, 
-            name=tenant["tenant_name"]
+            tenant_name=tenant["tenant_name"]
         )
         if not db_tenant:
             tenant_in = TenantCreate(**tenant)
@@ -115,7 +115,7 @@ def init_tenants(db: Session) -> None:
     # 检查默认租户是否存在
     db_tenant = crud["tenant"].get_by_name(
         db, 
-        name="Default Tenant"
+        tenant_name="Default Tenant"
     )
     if not db_tenant:
         tenant_in = TenantCreate(

@@ -25,7 +25,7 @@ class TalentUpdate(TalentBase):
 
 
 class TalentResponse(TalentBase):
-    talent_id: int
+    id: int
     verified_status: bool
     
     class Config:

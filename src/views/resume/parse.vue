@@ -47,6 +47,20 @@
         </el-table-column>
       </el-table>
 
+      <!-- 添加分页组件 -->
+      <div class="pagination-container">
+        <el-pagination
+          background
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          :current-page="listQuery.page"
+          :page-sizes="[10, 20, 30, 50]"
+          :page-size="listQuery.limit"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="total"
+        />
+      </div>
+
       <!-- 解析结果对话框 -->
       <el-dialog
         title="解析结果"
@@ -123,7 +137,12 @@ export default {
       parseList: [],
       resultVisible: false,
       resultLoading: false,
-      currentResult: {}
+      currentResult: {},
+      listQuery: {
+        page: 1,
+        limit: 10
+      },
+      total: 0
     }
   },
   created() {
@@ -134,12 +153,41 @@ export default {
     async getParseList() {
       this.loading = true
       try {
-        const { data } = await getParseList()
-        this.parseList = data.items
+        console.log('开始获取解析列表...')
+        const res = await getParseList({
+          page: this.listQuery.page,
+          limit: this.listQuery.limit
+        })
+        console.log('获取解析列表响应:', res)
+        
+        // 确保 data 和 items 存在
+        if (!res.data || !res.data.items) {
+          throw new Error('返回数据格式错误')
+        }
+        
+        this.parseList = res.data.items.map(item => ({
+          id: item.id,
+          fileName: item.file_name,
+          fileUrl: item.file_url,
+          uploadTime: item.created_at,
+          parseStatus: item.processing_status || 'pending',
+          parsedData: item.parsed_data
+        }))
+
+        // 更新总数
+        this.total = res.data.total || 0
+
       } catch (error) {
-        this.$message.error('获取列表失败')
+        console.error('获取解析列表失败:', {
+          message: error.message,
+          config: error.config,
+          response: error.response?.data
+        })
+        this.$message.error(error.response?.data?.detail || error.message || '获取列表失败')
+      } finally {
+        this.loading = false
+        console.log('获取解析列表完成')
       }
-      this.loading = false
     },
 
     // 格式化日期
@@ -175,9 +223,21 @@ export default {
       this.resultLoading = true
       try {
         const { data } = await getParseResult(row.id)
-        this.currentResult = data
+        const parsedData = data.parsed_data || {}
+        
+        this.currentResult = {
+          name: parsedData.name || '',
+          gender: parsedData.gender || '',
+          age: parsedData.age || '',
+          phone: parsedData.phone || '',
+          email: parsedData.email || '',
+          education: parsedData.highest_education || '',
+          workExperience: parsedData.work_experience || [],
+          educationExperience: parsedData.education || []
+        }
       } catch (error) {
-        this.$message.error('获取解析结果失败')
+        console.error('获取解析结果失败:', error)
+        this.$message.error(error.message || '获取解析结果失败')
       }
       this.resultLoading = false
     },
@@ -191,14 +251,23 @@ export default {
           type: 'warning'
         })
         
-        row.parseStatus = 'parsing'
-        await parseResume(row.id)
-        row.parseStatus = 'success'
+        // 创建一个新对象来追踪状态
+        const updatedRow = { ...row }
+        updatedRow.parseStatus = 'parsing'
+        Object.assign(row, updatedRow)
+        
+        await parseResume(row.fileUrl)
+        
+        updatedRow.parseStatus = 'success'
+        Object.assign(row, updatedRow)
+        
         this.$message.success('解析成功')
       } catch (error) {
         if (error !== 'cancel') {
           this.$message.error('解析失败')
-          row.parseStatus = 'failed'
+          const updatedRow = { ...row }
+          updatedRow.parseStatus = 'failed'
+          Object.assign(row, updatedRow)
         }
       }
     },
@@ -221,6 +290,19 @@ export default {
           this.$message.error('删除失败')
         }
       }
+    },
+
+    // 添加处理页码改变的方法
+    handleCurrentChange(page) {
+      this.listQuery.page = page
+      this.getParseList()
+    },
+
+    // 添加处理每页条数改变的方法
+    handleSizeChange(limit) {
+      this.listQuery.limit = limit
+      this.listQuery.page = 1
+      this.getParseList()
     }
   }
 }
@@ -229,6 +311,11 @@ export default {
 <style lang="scss" scoped>
 .parse-container {
   padding: 20px;
+}
+
+.pagination-container {
+  margin-top: 20px;
+  text-align: right;
 }
 
 .section-title {
@@ -242,4 +329,4 @@ export default {
 .delete-btn {
   color: #F56C6C;
 }
-</style> 
+</style>

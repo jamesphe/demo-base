@@ -9,14 +9,14 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenant.tenant_id"), nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenant.id"), nullable=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    username = Column(String(255))
+    username = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    avatar = Column(String(255), nullable=True)
-    introduction = Column(String(255), nullable=True)
-    is_active = Column(Boolean, default=True)
-    is_superuser = Column(Boolean, default=False)
+    avatar = Column(String(255))
+    introduction = Column(String(255))
+    is_active = Column(Boolean(), default=True)
+    is_superuser = Column(Boolean(), default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(
         DateTime, 
@@ -46,4 +46,10 @@ class User(Base):
             for permission in role.permissions:
                 if permission.name == permission_name:
                     return True
-        return False 
+        return False
+
+    def get_roles(self) -> list:
+        """获取用户角色列表"""
+        if self.is_superuser:
+            return ["admin"]
+        return ["editor"] 

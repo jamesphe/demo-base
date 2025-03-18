@@ -11,7 +11,7 @@ class Talent(Base):
     __tablename__ = "talent"
 
     talent_id = Column(Integer, primary_key=True, index=True)
-    tenant_id = Column(Integer, ForeignKey("tenant.tenant_id"), nullable=True)
+    tenant_id = Column(Integer, ForeignKey("tenant.id"), nullable=True)
     name = Column(String(100), nullable=False)
     gender = Column(Enum('M', 'F', name='gender_type'), default='M')
     birth_date = Column(Date)
