@@ -12,5 +12,10 @@ class CRUDTenant(CRUDBase[Tenant, TenantCreate, TenantUpdate]):
             Tenant.tenant_name == tenant_name
         ).first()
 
+    def get_by_external_id(self, db: Session, *, external_id: str) -> Optional[Tenant]:
+        return db.query(Tenant).filter(
+            Tenant.external_id == external_id
+        ).first()
+
 
 tenant = CRUDTenant(Tenant) 

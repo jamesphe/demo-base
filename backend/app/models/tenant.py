@@ -13,6 +13,7 @@ class Tenant(Base):
     phone = Column(String(20))
     email = Column(String(100))
     address = Column(String(255))
+    external_id = Column(String(100))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = Column(

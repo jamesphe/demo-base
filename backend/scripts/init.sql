@@ -1,11 +1,12 @@
 -- 1. 首先创建租户表
 CREATE TABLE tenant (
     id SERIAL PRIMARY KEY,
-    tenant_name VARCHAR(100) NOT NULL,
+    tenant_name VARCHAR(100) NOT NULL UNIQUE,
     contact_person VARCHAR(100),
     phone VARCHAR(20),
     email VARCHAR(100),
     address VARCHAR(255),
+    external_id VARCHAR(100) UNIQUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive'))

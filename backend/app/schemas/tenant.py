@@ -9,6 +9,7 @@ class TenantBase(BaseModel):
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
     address: Optional[str] = None
+    external_id: Optional[str] = None
     status: str = "active"
 
 

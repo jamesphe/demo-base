@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from datetime import datetime
 from sqlalchemy import and_, or_
 
-from app import models, schemas
+from app import models, schemas, crud
 from app.schemas.tenant import TenantCreate, TenantUpdate
 from .base import BaseService
 
@@ -26,28 +26,54 @@ class TenantService(BaseService[models.Tenant, TenantCreate, TenantUpdate]):
             models.Tenant.code == code
         ).first()
 
-    async def create_tenant(
-        self,
-        db: Session,
-        *,
-        obj_in: TenantCreate
-    ) -> models.Tenant:
-        """创建租户"""
-        # 检查租户代码是否已存在
-        existing = self.get_by_code(db, code=obj_in.code)
-        if existing:
+    def check_external_id_unique(
+        self, 
+        db: Session, 
+        external_id: str, 
+        exclude_id: Optional[int] = None
+    ) -> None:
+        """检查外部系统编号是否唯一"""
+        if not external_id:
+            return
+            
+        existing_tenant = crud.tenant.get_by_external_id(db, external_id=external_id)
+        if existing_tenant and (exclude_id is None or existing_tenant.id != exclude_id):
             raise HTTPException(
                 status_code=400,
-                detail="租户代码已存在"
+                detail="外部系统编号已存在"
             )
-            
+
+    def check_tenant_name_unique(
+        self, 
+        db: Session, 
+        tenant_name: str, 
+        exclude_id: Optional[int] = None
+    ) -> None:
+        """检查租户名称是否唯一"""
+        if not tenant_name:
+            return
+        
+        existing_tenant = crud.tenant.get_by_name(db, tenant_name=tenant_name)
+        if existing_tenant and (exclude_id is None or existing_tenant.id != exclude_id):
+            raise HTTPException(
+                status_code=400,
+                detail="租户名称已存在"
+            )
+
+    def create_tenant(
+        self, 
+        db: Session, 
+        tenant_in: TenantCreate
+    ) -> models.Tenant:
+        """创建租户"""
+        # 检查租户名称唯一性
+        self.check_tenant_name_unique(db, tenant_in.tenant_name)
+        
+        # 检查外部系统编号唯一性
+        self.check_external_id_unique(db, tenant_in.external_id)
+        
         # 创建租户
-        tenant = self.create(db=db, obj_in=obj_in)
-        
-        # 创建默认配置
-        await self.create_default_configs(db, tenant_id=tenant.id)
-        
-        return tenant
+        return crud.tenant.create(db=db, obj_in=tenant_in)
 
     async def create_default_configs(
         self,
@@ -176,6 +202,41 @@ class TenantService(BaseService[models.Tenant, TenantCreate, TenantUpdate]):
             }
             for h in history
         ]
+
+    def update_tenant(
+        self, 
+        db: Session, 
+        tenant: models.Tenant, 
+        tenant_in: TenantUpdate
+    ) -> models.Tenant:
+        """更新租户"""
+        if isinstance(tenant_in, dict):
+            update_data = tenant_in
+        else:
+            update_data = tenant_in.model_dump(exclude_unset=True)
+        
+        # 检查租户名称唯一性
+        if "tenant_name" in update_data:
+            self.check_tenant_name_unique(
+                db, 
+                update_data["tenant_name"], 
+                exclude_id=tenant.id
+            )
+        
+        # 检查外部系统编号唯一性
+        if "external_id" in update_data:
+            self.check_external_id_unique(
+                db, 
+                update_data["external_id"], 
+                exclude_id=tenant.id
+            )
+        
+        # 更新租户
+        return crud.tenant.update(
+            db=db,
+            db_obj=tenant,
+            obj_in=tenant_in
+        )
 
 
 # 创建服务实例

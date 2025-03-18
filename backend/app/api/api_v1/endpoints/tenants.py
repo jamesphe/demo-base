@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.api import deps
+from app.services.tenant_service import tenant_service
 
 router = APIRouter()
 
@@ -34,13 +35,7 @@ def create_tenant(
     tenant_in: schemas.TenantCreate,
 ) -> Any:
     """创建新租户"""
-    tenant = crud.tenant.get_by_name(db, tenant_name=tenant_in.tenant_name)
-    if tenant:
-        raise HTTPException(
-            status_code=400,
-            detail="租户名称已存在"
-        )
-    tenant = crud.tenant.create(db=db, obj_in=tenant_in)
+    tenant = tenant_service.create_tenant(db=db, tenant_in=tenant_in)
     return tenant
 
 
@@ -76,10 +71,10 @@ def update_tenant(
     tenant = crud.tenant.get(db=db, id=tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="租户不存在")
-    tenant = crud.tenant.update(
+    tenant = tenant_service.update_tenant(
         db=db,
-        db_obj=tenant,
-        obj_in=tenant_in
+        tenant=tenant,
+        tenant_in=tenant_in
     )
     return tenant
 
