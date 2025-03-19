@@ -29,3 +29,4 @@ class Tenant(Base):
     talent_pools = relationship("TalentPool", back_populates="tenant")
     resumes = relationship("Resume", back_populates="tenant")
     jobs = relationship("Job", back_populates="tenant")
+    skills = relationship("Skill", back_populates="tenant")

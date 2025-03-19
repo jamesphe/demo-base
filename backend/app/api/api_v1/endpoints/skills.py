@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.schemas.skill import SkillCreate, SkillUpdate, SkillResponse
 from app.services.skill_service import SkillService
@@ -18,7 +18,9 @@ def create_skill(
 ):
     """创建技能"""
     service = SkillService(db)
-    return service.create_skill(skill)
+    # 如果是租户用户,则创建租户专属技能
+    tenant_id = current_user.tenant_id if current_user.user_type == 'tenant' else None
+    return service.create_skill(skill, tenant_id=tenant_id)
 
 
 @router.get("/", response_model=List[SkillResponse])
@@ -30,7 +32,9 @@ def list_skills(
 ):
     """获取技能列表"""
     service = SkillService(db)
-    return service.list_skills(skip=skip, limit=limit)
+    # 如果是租户用户,则只返回该租户的技能和公共技能
+    tenant_id = current_user.tenant_id if current_user.user_type == 'tenant' else None
+    return service.list_skills(skip=skip, limit=limit, tenant_id=tenant_id)
 
 
 @router.put("/{skill_id}", response_model=SkillResponse)
@@ -42,7 +46,9 @@ def update_skill(
 ):
     """更新技能信息"""
     service = SkillService(db)
-    updated_skill = service.update_skill(skill_id, skill)
+    # 如果是租户用户,则只能更新该租户的技能
+    tenant_id = current_user.tenant_id if current_user.user_type == 'tenant' else None
+    updated_skill = service.update_skill(skill_id, skill, tenant_id=tenant_id)
     if not updated_skill:
         raise HTTPException(status_code=404, detail="Skill not found")
     return updated_skill 

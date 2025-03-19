@@ -164,9 +164,15 @@ CREATE TABLE candidate_experience (
 
 CREATE TABLE skill (
     skill_id INT PRIMARY KEY AUTO_INCREMENT,          -- 技能ID
+    tenant_id INT DEFAULT NULL,                         -- 租户ID，NULL表示平台公共技能
     skill_name VARCHAR(100) NOT NULL,                   -- 技能名称
     skill_description TEXT,                             -- 技能描述
-    category VARCHAR(50)                                -- 技能类别或所属工种
+    category VARCHAR(50),                               -- 技能类别或所属工种
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,      -- 创建时间
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  -- 更新时间
+    status ENUM('active', 'inactive') DEFAULT 'active', -- 技能状态
+    FOREIGN KEY (tenant_id) REFERENCES tenant(tenant_id),
+    UNIQUE KEY `uk_tenant_skill` (tenant_id, skill_name)  -- 确保同一租户下技能名称唯一
 );
 
 人才技能关联表：
