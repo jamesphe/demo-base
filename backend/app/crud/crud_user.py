@@ -1,5 +1,6 @@
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, List
 from sqlalchemy.orm import Session
+from sqlalchemy import or_, and_
 from app.core.logging_config import setup_logger
 
 from app.core.security import get_password_hash, verify_password
@@ -20,7 +21,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             email=obj_in.email,
             hashed_password=get_password_hash(obj_in.password),
             username=obj_in.username,
+            avatar=obj_in.avatar,
+            introduction=obj_in.introduction,
+            user_type=obj_in.user_type,
             is_superuser=obj_in.is_superuser,
+            tenant_id=obj_in.tenant_id,
+            is_active=obj_in.is_active,
         )
         db.add(db_obj)
         db.commit()
@@ -82,5 +88,50 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         logger.debug(f"Checking if user is superuser: {user.email}")
         return user.is_superuser
 
+    def search(
+        self,
+        db: Session,
+        *,
+        keyword: str,
+        user_type: Optional[str] = None,
+        tenant_id: Optional[int] = None,
+        is_active: Optional[bool] = None,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[User]:
+        """搜索用户
+        
+        Args:
+            db: 数据库会话
+            keyword: 搜索关键词(用户名或邮箱)
+            user_type: 用户类型过滤
+            tenant_id: 租户ID过滤
+            is_active: 是否激活过滤
+            skip: 分页起始位置
+            limit: 分页大小
+        """
+        query = db.query(self.model)
+        
+        # 构建搜索条件
+        filters = []
+        if keyword:
+            filters.append(
+                or_(
+                    self.model.username.ilike(f"%{keyword}%"),
+                    self.model.email.ilike(f"%{keyword}%")
+                )
+            )
+        if user_type:
+            filters.append(self.model.user_type == user_type)
+        if tenant_id is not None:
+            filters.append(self.model.tenant_id == tenant_id)
+        if is_active is not None:
+            filters.append(self.model.is_active == is_active)
+            
+        # 应用过滤条件
+        if filters:
+            query = query.filter(and_(*filters))
+            
+        return query.offset(skip).limit(limit).all()
 
 user = CRUDUser(User) 

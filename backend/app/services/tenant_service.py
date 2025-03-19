@@ -7,6 +7,7 @@ from sqlalchemy import and_, or_
 from app import models, schemas, crud
 from app.schemas.tenant import TenantCreate, TenantUpdate
 from .base import BaseService
+from app.schemas.user import UserCreate
 
 
 class TenantService(BaseService[models.Tenant, TenantCreate, TenantUpdate]):
@@ -243,4 +244,49 @@ class TenantService(BaseService[models.Tenant, TenantCreate, TenantUpdate]):
 tenant_service = TenantService()
 
 # 只导出实例
-__all__ = ["tenant_service"] 
+__all__ = ["tenant_service"]
+
+def process_tenant_id(db: Session, user_in: schemas.UserCreate) -> Optional[int]:
+    """
+    处理用户创建时的租户ID关联
+    """
+    # 如果是candidate类型用户,不关联租户
+    if user_in.user_type == 'candidate':
+        return None
+        
+    # 如果是admin类型用户且未指定租户,不关联租户
+    if user_in.user_type == 'admin' and not user_in.tenant_id:
+        return None
+        
+    # 如果是tenant类型用户,必须关联租户
+    if user_in.user_type == 'tenant':
+        if not user_in.tenant_id and not user_in.external_tenant_id:
+            raise HTTPException(
+                status_code=400,
+                detail="租户用户必须关联到一个租户"
+            )
+            
+        # 如果提供了external_tenant_id,查找对应的tenant_id
+        if user_in.external_tenant_id:
+            tenant = crud.tenant.get_by_external_id(
+                db, 
+                external_id=user_in.external_tenant_id
+            )
+            if not tenant:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"未找到外部租户ID为 {user_in.external_tenant_id} 的租户"
+                )
+            return tenant.id
+           
+    # 如果提供了tenant_id，则直接需要先检查是否存在
+    if user_in.tenant_id:
+        tenant = crud.tenant.get(db, id=user_in.tenant_id)
+        if not tenant:
+            raise HTTPException(
+                status_code=404,
+                detail=f"未找到内部租户ID为 {user_in.tenant_id} 的租户"
+            )
+        return tenant.id
+
+    return user_in.tenant_id if user_in.tenant_id else None

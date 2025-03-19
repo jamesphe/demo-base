@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.api import deps
 from app.core.config import settings
+from app.services import user_service
 
 router = APIRouter()
 
@@ -29,19 +30,14 @@ def create_user(
     *,
     db: Session = Depends(deps.get_db),
     user_in: schemas.UserCreate,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
+    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
-    """
-    创建新用户
-    """
-    user = crud.user.get_by_email(db, email=user_in.email)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="该邮箱已被注册",
-        )
-    user = crud.user.create(db, obj_in=user_in)
-    return user
+    """创建新用户"""
+    return user_service.create_user(
+        db, 
+        user_in=user_in, 
+        current_user=current_user
+    )
 
 
 @router.get("/me", response_model=schemas.User)
@@ -61,6 +57,7 @@ def update_user_me(
     password: str = Body(None),
     username: str = Body(None),
     email: str = Body(None),
+    user_type: str = Body(None),
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
@@ -74,6 +71,9 @@ def update_user_me(
         user_in.username = username
     if email is not None:
         user_in.email = email
+    if user_type is not None:
+        if current_user.is_superuser:
+            user_in.user_type = user_type
     user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
     return user
 
@@ -88,6 +88,7 @@ def get_user_info(
         username=current_user.username,
         email=current_user.email,
         name=current_user.username,
+        user_type=current_user.user_type,
         avatar=current_user.avatar,
         introduction=current_user.introduction,
         roles=current_user.get_roles(),
@@ -99,4 +100,108 @@ def get_user_info(
     return {
         "code": 20000,
         "data": user_info
-    } 
+    }
+
+
+@router.get("/types/{type}", response_model=List[schemas.User])
+def get_users_by_type(
+    type: str,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_active_superuser),
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
+    """
+    按用户类型获取用户列表
+    """
+    users = crud.user.get_by_type(db, user_type=type, skip=skip, limit=limit)
+    return users
+
+
+@router.post("/batch", response_model=List[schemas.User])
+def create_users_batch(
+    *,
+    db: Session = Depends(deps.get_db),
+    users_in: List[schemas.UserCreate],
+    current_user: models.User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """批量创建用户"""
+    return user_service.bulk_create_users(
+        db,
+        users_in=users_in,
+        current_user=current_user
+    )
+
+
+@router.put("/batch", response_model=List[schemas.User])
+def update_users_batch(
+    *,
+    db: Session = Depends(deps.get_db),
+    updates: List[schemas.UserUpdate],
+    current_user: models.User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """批量更新用户"""
+    users = []
+    for update in updates:
+        user = crud.user.get(db, id=update.id)
+        if user:
+            users.append(crud.user.update(db, db_obj=user, obj_in=update))
+    return users
+
+
+@router.put("/{user_id}", response_model=schemas.User)
+def update_user(
+    *,
+    db: Session = Depends(deps.get_db),
+    user_id: int,
+    user_update: schemas.UserUpdate,
+    current_user: models.User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """更新用户信息(包括状态)"""
+    user = crud.user.get(db, id=user_id)
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
+    return crud.user.update(db, db_obj=user, obj_in=user_update)
+
+
+@router.get("/search", response_model=List[schemas.User])
+def search_users(
+    *,
+    db: Session = Depends(deps.get_db),
+    keyword: str,
+    user_type: Optional[str] = None,
+    tenant_id: Optional[int] = None,
+    is_active: Optional[bool] = None,
+    current_user: models.User = Depends(deps.get_current_active_user),
+    skip: int = 0,
+    limit: int = 100,
+) -> Any:
+    """搜索用户"""
+    return user_service.search_users(
+        db,
+        keyword=keyword,
+        user_type=user_type,
+        tenant_id=tenant_id,
+        is_active=is_active,
+        current_user=current_user,
+        skip=skip,
+        limit=limit
+    )
+
+
+@router.delete("/{user_id}", response_model=schemas.User)
+def delete_user(
+    *,
+    db: Session = Depends(deps.get_db),
+    user_id: int,
+    current_user: models.User = Depends(deps.get_current_active_superuser),
+) -> Any:
+    """删除用户"""
+    return user_service.delete_user(
+        db=db,
+        user_id=user_id,
+        current_user=current_user
+    ) 

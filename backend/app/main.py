@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.api_v1.api import api_router
+from fastapi.exceptions import RequestValidationError
+from app.api.errors import validation_exception_handler
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -22,6 +24,9 @@ app.add_middleware(
     allow_methods=["*"],  # 允许的HTTP方法
     allow_headers=["*"],  # 允许的HTTP头
 )
+
+# 注册异常处理器
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 

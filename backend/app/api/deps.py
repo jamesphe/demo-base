@@ -115,4 +115,30 @@ def check_tenant_permission(
         return True
         
     # 检查用户是否属于该租户
-    return current_user.tenant_id == resource_tenant_id 
+    return current_user.tenant_id == resource_tenant_id
+
+def get_current_tenant_user(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    """
+    验证当前用户是否为租户用户
+    """
+    if current_user.user_type != 'tenant':
+        raise HTTPException(
+            status_code=403,
+            detail="该操作仅允许租户用户执行"
+        )
+    return current_user
+
+def get_current_candidate(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
+    """
+    验证当前用户是否为求职者
+    """
+    if current_user.user_type != 'candidate':
+        raise HTTPException(
+            status_code=403,
+            detail="该操作仅允许求职者执行"
+        )
+    return current_user 

@@ -1,10 +1,17 @@
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr
+from enum import Enum
+
+class UserType(str, Enum):
+    candidate = 'candidate'
+    tenant = 'tenant'
+    admin = 'admin'
 
 class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     username: Optional[str] = None
+    user_type: Optional[UserType] = UserType.tenant
     avatar: Optional[str] = None
     introduction: Optional[str] = None
     is_active: Optional[bool] = True
@@ -12,9 +19,14 @@ class UserBase(BaseModel):
     tenant_id: Optional[int] = None
 
 class UserCreate(UserBase):
+    username: str
     email: EmailStr
     password: str
-    username: str
+    user_type: Optional[str] = None
+    avatar: Optional[str] = None
+    introduction: Optional[str] = None
+    external_tenant_id: Optional[str] = None
+    tenant_id: Optional[int] = None
 
 class UserUpdate(UserBase):
     password: Optional[str] = None
@@ -39,6 +51,7 @@ class UserInfo(BaseModel):
     email: EmailStr
     username: str
     name: str
+    user_type: UserType
     avatar: Optional[str] = None
     introduction: Optional[str] = None
     roles: List[str]

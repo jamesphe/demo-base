@@ -31,6 +31,7 @@ CREATE TABLE users (
     tenant_id INTEGER REFERENCES tenant(id),
     email VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(255),
+    user_type VARCHAR(20) CHECK (user_type IN ('candidate', 'tenant', 'admin')) DEFAULT 'tenant',
     hashed_password VARCHAR(255) NOT NULL,
     avatar VARCHAR(255),
     introduction VARCHAR(255),
@@ -460,12 +461,14 @@ INSERT INTO users (
     email,
     username,
     hashed_password,
+    user_type,
     is_active,
     is_superuser
 ) VALUES (
     'admin@admin.com',
     'admin',
     '$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW',  -- 密码: admin
+    'admin',
     true,
     true
 );

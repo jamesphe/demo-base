@@ -8,7 +8,7 @@
 	•	统一数据管理：公共人才与租户私域人才统一存储在同一张人才表（Talent），通过 tenant_id 字段区分数据归属。
 	•	候选人筛选与管理：租户可在公共人才库中筛选候选人，同时可录入私域人才。候选人记录在 Candidate 表中保存，用于后续面试安排与流程跟踪。
 	•	辅助信息与简历管理：认证、教育、工作经历、技能、简历等辅助信息均以 talent_id 为外键统一关联，保证数据结构简洁、查询高效。
-	•	自定义人才库功能：租户可以创建自定义人才库（Talent Pool），按不同招聘需求组织候选人，实现如“2025春季招聘库”、“2025年高级钳工库”等功能。
+	•	自定义人才库功能：租户可以创建自定义人才库（Talent Pool），按不同招聘需求组织候选人，实现如"2025春季招聘库"、"2025年高级钳工库"等功能。
 	•	多租户隔离与权限控制：通过 Tenant 表及用户、角色、权限管理模块，实现不同租户数据严格隔离，同时公共人才库资源对各租户开放。
 	•	RBAC 权限管理：利用用户、角色、权限及关联表，确保不同用户仅能访问与其权限相符的数据与功能。
 
@@ -257,17 +257,18 @@ CREATE TABLE talent_pool_member (
 4.9.1 用户表
 
 存储所有平台用户的账户信息。
-	•	候选人账号（注册于人才库）为全局用户，不归属租户；
-	•	用人单位、管理员等用户与租户关联。
+- 候选人账号为全局用户，不归属租户；
+- 租户用户（如用人单位的所有账号）关联到对应租户；
+- 平台管理员为全局用户。
 
 CREATE TABLE user (
     user_id INT PRIMARY KEY AUTO_INCREMENT,           -- 用户唯一标识
-    tenant_id INT DEFAULT NULL,                         -- 若用户属于某租户（如用人单位管理员），则填写；候选人账号为空
+    tenant_id INT DEFAULT NULL,                         -- 若为租户用户则关联租户ID，其他类型为空
     username VARCHAR(100) NOT NULL UNIQUE,              -- 登录用户名
     password VARCHAR(255) NOT NULL,                     -- 密码（哈希存储）
     email VARCHAR(100),
     phone VARCHAR(20),
-    user_type ENUM('candidate', 'employer', 'admin', 'school', 'hr_company') NOT NULL,
+    user_type ENUM('candidate', 'tenant', 'admin') NOT NULL,  -- 用户类型：求职者、租户用户、平台管理员
     status ENUM('active', 'inactive') DEFAULT 'active',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -276,23 +277,21 @@ CREATE TABLE user (
 
 4.9.2 角色与权限管理
 
-角色表：
+角色表：用于定义系统中的各类角色，如租户管理员、招聘专员等。
 
 CREATE TABLE role (
     role_id INT PRIMARY KEY AUTO_INCREMENT,           -- 角色唯一标识
-    role_name VARCHAR(50) NOT NULL UNIQUE,              -- 角色名称
+    role_name VARCHAR(50) NOT NULL UNIQUE,              -- 角色名称，如 tenant_admin、tenant_hr 等
     description VARCHAR(255)                            -- 角色描述
 );
 
-用户角色关联表：
-
-CREATE TABLE user_role (
-    user_role_id INT PRIMARY KEY AUTO_INCREMENT,       -- 关联记录唯一标识
-    user_id INT,                                        -- 关联用户
-    role_id INT,                                        -- 关联角色
-    FOREIGN KEY (user_id) REFERENCES user(user_id),
-    FOREIGN KEY (role_id) REFERENCES role(role_id)
-);
+-- 示例角色数据
+INSERT INTO role (role_name, description) VALUES
+('tenant_admin', '租户管理员'),
+('tenant_hr', '租户招聘专员'),
+('tenant_viewer', '租户只读用户'),
+('platform_admin', '平台超级管理员'),
+('platform_operator', '平台运营人员');
 
 权限表：
 
@@ -310,6 +309,17 @@ CREATE TABLE role_permission (
     permission_id INT,                                  -- 关联权限
     FOREIGN KEY (role_id) REFERENCES role(role_id),
     FOREIGN KEY (permission_id) REFERENCES permission(permission_id)
+);
+
+用户角色关联表：
+
+CREATE TABLE user_role (
+    user_role_id INT PRIMARY KEY AUTO_INCREMENT,      -- 关联记录唯一标识
+    user_id INT NOT NULL,                             -- 关联用户
+    role_id INT NOT NULL,                             -- 关联角色
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,     -- 创建时间
+    FOREIGN KEY (user_id) REFERENCES user(user_id),
+    FOREIGN KEY (role_id) REFERENCES role(role_id)
 );
 
 4.10 视图示例
@@ -346,8 +356,10 @@ WHERE t.primary_job_type = 'welding';
 	•	租户在平台上筛选候选人后，在 Candidate 表生成记录，明确候选人与租户的归属；
 	•	同时租户可创建自定义人才库（Talent Pool），并通过 Talent Pool Member 表组织管理不同招聘需求下的人才。
 	4.	用户及权限控制
-	•	用户通过 User 表进行登录，基于 tenant_id 进行数据过滤和访问控制；
-	•	RBAC 模块通过 Role、Permission 及关联表实现细粒度权限管理，确保各类用户仅能访问授权数据。
+	•	系统采用用户类型（User Type）和用户角色（Role）两层设计
+	•	用户类型分为：求职者（candidate）、租户用户（tenant）、平台管理员（admin）
+	•	通过角色（Role）和权限（Permission）实现细粒度的权限控制
+	•	租户用户（如技术学校、人力资源公司、用人单位）通过不同角色区分具体权限
 	5.	查询与展示
 	•	利用视图和租户过滤条件，确保租户只能访问与自己相关的数据，同时公共人才库数据对所有租户开放查看权限。
 

@@ -2,9 +2,11 @@ from .user import (  # noqa: F401
     User,
     UserCreate,
     UserUpdate,
+    UserInDB,
+    UserType,
     UserInfo,
     UserInfoResponse,
-    UserInDB
+    UserInfoResponse
 )
 from .token import Token, TokenPayload  # noqa: F401
 from .job import Job, JobCreate, JobUpdate, JobWithCandidateCount  # noqa: F401
@@ -41,9 +43,10 @@ __all__ = [
     "User",
     "UserCreate",
     "UserUpdate",
+    "UserInDB",
+    "UserType",
     "UserInfo",
     "UserInfoResponse",
-    "UserInDB",
     "Token",
     "TokenPayload",
     "Job",
