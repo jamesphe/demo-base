@@ -3,7 +3,7 @@ from .resume_repository_service import repository_service
 from .resume_service import resume_service
 from .candidate_service import candidate_service
 from .interview_service import interview_service
-from .job_service import job_service
+from .job_service import JobService
 from .notification_service import notification_service
 from .llm_config_service import llm_config_service
 from .user_service import user_service
@@ -18,7 +18,7 @@ __all__ = [
     "resume_service", 
     "candidate_service",
     "interview_service",
-    "job_service",
+    "JobService",
     "notification_service",
     "llm_config_service",
     "user_service",

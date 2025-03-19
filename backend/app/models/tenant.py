@@ -8,12 +8,12 @@ class Tenant(Base):
     __tablename__ = "tenant"
 
     id = Column(Integer, primary_key=True, index=True)
-    tenant_name = Column(String(100), nullable=False)
+    tenant_name = Column(String(100), nullable=False, unique=True)
     contact_person = Column(String(100))
     phone = Column(String(20))
     email = Column(String(100))
     address = Column(String(255))
-    external_id = Column(String(100))
+    external_id = Column(String(100), unique=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     status = Column(
@@ -28,3 +28,4 @@ class Tenant(Base):
     notifications = relationship("Notification", back_populates="tenant")
     talent_pools = relationship("TalentPool", back_populates="tenant")
     resumes = relationship("Resume", back_populates="tenant")
+    jobs = relationship("Job", back_populates="tenant")

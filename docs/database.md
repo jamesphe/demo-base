@@ -342,9 +342,68 @@ FROM talent t
 JOIN welding_worker w ON t.talent_id = w.talent_id
 WHERE t.primary_job_type = 'welding';
 
+4.11 招聘职位模块
 
+4.11.1 职位表
 
-⸻
+CREATE TABLE jobs (
+    id INT PRIMARY KEY AUTO_INCREMENT,               -- 职位唯一标识
+    tenant_id INT NOT NULL,                          -- 发布职位的租户ID
+    publisher_id INT NOT NULL,                       -- 发布人ID，关联user表
+    title VARCHAR(100) NOT NULL,                     -- 职位标题
+    job_type VARCHAR(50) NOT NULL,                   -- 工种类型
+    headcount INT NOT NULL DEFAULT 1,                -- 招聘人数
+    salary_min DECIMAL(10,2),                        -- 薪资范围最小值
+    salary_max DECIMAL(10,2),                        -- 薪资范围最大值
+    salary_type ENUM('日薪','月薪','年薪') NOT NULL,   -- 薪资类型
+    location VARCHAR(255) NOT NULL,                  -- 工作地点
+    experience_required VARCHAR(50),                 -- 要求工作经验
+    education_required VARCHAR(50),                  -- 学历要求
+    description TEXT NOT NULL,                       -- 职位描述
+    requirements TEXT,                               -- 岗位要求
+    benefits TEXT,                                   -- 福利待遇
+    status ENUM('draft','published','closed') DEFAULT 'draft', -- 职位状态
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,   -- 创建时间
+    published_at DATETIME,                           -- 发布时间
+    closed_at DATETIME,                             -- 关闭时间
+    FOREIGN KEY (tenant_id) REFERENCES tenant(tenant_id),
+    FOREIGN KEY (publisher_id) REFERENCES user(user_id)
+);
+
+4.11.2 职位-技能要求关联表
+
+CREATE TABLE job_required_skill (
+    job_skill_id INT PRIMARY KEY AUTO_INCREMENT,    -- 关联记录唯一标识
+    job_id INT NOT NULL,                            -- 关联职位ID
+    skill_id INT NOT NULL,                          -- 关联技能ID
+    is_required BOOLEAN DEFAULT true,               -- 是否必需技能
+    FOREIGN KEY (job_id) REFERENCES jobs(id),
+    FOREIGN KEY (skill_id) REFERENCES skill(skill_id)
+);
+
+4.11.3 职位-证书要求关联表
+
+CREATE TABLE job_required_certification (
+    job_cert_id INT PRIMARY KEY AUTO_INCREMENT,     -- 关联记录唯一标识
+    job_id INT NOT NULL,                            -- 关联职位ID
+    certification_name VARCHAR(100) NOT NULL,        -- 要求的证书名称
+    is_required BOOLEAN DEFAULT true,               -- 是否必需证书
+    FOREIGN KEY (job_id) REFERENCES jobs(id)
+);
+
+4.11.4 职位申请记录表
+
+CREATE TABLE job_application (
+    application_id INT PRIMARY KEY AUTO_INCREMENT,   -- 申请记录唯一标识
+    job_id INT NOT NULL,                            -- 关联职位ID
+    talent_id INT NOT NULL,                         -- 申请人才ID
+    status ENUM('pending','reviewed','interviewed','offered','rejected','withdrawn') DEFAULT 'pending', -- 申请状态
+    apply_time DATETIME DEFAULT CURRENT_TIMESTAMP,   -- 申请时间
+    review_time DATETIME,                           -- 审核时间
+    review_notes TEXT,                              -- 审核备注
+    FOREIGN KEY (job_id) REFERENCES jobs(id),
+    FOREIGN KEY (talent_id) REFERENCES talent(talent_id)
+);
 
 5. 数据流与业务流程说明
 	1.	人才数据录入
@@ -362,8 +421,11 @@ WHERE t.primary_job_type = 'welding';
 	•	租户用户（如技术学校、人力资源公司、用人单位）通过不同角色区分具体权限
 	5.	查询与展示
 	•	利用视图和租户过滤条件，确保租户只能访问与自己相关的数据，同时公共人才库数据对所有租户开放查看权限。
-
-⸻
+	6. 职位发布与申请流程
+    • 租户可创建职位信息，设置职位要求、技能要求和证书要求
+    • 职位可以是草稿、已发布或已关闭状态
+    • 求职者可以查看已发布的职位并提交申请
+    • 申请记录跟踪整个应聘流程，包括待审核、已审核、已面试、已录用等状态
 
 6. 总结
 

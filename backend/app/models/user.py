@@ -36,6 +36,11 @@ class User(Base):
         secondaryjoin="user_role.c.role_id == Role.id"
     )
     notifications = relationship("Notification", back_populates="user")
+    published_jobs = relationship(
+        "Job",
+        back_populates="publisher",
+        foreign_keys="[Job.publisher_id]"
+    )
 
     def has_permission(self, permission_name: str) -> bool:
         """检查用户是否拥有指定权限"""

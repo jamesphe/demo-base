@@ -7,13 +7,16 @@ from sqlalchemy import and_, or_
 from app import models, schemas
 from app.schemas.job import JobCreate, JobUpdate
 from .base import BaseService
+from app.core.security import get_password_hash
+from app.core.config import settings
 
 
 class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
     """职位服务"""
     
-    def __init__(self):
+    def __init__(self, db: Session):
         super().__init__(models.Job)
+        self.db = db
 
     def search_jobs(
         self,
@@ -184,9 +187,96 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         
         return job
 
+    def create_job(
+        self,
+        job_in: schemas.JobCreate,
+        tenant_id: int,
+        publisher_id: int
+    ) -> models.Job:
+        """创建新职位"""
+        if not tenant_id:
+            raise ValueError("tenant_id is required")
+        
+        job_data = job_in.model_dump()
+        job = models.Job(
+            **job_data,
+            tenant_id=tenant_id,
+            publisher_id=publisher_id
+        )
+        self.db.add(job)
+        self.db.commit()
+        self.db.refresh(job)
+        return job
 
-# 创建服务实例
-job_service = JobService()
+    def get_job(self, job_id: int) -> Optional[models.Job]:
+        """获取职位详情"""
+        return self.db.query(self.model).filter(self.model.id == job_id).first()
 
-# 只导出实例
-__all__ = ["job_service"] 
+    def list_jobs(
+        self,
+        tenant_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[models.Job]:
+        """获取职位列表"""
+        query = self.db.query(self.model)
+        if tenant_id:
+            query = query.filter(self.model.tenant_id == tenant_id)
+        return query.offset(skip).limit(limit).all()
+
+    def update_job(
+        self,
+        job_id: int,
+        job_in: schemas.JobUpdate
+    ) -> Optional[models.Job]:
+        """更新职位信息"""
+        job = self.get_job(job_id)
+        if not job:
+            return None
+
+        for field, value in job_in.model_dump(exclude_unset=True).items():
+            setattr(job, field, value)
+
+        self.db.add(job)
+        self.db.commit()
+        self.db.refresh(job)
+        return job
+
+    def delete_job(self, job_id: int) -> bool:
+        """删除职位"""
+        job = self.get_job(job_id)
+        if not job:
+            return False
+
+        self.db.delete(job)
+        self.db.commit()
+        return True
+
+    def publish_job(self, job_id: int) -> Optional[models.Job]:
+        """发布职位"""
+        job = self.get_job(job_id)
+        if not job:
+            return None
+
+        job.status = "published"
+        job.published_at = datetime.utcnow()
+        self.db.add(job)
+        self.db.commit()
+        self.db.refresh(job)
+        return job
+
+    def close_job(self, job_id: int) -> Optional[models.Job]:
+        """关闭职位"""
+        job = self.get_job(job_id)
+        if not job:
+            return None
+
+        job.status = "closed"
+        job.closed_at = datetime.utcnow()
+        self.db.add(job)
+        self.db.commit()
+        self.db.refresh(job)
+        return job
+
+# 导出类
+__all__ = ["JobService"] 

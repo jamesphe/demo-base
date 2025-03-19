@@ -5,6 +5,7 @@ from sqlalchemy import func
 
 from app import crud, models, schemas
 from app.api import deps
+from app.services.job_service import JobService
 
 router = APIRouter()
 
@@ -26,27 +27,17 @@ def read_jobs(
     limit: int = 100,
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
-    """
-    获取职位列表，包含每个职位的候选人数量
-    """
-    # 查询职位及其候选人数量
-    jobs = db.query(
-        models.Job,
-        func.count(models.Candidate.id).label('candidate_count')
-    ).outerjoin(
-        models.Candidate
-    ).group_by(
-        models.Job.id
-    ).offset(skip).limit(limit).all()
-    
-    # 转换为带有候选人数量的职位列表
-    result = []
-    for job, candidate_count in jobs:
-        job_dict = schemas.Job.model_validate(job).model_dump()
-        job_dict['candidate_count'] = candidate_count
-        result.append(schemas.JobWithCandidateCount(**job_dict))
-    
-    return result
+    """获取职位列表"""
+    service = JobService(db)
+    if current_user.is_superuser:
+        jobs = service.list_jobs(skip=skip, limit=limit)
+    else:
+        jobs = service.list_jobs(
+            tenant_id=current_user.tenant_id,
+            skip=skip,
+            limit=limit
+        )
+    return jobs
 
 
 @router.post(
@@ -67,11 +58,17 @@ def create_job(
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """创建新职位"""
-    # 创建职位并关联到当前租户
-    job = crud.job.create_with_tenant(
-        db=db,
-        obj_in=job_in,
-        tenant_id=current_user.tenant_id
+    if not current_user.tenant_id:
+        raise HTTPException(
+            status_code=400,
+            detail="当前用户未关联租户，无法创建职位"
+        )
+    
+    service = JobService(db)
+    job = service.create_job(
+        job_in=job_in,
+        tenant_id=current_user.tenant_id,
+        publisher_id=current_user.id
     )
     return job
 
@@ -94,7 +91,8 @@ def read_job(
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """获取指定职位信息"""
-    job = crud.job.get(db=db, id=job_id)
+    service = JobService(db)
+    job = service.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="职位不存在")
     
@@ -124,19 +122,76 @@ def update_job(
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """更新职位信息"""
-    job = crud.job.get(db=db, id=job_id)
+    service = JobService(db)
+    job = service.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="职位不存在")
     
     # 检查租户权限
     if not current_user.is_superuser and job.tenant_id != current_user.tenant_id:
-        raise HTTPException(status_code=403, detail="无权更新该职位信息")
+        raise HTTPException(status_code=403, detail="无权更新该职位")
     
-    job = crud.job.update(
-        db=db,
-        db_obj=job,
-        obj_in=job_in
-    )
+    job = service.update_job(job_id=job_id, job_in=job_in)
+    return job
+
+
+@router.post(
+    "/{job_id}/publish",
+    response_model=schemas.Job,
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["job_update"]
+            )
+        )
+    ]
+)
+def publish_job(
+    *,
+    db: Session = Depends(deps.get_db),
+    job_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """发布职位"""
+    service = JobService(db)
+    job = service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="职位不存在")
+
+    if not current_user.is_superuser and job.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="无权发布该职位")
+
+    job = service.publish_job(job_id)
+    return job
+
+
+@router.post(
+    "/{job_id}/close",
+    response_model=schemas.Job,
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["job_update"]
+            )
+        )
+    ]
+)
+def close_job(
+    *,
+    db: Session = Depends(deps.get_db),
+    job_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """关闭职位"""
+    service = JobService(db)
+    job = service.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="职位不存在")
+
+    if not current_user.is_superuser and job.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="无权关闭该职位")
+
+    job = service.close_job(job_id)
     return job
 
 
@@ -158,7 +213,8 @@ def delete_job(
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """删除职位"""
-    job = crud.job.get(db=db, id=job_id)
+    service = JobService(db)
+    job = service.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="职位不存在")
     
@@ -167,14 +223,13 @@ def delete_job(
         raise HTTPException(status_code=403, detail="无权删除该职位")
     
     # 检查是否有关联的候选人
-    candidates = crud.candidate.get_by_job(db, job_id=job_id)
-    if candidates:
+    if job.candidates:
         raise HTTPException(
             status_code=400,
             detail="该职位下存在候选人,无法删除"
         )
     
-    job = crud.job.remove(db=db, id=job_id)
+    service.delete_job(job_id)
     return job
 
 
@@ -196,7 +251,8 @@ def read_job_candidates(
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """获取职位下的候选人列表"""
-    job = crud.job.get(db=db, id=job_id)
+    service = JobService(db)
+    job = service.get_job(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="职位不存在")
     
