@@ -54,6 +54,7 @@ from .skill import (  # noqa: F401
     SkillCreate,
     SkillUpdate
 )
+from .common import ResponseMsg, ResumeParseResponse
 
 __all__ = [
     "User",
@@ -110,5 +111,7 @@ __all__ = [
     "NotificationUpdate",
     "Skill",
     "SkillCreate",
-    "SkillUpdate"
+    "SkillUpdate",
+    "ResponseMsg",
+    "ResumeParseResponse"
 ] 

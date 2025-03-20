@@ -31,7 +31,7 @@ class CertificationInDBBase(CertificationBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # API中返回的模型

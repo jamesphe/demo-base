@@ -3,7 +3,7 @@ from .crud_job import job
 from .crud_candidate import candidate
 from .crud_interview import interview
 from .crud_resume import resume
-from .crud_repository import repository
+from .crud_resume_repository import repository
 from .crud_role import role
 from .crud_permission import permission
 from .crud_tenant import tenant

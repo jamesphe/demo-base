@@ -159,17 +159,19 @@ CREATE TABLE resume_repositories (
 
 -- 10. 简历表
 CREATE TABLE resumes (
-    -- 基本信息
     id SERIAL PRIMARY KEY,
-    resume_id VARCHAR(100) UNIQUE,
+    resume_id VARCHAR(100) UNIQUE NOT NULL,
     
-    -- 文件信息
-    file_name VARCHAR(255) NOT NULL,
-    file_path VARCHAR(500) NOT NULL,
-    file_type VARCHAR(50),
+    -- 文件信息（修改为可为NULL）
+    file_name VARCHAR(255),  -- 修改为可为NULL
+    file_path VARCHAR(500),  -- 修改为可为NULL
+    file_type VARCHAR(50),   -- 已经是可为NULL
     resume_type VARCHAR(20) DEFAULT 'general',
-    content TEXT,
-    parsed_data JSON,
+    content TEXT,            -- 已经是可为NULL
+    parsed_data JSONB,       -- 已经是可为NULL
+    
+    -- 添加手动创建标志
+    is_manual_entry BOOLEAN DEFAULT FALSE,
     
     -- 处理状态
     processing_status VARCHAR(20) DEFAULT 'pending',
@@ -261,7 +263,23 @@ CREATE TABLE resumes (
     
     -- 需要添加的其他信息字段
     family_situation VARCHAR(255),
-    other_info VARCHAR(255)
+    other_info VARCHAR(255),
+    
+    -- 发布者信息
+    publisher_id INTEGER REFERENCES users(id),
+    publisher_type VARCHAR(20) CHECK (publisher_type IN ('candidate', 'tenant', 'admin')) NOT NULL,
+    publisher_name VARCHAR(100),
+    publish_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- 审核信息
+    review_status VARCHAR(20) CHECK (review_status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+    reviewer_id INTEGER REFERENCES users(id),
+    review_time TIMESTAMP,
+    review_comment TEXT,
+    
+    -- 添加外键约束
+    FOREIGN KEY (publisher_id) REFERENCES users(id),
+    FOREIGN KEY (reviewer_id) REFERENCES users(id)
 );
 
 -- 11. 人才认证表
@@ -567,4 +585,17 @@ CREATE INDEX idx_job_required_certifications_certification ON job_required_certi
 CREATE INDEX idx_job_application_job ON job_application(job_id);
 CREATE INDEX idx_job_application_resume ON job_application(resume_id);
 CREATE INDEX idx_job_application_status ON job_application(status);
+
+-- 添加新的索引
+CREATE INDEX idx_resumes_publisher ON resumes(publisher_id);
+CREATE INDEX idx_resumes_reviewer ON resumes(reviewer_id);
+CREATE INDEX idx_resumes_review_status ON resumes(review_status);
+
+-- 为新字段添加索引
+CREATE INDEX idx_resumes_is_manual_entry ON resumes(is_manual_entry);
+
+-- 添加注释
+COMMENT ON COLUMN resumes.is_manual_entry IS '是否为手动创建的简历（无文件）';
+COMMENT ON COLUMN resumes.file_name IS '文件名（可为空，表示手动创建的简历）';
+COMMENT ON COLUMN resumes.file_path IS '文件路径（可为空，表示手动创建的简历）';
 

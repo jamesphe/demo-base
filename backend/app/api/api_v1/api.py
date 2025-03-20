@@ -3,9 +3,9 @@ from app.api.api_v1.endpoints import (
     auth, users, jobs, candidates, interviews,
     resumes, repositories, roles, permissions,
     tenants, llm_configs, talents, skills,
-    talent_pools, talent_certifications, certifications
+    talent_pools, talent_certifications, certifications,
+    talent_educations, talent_experiences, resume_reviews
 )
-from app.api.api_v1.endpoints import talent_educations, talent_experiences
 
 api_router = APIRouter()
 
@@ -71,6 +71,12 @@ api_router.include_router(
     resumes.router,
     prefix="/resumes",
     tags=["简历管理"]
+)
+
+api_router.include_router(
+    resume_reviews.router,
+    prefix="/resume-reviews",
+    tags=["简历审核"]
 )
 
 # 系统配置

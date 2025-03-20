@@ -101,9 +101,12 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         db: Session,
         file: UploadFile,
         repository_id: int,
-        tenant_id: Optional[int] = None
+        tenant_id: int,
+        publisher_id: int = None,
+        publisher_type: str = None,
+        publisher_name: str = None
     ) -> models.Resume:
-        """处理简历文件"""
+        """处理上传的简历文件"""
         try:
             # 保存文件
             file_info = await self._save_file(file, repository_id)
@@ -114,13 +117,17 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             logger.info(f"解析和分析简历: {pformat(resume_data)}")
             
             # 创建简历记录
-            resume = await self._create_resume_record(
-                db, 
-                file_info, 
-                resume_data, 
-                repository_id, 
-                tenant_id
-            )
+            resume_data["repository_id"] = repository_id
+            resume_data["tenant_id"] = tenant_id
+            resume_data["resume_id"] = str(uuid.uuid4())
+            resume_data["processing_status"] = "pending"
+            resume_data["publisher_id"] = publisher_id
+            resume_data["publisher_type"] = publisher_type
+            resume_data["publisher_name"] = publisher_name
+            resume_data["review_status"] = "pending"
+            
+            resume_in = ResumeCreate(**resume_data)
+            resume = self.create(db=db, obj_in=resume_in)
             
             return resume
             
@@ -1354,12 +1361,166 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             
         # 创建新版本简历
         new_resume_version = old_resume.resume_version + 1 if old_resume else 1
-        db_resume = models.Resume(
-            # ... existing fields ...
-            resume_version=new_resume_version,
-            is_latest=True
-        )
+        # 注释掉未使用的变量
+        # db_resume = models.Resume(
+        #     # ... existing fields ...
+        #     resume_version=new_resume_version,
+        #     is_latest=True
+        # )
         # ... existing code ...
+
+    async def approve_resume(
+        self,
+        db: Session,
+        resume_id: int,
+        reviewer_id: int,
+        comment: Optional[str] = None
+    ) -> models.Resume:
+        """审核通过简历"""
+        resume = crud.resume.get(db, id=resume_id)
+        if not resume:
+            raise ValueError("简历不存在")
+        
+        resume_update = schemas.ResumeUpdate(
+            review_status="approved",
+            reviewer_id=reviewer_id,
+            review_comment=comment
+        )
+        
+        return crud.resume.update(db, db_obj=resume, obj_in=resume_update)
+
+    async def reject_resume(
+        self,
+        db: Session,
+        resume_id: int,
+        reviewer_id: int,
+        comment: str
+    ) -> models.Resume:
+        """拒绝简历"""
+        resume = crud.resume.get(db, id=resume_id)
+        if not resume:
+            raise ValueError("简历不存在")
+        
+        resume_update = schemas.ResumeUpdate(
+            review_status="rejected",
+            reviewer_id=reviewer_id,
+            review_comment=comment
+        )
+        
+        return crud.resume.update(db, db_obj=resume, obj_in=resume_update)
+
+    async def publish_resume(
+        self,
+        db: Session,
+        resume_id: int,
+        publisher_id: int,
+        publisher_type: str,
+        publisher_name: str
+    ) -> models.Resume:
+        """发布简历"""
+        resume = crud.resume.get(db, id=resume_id)
+        if not resume:
+            raise ValueError("简历不存在")
+        
+        resume_update = schemas.ResumeUpdate(
+            publisher_id=publisher_id,
+            publisher_type=publisher_type,
+            publisher_name=publisher_name
+        )
+        
+        return crud.resume.update(db, db_obj=resume, obj_in=resume_update)
+
+    async def process_resume_file_with_form_data(
+        self,
+        db: Session,
+        file: UploadFile,
+        repository_id: int,
+        tenant_id: int,
+        publisher_id: int = None,
+        publisher_type: str = None,
+        publisher_name: str = None,
+        form_data: Dict[str, Any] = None
+    ) -> models.Resume:
+        """处理上传的简历文件和表单数据"""
+        try:
+            # 保存文件
+            file_info = await self._save_file(file, repository_id)
+            
+            # 解析和分析简历
+            resume_data = await self._parse_and_analyze_resume(db, file_info)
+            
+            logger.info(f"解析和分析简历: {pformat(resume_data)}")
+            
+            # 创建简历记录
+            resume_data["repository_id"] = repository_id
+            resume_data["tenant_id"] = tenant_id
+            resume_data["resume_id"] = str(uuid.uuid4())
+            resume_data["processing_status"] = "pending"
+            resume_data["publisher_id"] = publisher_id
+            resume_data["publisher_type"] = publisher_type
+            resume_data["publisher_name"] = publisher_name
+            resume_data["review_status"] = "pending"
+            
+            # 合并表单数据（表单数据优先级高于解析数据）
+            if form_data:
+                # 更新基本字段
+                for key, value in form_data.items():
+                    if key in resume_data:
+                        resume_data[key] = value
+                    elif key in resume_data.get("parsed_data", {}):
+                        resume_data["parsed_data"][key] = value
+            
+            resume_in = ResumeCreate(**resume_data)
+            resume = self.create(db=db, obj_in=resume_in)
+            
+            return resume
+            
+        except Exception as e:
+            # 清理文件
+            if 'file_info' in locals() and file_info.get('file_path'):
+                self._delete_file(file_info['file_path'])
+            logger.error(f"Resume processing failed: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"简历处理失败: {str(e)}"
+            )
+
+    def validate_resume_data(self, resume_data: dict) -> tuple[bool, str]:
+        """验证简历数据的有效性
+        
+        Args:
+            resume_data: 简历数据字典
+            
+        Returns:
+            (is_valid, error_message): 验证结果和错误信息
+        """
+        # 验证必填字段 - 不再要求repository_id
+        # required_fields = ["repository_id"]
+        # for field in required_fields:
+        #     if field not in resume_data or resume_data[field] is None:
+        #         return False, f"缺少必填字段: {field}"
+        
+        # 验证联系方式（至少有一种联系方式）
+        contact_fields = ["phone", "email"]
+        has_contact = any(resume_data.get(field) for field in contact_fields)
+        if not has_contact:
+            return False, "至少需要提供一种联系方式（电话或邮箱）"
+        
+        # 验证工作经历的时间范围
+        if "work_history" in resume_data and resume_data["work_history"]:
+            for work in resume_data["work_history"]:
+                if (work.get("start_date") and work.get("end_date") and 
+                        work["start_date"] > work["end_date"]):
+                    return False, "工作经历的开始时间不能晚于结束时间"
+        
+        # 验证教育经历的时间范围
+        if "edu_experience" in resume_data and resume_data["edu_experience"]:
+            for edu in resume_data["edu_experience"]:
+                if (edu.get("start_date") and edu.get("end_date") and 
+                        edu["start_date"] > edu["end_date"]):
+                    return False, "教育经历的开始时间不能晚于结束时间"
+        
+        return True, ""
 
 # 创建服务实例
 resume_service = ResumeService()

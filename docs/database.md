@@ -187,19 +187,199 @@ CREATE TABLE talent_skill (
 
 4.5 简历（Resume）表
 
-记录人才详细简历，支持多版本和附件存储。
+记录人才详细简历，支持多版本和附件存储。简历可以由求职者自主提交、租户提交或批量导入，并支持审核流程管理。
 
-CREATE TABLE resume (
-    resume_id INT PRIMARY KEY AUTO_INCREMENT,           -- 简历记录ID
-    talent_id INT NOT NULL,                             -- 关联人才表
-    version INT DEFAULT 1,                              -- 简历版本号
-    resume_content TEXT,                                -- 简历详细描述（支持富文本）
-    resume_file_url VARCHAR(255),                       -- 简历附件链接（如 PDF）
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,      -- 创建时间
+4.5.1 简历权限控制设计
+
+1. 基本权限规则
+   • 求职者（candidate）：
+     - 可以查看和编辑自己创建的简历
+     - 可以提交新简历
+     - 可以查看自己简历的审核状态
+   
+   • 租户用户（tenant）：
+     - 可以查看其租户下的所有简历
+     - 可以查看已投递到本租户职位的简历
+     - 可以为其租户创建和导入简历
+     - 具有 tenant_hr 角色的用户可以审核简历
+   
+   • 平台管理员（admin）：
+     - 可以查看和管理所有简历
+     - 可以进行最终审核
+     - 可以处理异常情况
+
+2. 简历可见性规则
+   • 私密简历：仅创建者和已授权的租户可见
+   • 公开简历：所有租户可见，但需要先申请查看完整信息
+   • 投递简历：自动对目标租户可见
+
+3. 操作权限矩阵
+   |    操作     | 求职者 | 租户(普通) | 租户(HR) | 管理员 |
+   |------------|--------|------------|----------|--------|
+   | 创建简历    |   ✓    |     ✓     |    ✓     |   ✓    |
+   | 查看自己简历 |   ✓    |     ✓     |    ✓     |   ✓    |
+   | 编辑简历    |   ✓*   |     ✓**   |    ✓**   |   ✓    |
+   | 删除简历    |   ✓*   |     ✗     |    ✗     |   ✓    |
+   | 审核简历    |   ✗    |     ✗     |    ✓     |   ✓    |
+   | 导出简历    |   ✓*   |     ✓**   |    ✓**   |   ✓    |
+   
+   注：
+   * 仅限自己创建的简历
+   ** 仅限本租户的简历
+
+4. 权限实现
+   • 通过 publisher_id 和 publisher_type 确定简历创建者
+   • 通过 tenant_id 确定简历所属租户
+   • 通过 review_status 控制简历是否可见
+   • 结合用户角色(Role)和权限(Permission)控制具体操作权限
+
+4.5.2 简历表结构
+
+CREATE TABLE resumes (
+    id INT PRIMARY KEY AUTO_INCREMENT,                -- 简历记录ID
+    resume_id VARCHAR(100) UNIQUE,                    -- 简历唯一标识
+    
+    # 文件信息
+    file_name VARCHAR(255) NOT NULL,                  -- 文件名称
+    file_path VARCHAR(500) NOT NULL,                  -- 文件路径
+    file_type VARCHAR(50),                            -- 文件类型(pdf, doc, docx)
+    resume_type VARCHAR(20) DEFAULT 'general',        -- 简历类型
+    content TEXT,                                     -- 简历内容
+    parsed_data JSON,                                 -- 解析后的数据
+    
+    # 处理状态
+    processing_status VARCHAR(20) DEFAULT 'pending',   -- 处理状态(pending, processing, completed, failed)
+    processing_message VARCHAR(200),                  -- 处理消息
+    processing_started_at DATETIME,                   -- 处理开始时间
+    processing_completed_at DATETIME,                 -- 处理完成时间
+    processing_error TEXT,                            -- 处理错误信息
+    
+    # 个人基本信息
+    name VARCHAR(100),                                -- 姓名
+    gender VARCHAR(10),                               -- 性别
+    birthdate DATETIME,                               -- 出生日期
+    id_number VARCHAR(50),                            -- 身份证号
+    phone VARCHAR(20),                                -- 电话
+    email VARCHAR(100),                               -- 邮箱
+    stature VARCHAR(20),                              -- 身高
+    weight VARCHAR(20),                               -- 体重
+    nation VARCHAR(50),                               -- 民族
+    english_level VARCHAR(50),                        -- 英语水平
+    city VARCHAR(100),                                -- 城市
+    district VARCHAR(100),                            -- 区域
+    
+    # 个人状态信息
+    political_status VARCHAR(50),                     -- 政治面貌
+    marital_status VARCHAR(20),                       -- 婚姻状况
+    hukou VARCHAR(100),                               -- 户口所在地
+    current_address VARCHAR(255),                     -- 当前住址
+    
+    # 教育信息
+    highest_education VARCHAR(50),                    -- 最高学历
+    highest_degree VARCHAR(50),                       -- 最高学位
+    major VARCHAR(100),                               -- 专业
+    graduate_school VARCHAR(100),                     -- 毕业院校
+    graduation_date DATETIME,                         -- 毕业时间
+    
+    # 工作经验
+    experience_years INT,                             -- 工作年限
+    current_company VARCHAR(100),                     -- 当前公司
+    current_position VARCHAR(100),                    -- 当前职位
+    current_salary VARCHAR(50),                       -- 当前薪资
+    work_time VARCHAR(50),                            -- 工作时间
+    work_history JSON,                                -- 工作经历
+    
+    # 求职意向
+    expected_position VARCHAR(100),                   -- 期望职位
+    expected_salary VARCHAR(50),                      -- 期望薪资
+    expected_location VARCHAR(100),                   -- 期望地点
+    
+    # 技能与证书
+    skills JSON,                                      -- 技能
+    certificates JSON,                                -- 证书
+    
+    # 匹配状态
+    matching_status ENUM('待匹配', '已匹配', '待确认', '新人才') DEFAULT '待匹配',  -- 匹配状态
+    matching_score INT,                               -- 职位匹配度评分
+    
+    # 版本信息
+    resume_version INT DEFAULT 1,                     -- 简历版本号
+    is_latest BOOLEAN DEFAULT true,                   -- 是否为最新版本
+    
+    # 来源信息
+    source_channel VARCHAR(50),                       -- 来源渠道
+    source_batch VARCHAR(100),                        -- 批次号
+    
+    # 质量评分
+    completeness_score INT,                           -- 信息完整度评分
+    
+    # 时间戳
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,    -- 创建时间
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  -- 更新时间
-    is_active TINYINT(1) DEFAULT 1,                     -- 是否为当前版本
-    FOREIGN KEY (talent_id) REFERENCES talent(talent_id)
+    
+    # 关联关系
+    repository_id INT,                                -- 简历库ID
+    candidate_id INT,                                 -- 候选人ID
+    talent_id INT,                                    -- 人才ID
+    tenant_id INT,                                    -- 租户ID
+    
+    # 职称信息
+    talent_name VARCHAR(100),                         -- 人才姓名
+    talent_team VARCHAR(100),                         -- 人才团队
+    talent_type VARCHAR(100),                         -- 人才类型
+    title_rank VARCHAR(100),                          -- 职称等级
+    
+    # 经历信息
+    edu_experience JSON,                              -- 教育经历
+    awards JSON,                                      -- 获奖经历
+    
+    # 其他信息
+    family_situation VARCHAR(255),                    -- 家庭情况
+    other_info VARCHAR(255),                          -- 其他信息
+    
+    # 发布者信息
+    publisher_id INT,                                 -- 发布者ID(关联user表)
+    publisher_type ENUM('candidate', 'tenant', 'admin') NOT NULL,  -- 发布者类型
+    publisher_name VARCHAR(100),                      -- 发布者名称
+    publish_time DATETIME DEFAULT CURRENT_TIMESTAMP,  -- 发布时间
+    
+    # 审核信息
+    review_status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',  -- 审核状态
+    reviewer_id INT,                                  -- 审核人ID
+    review_time DATETIME,                             -- 审核时间
+    review_comment TEXT,                              -- 审核意见
+    
+    FOREIGN KEY (repository_id) REFERENCES resume_repositories(id),
+    FOREIGN KEY (candidate_id) REFERENCES candidates(id),
+    FOREIGN KEY (talent_id) REFERENCES talent(talent_id),
+    FOREIGN KEY (tenant_id) REFERENCES tenant(tenant_id),
+    FOREIGN KEY (publisher_id) REFERENCES user(user_id),
+    FOREIGN KEY (reviewer_id) REFERENCES user(user_id)
 );
+
+4.5.3 简历相关权限初始化
+
+-- 添加简历相关权限
+INSERT INTO permission (permission_name, description) VALUES
+('resume.create', '创建简历权限'),
+('resume.view', '查看简历权限'),
+('resume.edit', '编辑简历权限'),
+('resume.delete', '删除简历权限'),
+('resume.review', '审核简历权限'),
+('resume.export', '导出简历权限'),
+('resume.batch_import', '批量导入简历权限');
+
+-- 为不同角色分配权限
+INSERT INTO role_permission (role_id, permission_id) VALUES
+-- 求职者权限
+((SELECT role_id FROM role WHERE role_name = 'candidate'), 
+ (SELECT permission_id FROM permission WHERE permission_name = 'resume.create')),
+-- 租户HR权限
+((SELECT role_id FROM role WHERE role_name = 'tenant_hr'), 
+ (SELECT permission_id FROM permission WHERE permission_name = 'resume.review')),
+-- 平台管理员权限
+((SELECT role_id FROM role WHERE role_name = 'platform_admin'), 
+ (SELECT permission_id FROM permission WHERE permission_name = 'resume.delete'));
 
 4.6 专用工种子表（以焊工为例）
 
@@ -432,6 +612,23 @@ CREATE TABLE job_application (
     • 职位可以是草稿、已发布或已关闭状态
     • 求职者可以查看已发布的职位并提交申请
     • 申请记录跟踪整个应聘流程，包括待审核、已审核、已面试、已录用等状态
+
+5.7 简历管理流程
+   • 简历创建：
+     - 求职者可以自主创建和管理个人简历
+     - 租户可以为其管理的人才创建或导入简历
+     - 平台管理员可以处理特殊情况下的简历创建
+   
+   • 简历审核：
+     - 新创建的简历默认状态为待审核（pending）
+     - 租户HR可以审核其租户下的简历
+     - 平台管理员可以审核所有简历
+     - 审核通过的简历可以被用于职位投递
+   
+   • 简历访问控制：
+     - 基于用户角色和权限控制简历的访问
+     - 考虑简历的可见性设置（私密/公开）
+     - 确保数据隔离和安全性
 
 6. 总结
 

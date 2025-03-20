@@ -16,12 +16,15 @@ class Resume(Base):
     resume_id = Column(String(100), unique=True, index=True)
     
     # 文件信息
-    file_name = Column(String(255), nullable=False)
-    file_path = Column(String(500), nullable=False)
-    file_type = Column(String(50))  # pdf, doc, docx
+    file_name = Column(String(255), nullable=True)
+    file_path = Column(String(500), nullable=True)
+    file_type = Column(String(50), nullable=True)
     resume_type = Column(String(20), default="general")
-    content = Column(Text)
-    parsed_data = Column(JSON)
+    content = Column(Text, nullable=True)
+    parsed_data = Column(JSON, nullable=True)
+    
+    # 添加手动创建标志
+    is_manual_entry = Column(Boolean, default=False)
     
     # 处理状态
     processing_status = Column(
@@ -109,7 +112,7 @@ class Resume(Base):
     )
 
     # 关联关系
-    repository_id = Column(Integer, ForeignKey("resume_repositories.id"))
+    repository_id = Column(Integer, ForeignKey("resume_repositories.id"), nullable=True)
     repository = relationship("ResumeRepository", back_populates="resumes")
     
     candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=True)
@@ -138,4 +141,34 @@ class Resume(Base):
     other_info = Column(String(255))
 
     # 添加关联关系
-    applications = relationship("JobApplication", back_populates="resume") 
+    applications = relationship("JobApplication", back_populates="resume")
+
+    # 发布者信息
+    publisher_id = Column(Integer, ForeignKey("users.id"))
+    publisher_type = Column(
+        Enum('candidate', 'tenant', 'admin', name='publisher_type'),
+        nullable=False
+    )
+    publisher_name = Column(String(100))
+    publish_time = Column(DateTime, default=datetime.utcnow)
+    
+    # 审核信息
+    review_status = Column(
+        Enum('pending', 'approved', 'rejected', name='review_status_type'),
+        default='pending'
+    )
+    reviewer_id = Column(Integer, ForeignKey("users.id"))
+    review_time = Column(DateTime)
+    review_comment = Column(Text)
+
+    # 修改关联关系定义
+    publisher = relationship(
+        "User",
+        foreign_keys=[publisher_id],
+        backref="published_resumes"
+    )
+    reviewer = relationship(
+        "User",
+        foreign_keys=[reviewer_id],
+        backref="reviewed_resumes"
+    ) 
