@@ -9,14 +9,16 @@ from app.schemas.job import JobCreate, JobUpdate
 from .base import BaseService
 from app.core.security import get_password_hash
 from app.core.config import settings
+from app import crud
+from app.services.job_requirement_service import JobRequirementService
 
 
 class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
     """职位服务"""
     
-    def __init__(self, db: Session):
+    def __init__(self):
+        """初始化服务"""
         super().__init__(models.Job)
-        self.db = db
 
     def search_jobs(
         self,
@@ -189,57 +191,98 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
 
     def create_job(
         self,
+        db: Session,
         job_in: schemas.JobCreate,
         tenant_id: int,
         publisher_id: int
     ) -> models.Job:
-        """创建新职位"""
-        if not tenant_id:
-            raise ValueError("tenant_id is required")
+        """创建职位"""
+        # 准备职位基础数据
+        job_data = job_in.model_dump(exclude={
+            'required_skills',
+            'required_certifications'
+        })
+        job_data.update({
+            "tenant_id": tenant_id,
+            "publisher_id": publisher_id,
+            "status": "draft"
+        })
         
-        job_data = job_in.model_dump()
-        job = models.Job(
-            **job_data,
-            tenant_id=tenant_id,
-            publisher_id=publisher_id
-        )
-        self.db.add(job)
-        self.db.commit()
-        self.db.refresh(job)
+        # 创建职位
+        job = crud.job.create(db, obj_in=job_data)
+        
+        # 处理技能要求
+        if job_in.required_skills:
+            for skill_data in job_in.required_skills:
+                required_skill = models.JobRequiredSkill(
+                    job_id=job.id,
+                    skill_id=skill_data["skill_id"],
+                    skill_level=skill_data["skill_level"],
+                    is_required=skill_data["is_required"]
+                )
+                db.add(required_skill)
+        
+        # 处理证书要求
+        if job_in.required_certifications:
+            for cert_data in job_in.required_certifications:
+                required_cert = models.JobRequiredCertification(
+                    job_id=job.id,
+                    certification_id=cert_data["certification_id"],
+                    is_required=cert_data["is_required"]
+                )
+                db.add(required_cert)
+        
+        db.commit()
+        db.refresh(job)
         return job
 
-    def get_job(self, job_id: int) -> Optional[models.Job]:
+    def get_job(
+        self,
+        db: Session,
+        job_id: int
+    ) -> Optional[models.Job]:
         """获取职位详情"""
-        return self.db.query(self.model).filter(self.model.id == job_id).first()
+        return db.query(models.Job).filter(models.Job.id == job_id).first()
 
     def list_jobs(
         self,
-        tenant_id: Optional[int] = None,
+        db: Session,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        tenant_id: Optional[int] = None
     ) -> List[models.Job]:
         """获取职位列表"""
-        query = self.db.query(self.model)
+        query = db.query(models.Job)
         if tenant_id:
-            query = query.filter(self.model.tenant_id == tenant_id)
+            query = query.filter(models.Job.tenant_id == tenant_id)
         return query.offset(skip).limit(limit).all()
 
     def update_job(
         self,
+        db: Session,
         job_id: int,
-        job_in: schemas.JobUpdate
-    ) -> Optional[models.Job]:
+        job_in: schemas.JobUpdate,
+        skills: Optional[List[schemas.JobRequiredSkillCreate]] = None,
+        certifications: Optional[List[schemas.JobRequiredCertificationCreate]] = None
+    ) -> models.Job:
         """更新职位信息"""
-        job = self.get_job(job_id)
+        job = crud.job.get(db, id=job_id)
         if not job:
-            return None
+            raise HTTPException(status_code=404, detail="职位不存在")
 
-        for field, value in job_in.model_dump(exclude_unset=True).items():
-            setattr(job, field, value)
+        # 更新职位基本信息
+        job = crud.job.update(db, db_obj=job, obj_in=job_in)
 
-        self.db.add(job)
-        self.db.commit()
-        self.db.refresh(job)
+        # 更新技能要求
+        if skills is not None:  # 允许清空技能要求
+            requirement_service = JobRequirementService(db)
+            requirement_service.update_job_skills(job.id, skills)
+
+        # 更新证书要求
+        if certifications is not None:  # 允许清空证书要求
+            requirement_service = JobRequirementService(db)
+            requirement_service.update_job_certifications(job.id, certifications)
+
         return job
 
     def delete_job(self, job_id: int) -> bool:
@@ -278,5 +321,22 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         self.db.refresh(job)
         return job
 
-# 导出类
-__all__ = ["JobService"] 
+    def get_job_with_requirements(self, job_id: int) -> dict:
+        """获取职位信息及其要求"""
+        job = crud.job.get(self.db, id=job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="职位不存在")
+
+        requirement_service = JobRequirementService(self.db)
+        requirements = requirement_service.get_job_requirements(job_id)
+
+        return {
+            "job": job,
+            "requirements": requirements
+        }
+
+# 创建服务实例
+job_service = JobService()
+
+# 只导出实例
+__all__ = ["job_service"] 

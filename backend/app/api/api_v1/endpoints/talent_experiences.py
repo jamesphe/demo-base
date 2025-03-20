@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from sqlalchemy.orm import Session
-from app.schemas.experience import (
-    ExperienceCreate,
-    ExperienceUpdate,
-    ExperienceResponse
+from app.schemas.talent_experience import (
+    TalentExperienceCreate,
+    TalentExperienceUpdate,
+    TalentExperienceResponse
 )
-from app.services.experience_service import ExperienceService
+from app.services.talent_experience_service import ExperienceService
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 
@@ -14,9 +14,9 @@ from app.models.user import User
 router = APIRouter()
 
 
-@router.post("/", response_model=ExperienceResponse)
+@router.post("/", response_model=TalentExperienceResponse)
 def create_experience(
-    experience: ExperienceCreate,
+    experience: TalentExperienceCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -25,7 +25,7 @@ def create_experience(
     return service.create_experience(experience)
 
 
-@router.get("/talent/{talent_id}", response_model=List[ExperienceResponse])
+@router.get("/talent/{talent_id}", response_model=List[TalentExperienceResponse])
 def list_talent_experiences(
     talent_id: int,
     db: Session = Depends(get_db),
@@ -36,10 +36,10 @@ def list_talent_experiences(
     return service.list_talent_experiences(talent_id)
 
 
-@router.put("/{experience_id}", response_model=ExperienceResponse)
+@router.put("/{experience_id}", response_model=TalentExperienceResponse)
 def update_experience(
     experience_id: int,
-    experience: ExperienceUpdate,
+    experience: TalentExperienceUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

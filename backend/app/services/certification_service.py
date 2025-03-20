@@ -1,74 +1,133 @@
-from typing import List, Optional
+from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
-from app.models.talent_certification import TalentCertification
+from fastapi.encoders import jsonable_encoder
+
+from app.models.certification import Certification
 from app.schemas.certification import CertificationCreate, CertificationUpdate
+from .base import BaseService
 
 
-class CertificationService:
-    def __init__(self, db: Session):
-        self.db = db
+class CertificationService(BaseService[Certification, CertificationCreate, 
+                                       CertificationUpdate]):
+    """证书服务"""
     
+    def __init__(self):
+        super().__init__(Certification)
+
+    def get_certification(
+        self, 
+        db: Session, 
+        certification_id: int
+    ) -> Optional[Certification]:
+        """获取单个证书"""
+        return db.query(Certification).filter(
+            Certification.id == certification_id
+        ).first()
+
+    def get_certifications(
+        self, 
+        db: Session, 
+        tenant_id: Optional[int] = None,
+        skip: int = 0, 
+        limit: int = 100,
+        filters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """获取证书列表"""
+        query = db.query(Certification)
+        
+        # 应用租户过滤
+        if tenant_id is not None:
+            # 获取特定租户的证书和平台公共证书
+            query = query.filter(
+                (Certification.tenant_id == tenant_id) | 
+                (Certification.tenant_id.is_(None))
+            )
+        
+        # 应用其他过滤条件
+        if filters:
+            if filters.get("status"):
+                query = query.filter(Certification.status == filters["status"])
+            if filters.get("category"):
+                query = query.filter(Certification.category == filters["category"])
+            if filters.get("name"):
+                query = query.filter(
+                    Certification.name.ilike(f"%{filters['name']}%")
+                )
+            if filters.get("issuing_organization"):
+                query = query.filter(
+                    Certification.issuing_organization.ilike(
+                        f"%{filters['issuing_organization']}%"
+                    )
+                )
+        
+        # 获取总数
+        total = query.count()
+        
+        # 应用分页
+        certifications = query.offset(skip).limit(limit).all()
+        
+        return {
+            "total": total,
+            "items": certifications
+        }
+
     def create_certification(
         self,
-        certification: CertificationCreate
-    ) -> TalentCertification:
-        """创建认证信息"""
-        db_certification = TalentCertification(
-            talent_id=certification.talent_id,
-            certification_name=certification.certification_name,
-            issuing_organization=certification.issuing_organization,
-            issue_date=certification.issue_date,
-            expiration_date=certification.expiration_date,
-            document_url=certification.document_url
-        )
-        self.db.add(db_certification)
-        self.db.commit()
-        self.db.refresh(db_certification)
-        return db_certification
-    
-    def get_certification(
-        self,
-        certification_id: int
-    ) -> Optional[TalentCertification]:
-        """获取单个认证详情"""
-        query = self.db.query(TalentCertification)
-        return (query.filter(
-            TalentCertification.certification_id == certification_id
-        ).first())
-    
-    def list_talent_certifications(
-        self,
-        talent_id: int
-    ) -> List[TalentCertification]:
-        """获取人才的所有认证"""
-        return (self.db.query(TalentCertification)
-                .filter(TalentCertification.talent_id == talent_id)
-                .all())
-    
+        db: Session, 
+        certification_in: CertificationCreate
+    ) -> Certification:
+        """创建新证书"""
+        certification_data = jsonable_encoder(certification_in)
+        certification = Certification(**certification_data)
+        db.add(certification)
+        db.commit()
+        db.refresh(certification)
+        return certification
+
     def update_certification(
-        self,
-        certification_id: int,
-        certification: CertificationUpdate
-    ) -> Optional[TalentCertification]:
-        """更新认证信息"""
-        db_certification = self.get_certification(certification_id)
-        if not db_certification:
-            return None
-            
-        update_data = certification.dict(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(db_certification, field, value)
-            
-        self.db.commit()
-        self.db.refresh(db_certification)
-        return db_certification
-    
-    def delete_certification(self, certification_id: int) -> bool:
-        """删除认证信息"""
-        db_certification = self.get_certification(certification_id)
-        if not db_certification:
-            return False
-            
-        self.db.delete(db_certification)
-        self.db.commit()
-        return True 
+        self, 
+        db: Session, 
+        certification: Certification,
+        certification_in: CertificationUpdate
+    ) -> Certification:
+        """更新证书信息"""
+        obj_data = jsonable_encoder(certification)
+        update_data = certification_in.dict(exclude_unset=True)
+        
+        for field in obj_data:
+            if field in update_data:
+                setattr(certification, field, update_data[field])
+        
+        db.add(certification)
+        db.commit()
+        db.refresh(certification)
+        return certification
+
+    def delete_certification(
+        self, 
+        db: Session, 
+        certification: Certification
+    ) -> Certification:
+        """删除证书"""
+        # 软删除，将状态设置为inactive
+        certification.status = "inactive"
+        db.add(certification)
+        db.commit()
+        db.refresh(certification)
+        return certification
+
+    def hard_delete_certification(
+        self, 
+        db: Session, 
+        certification: Certification
+    ) -> None:
+        """硬删除证书（从数据库中完全删除）"""
+        db.delete(certification)
+        db.commit()
+
+
+# 创建服务实例
+certification_service = CertificationService()
+
+# 只导出实例
+__all__ = ["certification_service"]

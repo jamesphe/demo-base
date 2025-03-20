@@ -110,24 +110,36 @@ CREATE TABLE interviews (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 7. 技能表 (依赖租户表)
-CREATE TABLE skill (
-    skill_id SERIAL PRIMARY KEY,
+-- 7. 技能表
+CREATE TABLE skills (
+    id SERIAL PRIMARY KEY,
     tenant_id INTEGER REFERENCES tenant(id),
-    skill_name VARCHAR(100) NOT NULL,
-    skill_description TEXT,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
     category VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     status VARCHAR(20) CHECK (status IN ('active', 'inactive')) DEFAULT 'active',
-    UNIQUE(tenant_id, skill_name)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 证书库表
+CREATE TABLE certifications (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER REFERENCES tenant(id),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    category VARCHAR(50),
+    issuing_organization VARCHAR(100),
+    status VARCHAR(20) CHECK (status IN ('active', 'inactive')) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 8. 人才技能关联表 (依赖人才表和技能表)
 CREATE TABLE talent_skill (
     talent_skill_id SERIAL PRIMARY KEY,
     talent_id INTEGER REFERENCES talent(talent_id) NOT NULL,
-    skill_id INTEGER REFERENCES skill(skill_id) NOT NULL
+    skill_id INTEGER REFERENCES skills(id) NOT NULL
 );
 
 -- 9. 简历库表
@@ -398,7 +410,12 @@ CREATE TRIGGER update_interviews_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_skill_updated_at
-    BEFORE UPDATE ON skill
+    BEFORE UPDATE ON skills
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_certifications_updated_at
+    BEFORE UPDATE ON certifications
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -412,10 +429,12 @@ CREATE INDEX idx_candidates_job ON candidates(job_id);
 CREATE INDEX idx_candidates_tenant ON candidates(tenant_id);
 CREATE INDEX idx_interviews_candidate ON interviews(candidate_id);
 CREATE INDEX idx_interviews_job ON interviews(job_id);
-CREATE INDEX idx_skill_tenant ON skill(tenant_id);
-CREATE INDEX idx_skill_status ON skill(status);
+CREATE INDEX idx_skill_tenant ON skills(tenant_id);
+CREATE INDEX idx_skill_status ON skills(status);
 CREATE INDEX idx_talent_skill_talent ON talent_skill(talent_id);
 CREATE INDEX idx_talent_skill_skill ON talent_skill(skill_id);
+CREATE INDEX idx_certification_tenant ON certifications(tenant_id);
+CREATE INDEX idx_certification_status ON certifications(status); 
 
 -- 插入默认LLM配置
 INSERT INTO llm_configs (
@@ -479,4 +498,73 @@ CREATE INDEX idx_notifications_tenant ON notifications(tenant_id);
 
 -- 创建职位相关的索引
 CREATE INDEX idx_jobs_status ON jobs(status);
-CREATE INDEX idx_jobs_job_type ON jobs(job_type); 
+CREATE INDEX idx_jobs_job_type ON jobs(job_type);
+
+-- 职位-技能要求关联表
+CREATE TABLE job_required_skills (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id),
+    skill_id INTEGER NOT NULL REFERENCES skills(id),
+    skill_level VARCHAR(50) NOT NULL,
+    is_required BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 职位-证书要求关联表
+CREATE TABLE job_required_certifications (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id),
+    certification_id INTEGER NOT NULL REFERENCES certifications(id),
+    is_required BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 职位申请记录表
+CREATE TABLE job_application (
+    application_id SERIAL PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id),
+    resume_id INTEGER NOT NULL REFERENCES resumes(id),
+    status VARCHAR(20) CHECK (
+        status IN (
+            'pending',
+            'reviewed',
+            'interviewed',
+            'offered',
+            'rejected',
+            'withdrawn'
+        )
+    ) DEFAULT 'pending',
+    apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    review_time TIMESTAMP,
+    review_notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 添加触发器
+CREATE TRIGGER update_job_required_skills_updated_at
+    BEFORE UPDATE ON job_required_skills
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_job_required_certifications_updated_at
+    BEFORE UPDATE ON job_required_certifications
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_job_application_updated_at
+    BEFORE UPDATE ON job_application
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 添加索引
+CREATE INDEX idx_job_required_skills_job ON job_required_skills(job_id);
+CREATE INDEX idx_job_required_skills_skill ON job_required_skills(skill_id);
+CREATE INDEX idx_job_required_certifications_job ON job_required_certifications(job_id);
+CREATE INDEX idx_job_required_certifications_certification ON job_required_certifications(certification_id);
+CREATE INDEX idx_job_application_job ON job_application(job_id);
+CREATE INDEX idx_job_application_resume ON job_application(resume_id);
+CREATE INDEX idx_job_application_status ON job_application(status);
+

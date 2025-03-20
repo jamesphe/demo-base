@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import date
 
 
-class EducationBase(BaseModel):
+class TalentEducationBase(BaseModel):
     institution_name: str
     degree: Optional[str]
     field_of_study: Optional[str]
@@ -13,15 +13,15 @@ class EducationBase(BaseModel):
     description: Optional[str]
 
 
-class EducationCreate(EducationBase):
+class TalentEducationCreate(TalentEducationBase):
     talent_id: int
 
 
-class EducationUpdate(EducationBase):
+class TalentEducationUpdate(TalentEducationBase):
     pass
 
 
-class EducationResponse(EducationBase):
+class TalentEducationResponse(TalentEducationBase):
     education_id: int
     talent_id: int
 

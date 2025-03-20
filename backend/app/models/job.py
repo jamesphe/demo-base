@@ -1,7 +1,8 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, ForeignKey, Enum, Boolean
 from sqlalchemy.orm import relationship
 from app.db.base_class import Base
+from app.models.job_requirement import JobRequiredSkill, JobRequiredCertification
 
 class Job(Base):
     __tablename__ = "jobs"
@@ -36,4 +37,7 @@ class Job(Base):
         back_populates="published_jobs",
         foreign_keys=[publisher_id]
     )
-    candidates = relationship("Candidate", back_populates="job") 
+    candidates = relationship("Candidate", back_populates="job")
+    required_skills = relationship("JobRequiredSkill", back_populates="job")
+    required_certifications = relationship("JobRequiredCertification", back_populates="job")
+    applications = relationship("JobApplication", back_populates="job")

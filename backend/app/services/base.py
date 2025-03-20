@@ -16,12 +16,12 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     基础服务类,提供通用的CRUD操作
     """
 
-    def __init__(self, model: Type[ModelType]):
+    def __init__(self, db: Session):
         """
         初始化服务
-        :param model: SQLAlchemy模型类
+        :param db: SQLAlchemy数据库会话
         """
-        self.model = model
+        self.db = db
 
     def get(
         self,

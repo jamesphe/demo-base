@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import date
 
 
-class ExperienceBase(BaseModel):
+class TalentExperienceBase(BaseModel):
     company_name: str
     position: str
     start_date: date
@@ -13,15 +13,15 @@ class ExperienceBase(BaseModel):
     attachment_url: Optional[str]
 
 
-class ExperienceCreate(ExperienceBase):
+class TalentExperienceCreate(TalentExperienceBase):
     talent_id: int
 
 
-class ExperienceUpdate(ExperienceBase):
+class TalentExperienceUpdate(TalentExperienceBase):
     pass
 
 
-class ExperienceResponse(ExperienceBase):
+class TalentExperienceResponse(TalentExperienceBase):
     experience_id: int
     talent_id: int
 

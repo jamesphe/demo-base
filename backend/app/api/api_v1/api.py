@@ -3,9 +3,9 @@ from app.api.api_v1.endpoints import (
     auth, users, jobs, candidates, interviews,
     resumes, repositories, roles, permissions,
     tenants, llm_configs, talents, skills,
-    certifications, educations, experiences,
-    talent_pools
+    talent_pools, talent_certifications, certifications
 )
+from app.api.api_v1.endpoints import talent_educations, talent_experiences
 
 api_router = APIRouter()
 
@@ -94,23 +94,30 @@ api_router.include_router(
     tags=["技能管理"]
 )
 
-# 人才相关信息管理
+# 证书库管理
 api_router.include_router(
     certifications.router,
-    prefix="/certifications",
-    tags=["认证管理"]
+    prefix="/certifications", 
+    tags=["证书类型库管理"]
+) 
+
+# 人才相关信息管理
+api_router.include_router(
+    talent_certifications.router,
+    prefix="/talent-certifications",
+    tags=["人才认证管理"]
 )
 
 api_router.include_router(
-    educations.router,
-    prefix="/educations",
-    tags=["教育经历"]
+    talent_educations.router,
+    prefix="/talent-educations",
+    tags=["人才教育经历"]
 )
 
 api_router.include_router(
-    experiences.router,
-    prefix="/experiences",
-    tags=["工作经验"]
+    talent_experiences.router,
+    prefix="/talent-experiences",
+    tags=["人才工作经验"]
 )
 
 # 人才库管理
@@ -118,4 +125,4 @@ api_router.include_router(
     talent_pools.router,
     prefix="/talent-pools",
     tags=["人才库管理"]
-) 
+)

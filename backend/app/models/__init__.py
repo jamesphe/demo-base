@@ -1,5 +1,7 @@
 from .user import User  # noqa: F401
-from .job import Job  # noqa: F401
+from app.models.job import Job
+from app.models.job_requirement import JobRequiredSkill, JobRequiredCertification
+from .job_application import JobApplication  # noqa: F401
 from .candidate import Candidate  # noqa: F401
 from .interview import Interview  # noqa: F401
 from .resume import Resume  # noqa: F401
@@ -18,10 +20,14 @@ from .skill import Skill  # noqa: F401
 from .talent_skill import TalentSkill  # noqa: F401
 from .notification import Notification  # noqa: F401
 from .talent_pool import TalentPool, TalentPoolMember  # noqa: F401
+from .certification import Certification  # 添加这一行
 
 __all__ = [
     "User",
     "Job",
+    "JobRequiredSkill",
+    "JobRequiredCertification",
+    "JobApplication",
     "Candidate",
     "Interview",
     "Resume",
@@ -40,5 +46,6 @@ __all__ = [
     "TalentSkill",
     "Notification",
     "TalentPool",
-    "TalentPoolMember"
+    "TalentPoolMember",
+    "Certification"  # 添加这一行
 ] 

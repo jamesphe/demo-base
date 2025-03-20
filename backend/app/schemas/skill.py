@@ -4,8 +4,8 @@ from typing import Optional
 
 
 class SkillBase(BaseModel):
-    skill_name: str
-    skill_description: Optional[str] = None
+    name: str
+    description: Optional[str] = None
     category: Optional[str] = None
     tenant_id: Optional[int] = None  # None表示平台公共技能
     status: Optional[str] = 'active'
@@ -19,8 +19,8 @@ class SkillUpdate(SkillBase):
     pass
 
 
-class SkillResponse(SkillBase):
-    skill_id: int
+class Skill(SkillBase):
+    id: int
     created_at: datetime
     updated_at: datetime
     

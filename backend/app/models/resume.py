@@ -135,4 +135,7 @@ class Resume(Base):
     family_situation = Column(String(255))
     
     # 其他信息
-    other_info = Column(String(255)) 
+    other_info = Column(String(255))
+
+    # 添加关联关系
+    applications = relationship("JobApplication", back_populates="resume") 

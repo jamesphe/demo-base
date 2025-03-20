@@ -10,6 +10,17 @@ from .user import (  # noqa: F401
 )
 from .token import Token, TokenPayload  # noqa: F401
 from .job import Job, JobCreate, JobUpdate, JobWithCandidateCount  # noqa: F401
+from .job_requirement import (
+    JobRequiredSkill,
+    JobRequiredSkillCreate,
+    JobRequiredCertification,
+    JobRequiredCertificationCreate
+)
+from .job_application import (
+    JobApplication,
+    JobApplicationCreate,
+    JobApplicationUpdate
+)
 from .candidate import (  # noqa: F401
     Candidate,
     CandidateCreate,
@@ -38,6 +49,11 @@ from .notification import (  # noqa: F401
     NotificationCreate,
     NotificationUpdate
 )
+from .skill import (  # noqa: F401
+    Skill,
+    SkillCreate,
+    SkillUpdate
+)
 
 __all__ = [
     "User",
@@ -53,6 +69,13 @@ __all__ = [
     "JobCreate",
     "JobUpdate",
     "JobWithCandidateCount",
+    "JobRequiredSkill",
+    "JobRequiredSkillCreate",
+    "JobRequiredCertification",
+    "JobRequiredCertificationCreate",
+    "JobApplication",
+    "JobApplicationCreate",
+    "JobApplicationUpdate",
     "Candidate",
     "CandidateCreate",
     "CandidateUpdate",
@@ -84,5 +107,8 @@ __all__ = [
     "Msg",
     "Notification",
     "NotificationCreate",
-    "NotificationUpdate"
+    "NotificationUpdate",
+    "Skill",
+    "SkillCreate",
+    "SkillUpdate"
 ] 

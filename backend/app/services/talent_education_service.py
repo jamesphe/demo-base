@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.talent_education import TalentEducation
-from app.schemas.education import EducationCreate, EducationUpdate
+from app.schemas.talent_education import TalentEducationCreate, TalentEducationUpdate
 
 
 class EducationService:
@@ -10,7 +10,7 @@ class EducationService:
     
     def create_education(
         self,
-        education: EducationCreate
+        education: TalentEducationCreate
     ) -> TalentEducation:
         """创建教育经历"""
         db_education = TalentEducation(
@@ -49,7 +49,7 @@ class EducationService:
     def update_education(
         self,
         education_id: int,
-        education: EducationUpdate
+        education: TalentEducationUpdate
     ) -> Optional[TalentEducation]:
         """更新教育经历"""
         db_education = self.get_education(education_id)

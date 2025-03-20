@@ -1,62 +1,73 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
-from app.models.skill import Skill
+from app import models
 from app.schemas.skill import SkillCreate, SkillUpdate
+from .base import BaseService
 
 
-class SkillService:
-    def __init__(self, db: Session):
-        self.db = db
+class SkillService(BaseService[models.Skill, SkillCreate, SkillUpdate]):
+    """技能服务"""
     
-    def create_skill(self, skill: SkillCreate, tenant_id: Optional[int] = None) -> Skill:
+    def __init__(self):
+        super().__init__(models.Skill)
+
+    def create_skill(
+        self,
+        db: Session,
+        skill: SkillCreate,
+        tenant_id: int = None
+    ) -> models.Skill:
         """创建技能"""
-        db_skill = Skill(
-            tenant_id=tenant_id or skill.tenant_id,  # 优先使用传入的tenant_id
-            skill_name=skill.skill_name,
-            skill_description=skill.skill_description,
+        db_skill = models.Skill(
+            name=skill.name,
+            description=skill.description,
             category=skill.category,
+            tenant_id=tenant_id,
             status=skill.status
         )
-        self.db.add(db_skill)
-        self.db.commit()
-        self.db.refresh(db_skill)
+        db.add(db_skill)
+        db.commit()
+        db.refresh(db_skill)
         return db_skill
     
-    def get_skill(self, skill_id: int) -> Optional[Skill]:
+    def get_skill(
+        self,
+        db: Session,
+        skill_id: int
+    ) -> Optional[models.Skill]:
         """获取单个技能"""
-        return self.db.query(Skill).filter(Skill.skill_id == skill_id).first()
+        return db.query(models.Skill).filter(
+            models.Skill.id == skill_id
+        ).first()
     
     def list_skills(
-        self, 
+        self,
+        db: Session,
         skip: int = 0, 
         limit: int = 100,
         tenant_id: Optional[int] = None
-    ) -> List[Skill]:
-        """获取技能列表
-        
-        Args:
-            tenant_id: 如果指定,则只返回该租户的技能和公共技能
-        """
-        query = self.db.query(Skill)
+    ) -> List[models.Skill]:
+        """获取技能列表"""
+        query = db.query(models.Skill)
         if tenant_id is not None:
-            # 返回指定租户的技能和公共技能
             query = query.filter(
-                (Skill.tenant_id == tenant_id) | (Skill.tenant_id.is_(None))
+                (models.Skill.tenant_id == tenant_id) | 
+                (models.Skill.tenant_id.is_(None))
             )
         return query.offset(skip).limit(limit).all()
     
     def update_skill(
-        self, 
+        self,
+        db: Session,
         skill_id: int, 
         skill_update: SkillUpdate,
         tenant_id: Optional[int] = None
-    ) -> Optional[Skill]:
+    ) -> Optional[models.Skill]:
         """更新技能信息"""
-        query = self.db.query(Skill).filter(Skill.skill_id == skill_id)
+        query = db.query(models.Skill).filter(models.Skill.id == skill_id)
         
-        # 如果指定了tenant_id,则只能更新该租户的技能
         if tenant_id is not None:
-            query = query.filter(Skill.tenant_id == tenant_id)
+            query = query.filter(models.Skill.tenant_id == tenant_id)
             
         db_skill = query.first()
         if not db_skill:
@@ -66,6 +77,13 @@ class SkillService:
         for field, value in update_data.items():
             setattr(db_skill, field, value)
             
-        self.db.commit()
-        self.db.refresh(db_skill)
-        return db_skill 
+        db.commit()
+        db.refresh(db_skill)
+        return db_skill
+
+
+# 创建服务实例
+skill_service = SkillService()
+
+# 只导出实例
+__all__ = ["skill_service"] 

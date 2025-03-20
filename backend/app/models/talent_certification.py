@@ -7,6 +7,7 @@ class TalentCertification(Base):
 
     certification_id = Column(Integer, primary_key=True, index=True)
     talent_id = Column(Integer, ForeignKey("talent.talent_id"), nullable=False)
+    certification_type_id = Column(Integer, ForeignKey("certifications.id"), nullable=False)
     certification_name = Column(String(100), nullable=False)
     issuing_organization = Column(String(100))
     issue_date = Column(Date)
@@ -14,4 +15,5 @@ class TalentCertification(Base):
     document_url = Column(String(255))
 
     # 关联关系
-    talent = relationship("Talent", back_populates="certifications") 
+    talent = relationship("Talent", back_populates="certifications")
+    certification_type = relationship("Certification", back_populates="talent_certifications") 

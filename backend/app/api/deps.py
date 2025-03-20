@@ -1,4 +1,4 @@
-from typing import Generator, List, Any, Callable
+from typing import Generator, List, Any, Callable, Optional
 from fastapi import Depends, HTTPException, status, Security
 from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from jose import jwt
@@ -26,6 +26,7 @@ def get_current_user(
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
 ) -> User:
+    """获取当前用户"""
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=["HS256"]
@@ -141,4 +142,18 @@ def get_current_candidate(
             status_code=403,
             detail="该操作仅允许求职者执行"
         )
-    return current_user 
+    return current_user
+
+def get_current_tenant_id(
+    current_user: User = Depends(get_current_user)
+) -> Optional[int]:
+    """获取当前租户ID"""
+    if current_user.user_type == 'tenant':
+        return current_user.tenant_id
+    return None
+
+def get_current_user_id(
+    current_user: User = Depends(get_current_user)
+) -> int:
+    """获取当前用户ID"""
+    return current_user.id 

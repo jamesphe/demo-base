@@ -402,13 +402,13 @@ CREATE TABLE job_required_certification (
 CREATE TABLE job_application (
     application_id INT PRIMARY KEY AUTO_INCREMENT,   -- 申请记录唯一标识
     job_id INT NOT NULL,                            -- 关联职位ID
-    talent_id INT NOT NULL,                         -- 申请人才ID
+    resume_id INT NOT NULL,                         -- 关联简历ID
     status ENUM('pending','reviewed','interviewed','offered','rejected','withdrawn') DEFAULT 'pending', -- 申请状态
     apply_time DATETIME DEFAULT CURRENT_TIMESTAMP,   -- 申请时间
     review_time DATETIME,                           -- 审核时间
     review_notes TEXT,                              -- 审核备注
     FOREIGN KEY (job_id) REFERENCES jobs(id),
-    FOREIGN KEY (talent_id) REFERENCES talent(talent_id)
+    FOREIGN KEY (resume_id) REFERENCES resume(id)   -- 修正为关联简历表的主键id
 );
 
 5. 数据流与业务流程说明

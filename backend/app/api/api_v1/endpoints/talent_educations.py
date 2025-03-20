@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 from sqlalchemy.orm import Session
-from app.schemas.education import (
-    EducationCreate,
-    EducationUpdate,
-    EducationResponse
+from app.schemas.talent_education import (
+    TalentEducationCreate,
+    TalentEducationUpdate,
+    TalentEducationResponse
 )
-from app.services.education_service import EducationService
+from app.services.talent_education_service import EducationService
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
 
@@ -14,9 +14,9 @@ from app.models.user import User
 router = APIRouter()
 
 
-@router.post("/", response_model=EducationResponse)
+@router.post("/", response_model=TalentEducationResponse)
 def create_education(
-    education: EducationCreate,
+    education: TalentEducationCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -25,7 +25,7 @@ def create_education(
     return service.create_education(education)
 
 
-@router.get("/talent/{talent_id}", response_model=List[EducationResponse])
+@router.get("/talent/{talent_id}", response_model=List[TalentEducationResponse])
 def list_talent_educations(
     talent_id: int,
     db: Session = Depends(get_db),
@@ -36,10 +36,10 @@ def list_talent_educations(
     return service.list_talent_educations(talent_id)
 
 
-@router.put("/{education_id}", response_model=EducationResponse)
+@router.put("/{education_id}", response_model=TalentEducationResponse)
 def update_education(
     education_id: int,
-    education: EducationUpdate,
+    education: TalentEducationUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):

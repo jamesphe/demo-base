@@ -1,7 +1,7 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from app.models.talent_experience import TalentExperience
-from app.schemas.experience import ExperienceCreate, ExperienceUpdate
+from app.schemas.talent_experience import TalentExperienceCreate, TalentExperienceUpdate
 
 
 class ExperienceService:
@@ -10,7 +10,7 @@ class ExperienceService:
     
     def create_experience(
         self,
-        experience: ExperienceCreate
+        experience: TalentExperienceCreate
     ) -> TalentExperience:
         """创建工作经验"""
         db_experience = TalentExperience(
@@ -49,7 +49,7 @@ class ExperienceService:
     def update_experience(
         self,
         experience_id: int,
-        experience: ExperienceUpdate
+        experience: TalentExperienceUpdate
     ) -> Optional[TalentExperience]:
         """更新工作经验"""
         db_experience = self.get_experience(experience_id)
