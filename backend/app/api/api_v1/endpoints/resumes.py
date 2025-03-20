@@ -24,7 +24,7 @@ def validate_file_extension(filename: str) -> bool:
     "/upload",
     response_model=schemas.ResponseMsg,
     summary="上传简历文件",
-    description="上传简历文件到指定简历库，并提交简历表单数据",
+    description="上传简历文件到指定简历库进行解析",
     dependencies=[
         Depends(
             deps.get_current_user_with_tenant_permission(
@@ -39,21 +39,10 @@ async def upload_files(
     repository_name: str = Form(...),
     resume_type: str = Form(...),
     description: Optional[str] = Form(None),
-    name: Optional[str] = Form(None),
-    gender: Optional[str] = Form(None),
-    phone: Optional[str] = Form(None),
-    email: Optional[str] = Form(None),
-    highest_education: Optional[str] = Form(None),
-    highest_degree: Optional[str] = Form(None),
-    major: Optional[str] = Form(None),
-    graduate_school: Optional[str] = Form(None),
-    expected_position: Optional[str] = Form(None),
-    expected_salary: Optional[str] = Form(None),
-    expected_location: Optional[str] = Form(None),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
-    """上传简历文件到指定简历库，并提交简历表单数据"""
+    """上传简历文件到指定简历库进行解析"""
     # 验证文件类型
     if not resume_service.validate_file_extension(file.filename):
         raise HTTPException(
@@ -70,35 +59,16 @@ async def upload_files(
         tenant_id=current_user.tenant_id
     )
     
-    # 收集表单数据
-    form_data = {
-        "name": name,
-        "gender": gender,
-        "phone": phone,
-        "email": email,
-        "highest_education": highest_education,
-        "highest_degree": highest_degree,
-        "major": major,
-        "graduate_school": graduate_school,
-        "expected_position": expected_position,
-        "expected_salary": expected_salary,
-        "expected_location": expected_location,
-    }
-    
-    # 过滤掉None值
-    form_data = {k: v for k, v in form_data.items() if v is not None}
-    
     # 异步处理文件上传和解析
     background_tasks.add_task(
-        resume_service.process_resume_file_with_form_data,
+        resume_service.process_resume_file,
         db,
         file,
         repository.id,
         current_user.tenant_id,
         current_user.id,
         current_user.user_type,
-        current_user.username,
-        form_data
+        current_user.username
     )
     
     return {"message": "简历上传成功，正在处理中"}
@@ -302,7 +272,8 @@ def update_resume(
         )
     
     # 如果是审核操作，记录审核人信息
-    if resume_in.review_status and resume_in.review_status != resume.review_status:
+    if (resume_in.review_status and 
+            resume_in.review_status != resume.review_status):
         resume_in.reviewer_id = current_user.id
     
     updated_resume = crud.resume.update(db=db, db_obj=resume, obj_in=resume_in)
@@ -365,6 +336,8 @@ def create_resume(
     *,
     db: Session = Depends(deps.get_db),
     resume_in: schemas.ResumeCreate,
+    job_id: Optional[int] = Query(None, description="职位ID"),
+    job_external_id: Optional[str] = Query(None, description="职位外部ID"),
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
     """创建完整的简历信息"""
@@ -384,7 +357,9 @@ def create_resume(
     
     # 生成唯一的简历ID
     if not resume_data.get("resume_id"):
-        resume_data["resume_id"] = f"R{int(time.time())}{random.randint(1000, 9999)}"
+        resume_data["resume_id"] = (
+            f"R{int(time.time())}{random.randint(1000, 9999)}"
+        )
     
     # 设置手动创建标志
     if not resume_data.get("file_path"):
@@ -396,13 +371,37 @@ def create_resume(
         if not repository:
             raise HTTPException(status_code=404, detail="简历库不存在")
         
-        if not current_user.is_superuser and repository.tenant_id != current_user.tenant_id:
+        if (not current_user.is_superuser and 
+                repository.tenant_id != current_user.tenant_id):
             raise HTTPException(status_code=403, detail="无权访问该简历库")
     
     # 创建简历
     try:
         # 直接使用字典创建简历
         resume = crud.resume.create(db=db, obj_in=resume_data)
+        
+        # 如果提供了职位信息，创建职位申请
+        job = None
+        if job_id:
+            job = crud.job.get(db=db, id=job_id)
+        elif job_external_id:
+            job = crud.job.get_by_external_id(db=db, external_id=job_external_id)
+            
+        if job:
+            # 检查职位是否属于同一租户
+            if job.tenant_id != current_user.tenant_id and not current_user.is_superuser:
+                raise HTTPException(status_code=403, detail="无权访问该职位")
+                
+            # 创建职位申请
+            job_application = schemas.JobApplicationCreate(
+                job_id=job.id,
+                resume_id=resume.id,
+                status="pending",
+                tenant_id=current_user.tenant_id,
+                created_by=current_user.id
+            )
+            crud.job_application.create(db=db, obj_in=job_application)
+            
         return resume
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"创建简历失败: {str(e)}") 

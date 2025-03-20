@@ -62,6 +62,7 @@ CREATE TABLE talent (
 -- 4. 职位表 (依赖租户表和用户表)
 CREATE TABLE jobs (
     id SERIAL PRIMARY KEY,
+    external_id VARCHAR(100) UNIQUE,
     tenant_id INTEGER NOT NULL REFERENCES tenant(id),
     publisher_id INTEGER NOT NULL REFERENCES users(id),
     title VARCHAR(255) NOT NULL,
@@ -540,8 +541,9 @@ CREATE TABLE job_required_certifications (
 );
 
 -- 职位申请记录表
-CREATE TABLE job_application (
-    application_id SERIAL PRIMARY KEY,
+DROP TABLE IF EXISTS job_applications;
+CREATE TABLE job_applications (
+    id SERIAL PRIMARY KEY,
     job_id INTEGER NOT NULL REFERENCES jobs(id),
     resume_id INTEGER NOT NULL REFERENCES resumes(id),
     status VARCHAR(20) CHECK (
@@ -554,37 +556,31 @@ CREATE TABLE job_application (
             'withdrawn'
         )
     ) DEFAULT 'pending',
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- 恢复重要的业务字段
     apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     review_time TIMESTAMP,
     review_notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    
+    -- 添加租户ID字段
+    tenant_id INTEGER REFERENCES tenant(id)
 );
 
 -- 添加触发器
-CREATE TRIGGER update_job_required_skills_updated_at
-    BEFORE UPDATE ON job_required_skills
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_job_required_certifications_updated_at
-    BEFORE UPDATE ON job_required_certifications
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_job_application_updated_at
-    BEFORE UPDATE ON job_application
+CREATE TRIGGER update_job_applications_updated_at
+    BEFORE UPDATE ON job_applications
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
 -- 添加索引
-CREATE INDEX idx_job_required_skills_job ON job_required_skills(job_id);
-CREATE INDEX idx_job_required_skills_skill ON job_required_skills(skill_id);
-CREATE INDEX idx_job_required_certifications_job ON job_required_certifications(job_id);
-CREATE INDEX idx_job_required_certifications_certification ON job_required_certifications(certification_id);
-CREATE INDEX idx_job_application_job ON job_application(job_id);
-CREATE INDEX idx_job_application_resume ON job_application(resume_id);
-CREATE INDEX idx_job_application_status ON job_application(status);
+CREATE INDEX idx_job_applications_job ON job_applications(job_id);
+CREATE INDEX idx_job_applications_resume ON job_applications(resume_id);
+CREATE INDEX idx_job_applications_status ON job_applications(status);
+CREATE INDEX idx_job_applications_tenant ON job_applications(tenant_id);
+CREATE INDEX idx_job_applications_created_by ON job_applications(created_by);
 
 -- 添加新的索引
 CREATE INDEX idx_resumes_publisher ON resumes(publisher_id);

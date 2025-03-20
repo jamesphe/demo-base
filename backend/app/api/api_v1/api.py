@@ -4,7 +4,8 @@ from app.api.api_v1.endpoints import (
     resumes, repositories, roles, permissions,
     tenants, llm_configs, talents, skills,
     talent_pools, talent_certifications, certifications,
-    talent_educations, talent_experiences, resume_reviews
+    talent_educations, talent_experiences, resume_reviews,
+    job_applications
 )
 
 api_router = APIRouter()
@@ -39,25 +40,25 @@ api_router.include_router(
     tags=["权限管理"]
 )
 
+# 技能管理
+api_router.include_router(
+    skills.router, 
+    prefix="/skills", 
+    tags=["技能管理"]
+)
+
+# 证书库管理
+api_router.include_router(
+    certifications.router,
+    prefix="/certifications", 
+    tags=["证书类型库管理"]
+) 
+
 # 职位管理
 api_router.include_router(
     jobs.router, 
     prefix="/jobs", 
     tags=["职位管理"]
-)
-
-# 候选人管理
-api_router.include_router(
-    candidates.router, 
-    prefix="/candidates", 
-    tags=["候选人管理"]
-)
-
-# 面试管理
-api_router.include_router(
-    interviews.router,
-    prefix="/interviews",
-    tags=["面试管理"]
 )
 
 # 简历管理
@@ -79,6 +80,20 @@ api_router.include_router(
     tags=["简历审核"]
 )
 
+# 候选人管理
+api_router.include_router(
+    candidates.router, 
+    prefix="/candidates", 
+    tags=["候选人管理"]
+)
+
+# 面试管理
+api_router.include_router(
+    interviews.router,
+    prefix="/interviews",
+    tags=["面试管理"]
+)
+
 # 系统配置
 api_router.include_router(
     llm_configs.router,
@@ -92,20 +107,6 @@ api_router.include_router(
     prefix="/talents", 
     tags=["人才管理"]
 )
-
-# 技能管理
-api_router.include_router(
-    skills.router, 
-    prefix="/skills", 
-    tags=["技能管理"]
-)
-
-# 证书库管理
-api_router.include_router(
-    certifications.router,
-    prefix="/certifications", 
-    tags=["证书类型库管理"]
-) 
 
 # 人才相关信息管理
 api_router.include_router(
@@ -131,4 +132,11 @@ api_router.include_router(
     talent_pools.router,
     prefix="/talent-pools",
     tags=["人才库管理"]
+)
+
+# 职位申请全局管理
+api_router.include_router(
+    job_applications.router, 
+    prefix="/job-applications", 
+    tags=["职位申请管理"]
 )

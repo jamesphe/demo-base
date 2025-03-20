@@ -11,18 +11,14 @@ from pydantic import ValidationError
 import logging
 from pprint import pformat
 import json
-from fastapi import BackgroundTasks
 
 from app import models, crud
 from app.core.config import settings
-from app.schemas.resume_repository import ResumeRepositoryCreate
 from app.schemas.resume import ResumeCreate, ResumeUpdate, SkillInfo, CertificateInfo
 from .base import BaseService
 from app.services import repository_service, llm_config_service
 from app.services.parser_service import parser_service
 from app.services.llm_service import llm_service
-from app.services.talent_service import TalentService
-from app.schemas.talent import TalentCreate
 
 # 设置日志
 logger = logging.getLogger(__name__)
@@ -981,7 +977,8 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                     continue
                 
                 # TODO: 实现文件格式转换逻辑
-                source_file = resume.file_path
+                # 注释掉未使用的变量
+                # source_file = resume.file_path
                 target_file = os.path.join(
                     export_dir,
                     f"{resume.name}_{resume_id}.{export_format}"
@@ -1360,8 +1357,8 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             old_resume.is_latest = False
             
         # 创建新版本简历
-        new_resume_version = old_resume.resume_version + 1 if old_resume else 1
         # 注释掉未使用的变量
+        # new_resume_version = old_resume.resume_version + 1 if old_resume else 1
         # db_resume = models.Resume(
         #     # ... existing fields ...
         #     resume_version=new_resume_version,
@@ -1381,7 +1378,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         if not resume:
             raise ValueError("简历不存在")
         
-        resume_update = schemas.ResumeUpdate(
+        resume_update = ResumeUpdate(
             review_status="approved",
             reviewer_id=reviewer_id,
             review_comment=comment
@@ -1401,7 +1398,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         if not resume:
             raise ValueError("简历不存在")
         
-        resume_update = schemas.ResumeUpdate(
+        resume_update = ResumeUpdate(
             review_status="rejected",
             reviewer_id=reviewer_id,
             review_comment=comment
@@ -1422,7 +1419,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         if not resume:
             raise ValueError("简历不存在")
         
-        resume_update = schemas.ResumeUpdate(
+        resume_update = ResumeUpdate(
             publisher_id=publisher_id,
             publisher_type=publisher_type,
             publisher_name=publisher_name

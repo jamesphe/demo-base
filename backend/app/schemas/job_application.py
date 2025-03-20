@@ -5,7 +5,11 @@ from pydantic import BaseModel, Field
 
 class JobApplicationBase(BaseModel):
     """职位申请基础模型"""
-    resume_id: int = Field(..., description="简历ID")
+    job_id: int
+    resume_id: int
+    status: str = "pending"  # pending, approved, rejected, withdrawn
+    tenant_id: Optional[int] = None
+    created_by: Optional[int] = None
 
 
 class JobApplicationCreate(JobApplicationBase):
@@ -15,18 +19,29 @@ class JobApplicationCreate(JobApplicationBase):
 
 class JobApplicationUpdate(BaseModel):
     """更新职位申请状态"""
-    status: str = Field(..., description="申请状态")
-    review_notes: Optional[str] = Field(None, description="审核备注")
+    status: Optional[str] = None
+    interview_feedback: Optional[str] = None
+    rejection_reason: Optional[str] = None
+    updated_by: Optional[int] = None
 
 
-class JobApplication(JobApplicationBase):
-    """职位申请完整模型"""
-    application_id: int
-    job_id: int
-    status: str
-    apply_time: datetime
-    review_time: Optional[datetime]
-    review_notes: Optional[str]
-
+class JobApplicationInDBBase(JobApplicationBase):
+    """数据库中的职位申请模型"""
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+
+class JobApplication(JobApplicationInDBBase):
+    """API返回的职位申请模型"""
+    pass
+
+
+class JobApplicationWithDetails(JobApplication):
+    """带有详细信息的职位申请模型"""
+    job_title: Optional[str] = None
+    candidate_name: Optional[str] = None
+    resume_name: Optional[str] = None 

@@ -29,6 +29,7 @@ class JobRequiredCertification(BaseModel):
 
 class JobBase(BaseModel):
     """职位基础模型"""
+    external_id: Optional[str] = None
     title: str = Field(..., description="职位标题", max_length=100)
     job_type: str = Field(..., description="工种类型", max_length=50)
     headcount: int = Field(default=1, description="招聘人数")

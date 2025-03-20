@@ -197,6 +197,12 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         publisher_id: int
     ) -> models.Job:
         """创建职位"""
+        # 检查 external_id 是否已存在
+        if job_in.external_id:
+            existing_job = self.get_job_by_external_id(db, job_in.external_id)
+            if existing_job:
+                raise ValueError(f"Job with external_id {job_in.external_id} already exists")
+        
         # 准备职位基础数据
         job_data = job_in.model_dump(exclude={
             'required_skills',
@@ -334,6 +340,9 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
             "job": job,
             "requirements": requirements
         }
+
+    def get_job_by_external_id(self, db: Session, external_id: str) -> Optional[models.Job]:
+        return crud.job.get_by_external_id(db, external_id=external_id)
 
 # 创建服务实例
 job_service = JobService()

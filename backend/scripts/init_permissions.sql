@@ -17,6 +17,14 @@ INSERT INTO permission (name, description) VALUES
 ('resume_batch_import', '批量导入简历')
 ON CONFLICT (name) DO NOTHING;
 
+-- 添加职位申请相关权限
+INSERT INTO permission (name, description) VALUES 
+('job_application_create', '创建职位申请'),
+('job_application_read', '查看职位申请'),
+('job_application_update', '更新职位申请状态'),
+('job_application_delete', '删除职位申请')
+ON CONFLICT (name) DO NOTHING;
+
 -- 创建基础角色
 INSERT INTO role (name, description) VALUES 
 ('tenant_user', '租户普通用户'),
@@ -31,7 +39,8 @@ INSERT INTO role_permission (role_id, permission_id)
 SELECT r.id, p.id 
 FROM role r, permission p 
 WHERE r.name = 'candidate' 
-AND p.name IN ('resume_create', 'resume_read', 'resume_update', 'resume_export')
+AND p.name IN ('resume_create', 'resume_read', 'resume_update', 'resume_export',
+               'job_application_create', 'job_application_read')
 AND NOT EXISTS (
     SELECT 1 FROM role_permission rp 
     WHERE rp.role_id = r.id AND rp.permission_id = p.id
@@ -56,7 +65,8 @@ WHERE r.name = 'tenant_hr'
 AND p.name IN (
     'resume_create', 'resume_read', 'resume_update', 
     'resume_review', 'resume_export', 'resume_batch_import',
-    'job_read', 'job_create', 'job_update'
+    'job_read', 'job_create', 'job_update',
+    'job_application_read', 'job_application_update'
 )
 AND NOT EXISTS (
     SELECT 1 FROM role_permission rp 
@@ -71,7 +81,9 @@ WHERE r.name = 'tenant_admin'
 AND p.name IN (
     'job_read', 'job_create', 'job_update', 'job_delete',
     'resume_create', 'resume_read', 'resume_update', 
-    'resume_review', 'resume_export', 'resume_batch_import'
+    'resume_review', 'resume_export', 'resume_batch_import',
+    'job_application_read', 'job_application_update',
+    'job_application_delete'
 )
 AND NOT EXISTS (
     SELECT 1 FROM role_permission rp 
