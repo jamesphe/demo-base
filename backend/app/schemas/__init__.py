@@ -19,7 +19,10 @@ from .job_requirement import (
 from .job_application import (
     JobApplication,
     JobApplicationCreate,
-    JobApplicationUpdate
+    JobApplicationUpdate,
+    JobApplicationWithResume,
+    JobApplicationWithResumeInfo,
+    JobApplicationWithDetails
 )
 from .candidate import (  # noqa: F401
     Candidate,
@@ -77,6 +80,9 @@ __all__ = [
     "JobApplication",
     "JobApplicationCreate",
     "JobApplicationUpdate",
+    "JobApplicationWithResume",
+    "JobApplicationWithResumeInfo",
+    "JobApplicationWithDetails",
     "Candidate",
     "CandidateCreate",
     "CandidateUpdate",

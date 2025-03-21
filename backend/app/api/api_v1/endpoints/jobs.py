@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.api import deps
 from app.services.job_service import job_service
+from app.services.job_application_service import job_application_service
 
 router = APIRouter()
 
@@ -403,20 +404,19 @@ def create_job_application(
         raise HTTPException(status_code=404, detail="简历不存在")
     
     # 检查是否已经申请过该职位
-    existing_application = crud.job_application.get_by_job_and_resume(
+    if job_application_service.check_application_exists(
         db=db, 
         job_id=job_id, 
         resume_id=application_in.resume_id
-    )
-    if existing_application:
+    ):
         raise HTTPException(
             status_code=400, 
             detail="已经申请过该职位"
         )
     
-    return crud.job_application.create_with_owner(
+    return job_application_service.create_application(
         db=db,
-        obj_in=application_in,
+        application_in=application_in,
         tenant_id=current_tenant_id,
         created_by=current_user_id
     )
@@ -424,7 +424,7 @@ def create_job_application(
 
 @router.get(
     "/{job_id}/applications",
-    response_model=List[schemas.JobApplication],
+    response_model=List[schemas.JobApplicationWithResumeInfo],
     dependencies=[
         Depends(
             deps.get_current_user_with_tenant_permission(
@@ -439,7 +439,7 @@ def read_job_applications(
     job_id: int,
     current_tenant_id: int = Depends(deps.get_current_tenant_id)
 ) -> Any:
-    """获取指定职位的所有申请"""
+    """获取指定职位的所有申请（包含简历基本信息）"""
     # 检查职位是否存在
     job = crud.job.get(db=db, id=job_id)
     if not job:
@@ -448,12 +448,16 @@ def read_job_applications(
     if job.tenant_id != current_tenant_id:
         raise HTTPException(status_code=403, detail="没有权限访问此职位的申请")
     
-    return crud.job_application.get_by_job(db=db, job_id=job_id)
+    applications = job_application_service.get_applications_by_job_with_resume_info(
+        db=db, 
+        job_id=job_id
+    )
+    return applications
 
 
 @router.get(
     "/{job_id}/applications/{application_id}",
-    response_model=schemas.JobApplication,
+    response_model=schemas.JobApplicationWithResume,
     dependencies=[
         Depends(
             deps.get_current_user_with_tenant_permission(
@@ -469,13 +473,16 @@ def read_job_application(
     application_id: int,
     current_tenant_id: int = Depends(deps.get_current_tenant_id)
 ) -> Any:
-    """获取指定职位申请信息"""
+    """获取指定职位申请信息（包含完整简历信息）"""
     # 检查职位是否存在
     job = crud.job.get(db=db, id=job_id)
     if not job:
         raise HTTPException(status_code=404, detail="职位不存在")
     
-    application = crud.job_application.get(db=db, id=application_id)
+    application = job_application_service.get_application_with_resume(
+        db=db, 
+        application_id=application_id
+    )
     if not application:
         raise HTTPException(status_code=404, detail="职位申请不存在")
     
@@ -514,7 +521,7 @@ def update_job_application(
     if not job:
         raise HTTPException(status_code=404, detail="职位不存在")
     
-    application = crud.job_application.get(db=db, id=application_id)
+    application = job_application_service.get_application(db=db, application_id=application_id)
     if not application:
         raise HTTPException(status_code=404, detail="职位申请不存在")
     
@@ -525,10 +532,10 @@ def update_job_application(
     if application.tenant_id != current_tenant_id:
         raise HTTPException(status_code=403, detail="没有权限更新此职位申请")
     
-    return crud.job_application.update(
+    return job_application_service.update_application(
         db=db,
-        db_obj=application,
-        obj_in=application_in
+        application_id=application_id,
+        application_in=application_in
     )
 
 
@@ -556,7 +563,7 @@ def delete_job_application(
     if not job:
         raise HTTPException(status_code=404, detail="职位不存在")
     
-    application = crud.job_application.get(db=db, id=application_id)
+    application = job_application_service.get_application(db=db, application_id=application_id)
     if not application:
         raise HTTPException(status_code=404, detail="职位申请不存在")
     
@@ -567,6 +574,6 @@ def delete_job_application(
     if application.tenant_id != current_tenant_id:
         raise HTTPException(status_code=403, detail="没有权限删除此职位申请")
     
-    return crud.job_application.remove(db=db, id=application_id)
+    return job_application_service.delete_application(db=db, application_id=application_id)
 
 # ... 可能需要添加其他使用 external_id 的端点 ... 

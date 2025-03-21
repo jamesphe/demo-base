@@ -1,12 +1,14 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from app.crud.base import CRUDBase
 from app.models.job_application import JobApplication
+from app import models  # 导入所有模型
 from app.schemas.job_application import (
     JobApplicationCreate,
     JobApplicationUpdate
 )
+from app.models.resume import Resume
 
 
 class CRUDJobApplication(
@@ -101,6 +103,92 @@ class CRUDJobApplication(
     ) -> List[JobApplication]:
         """获取指定租户的所有职位申请"""
         return self.get_by_tenant(db=db, tenant_id=tenant_id, skip=skip, limit=limit)
+
+    def get_with_resume(
+        self, db: Session, *, id: int
+    ) -> Optional[JobApplication]:
+        """获取职位申请信息，包含完整简历信息"""
+        return db.query(self.model).filter(
+            self.model.id == id
+        ).options(
+            joinedload(self.model.resume)
+        ).first()
+
+    def get_by_job_with_resume_info(
+        self, db: Session, *, job_id: int
+    ) -> List[Dict[str, Any]]:
+        """获取指定职位的所有申请，包含简历基本信息"""
+        # 首先获取所有申请
+        applications = db.query(self.model).filter(
+            self.model.job_id == job_id
+        ).all()
+        
+        result = []
+        for app in applications:
+            # 获取关联的简历
+            resume = db.query(Resume).filter(
+                Resume.id == app.resume_id
+            ).first()
+            
+            # 构建包含简历信息的字典
+            app_dict = app.__dict__.copy()
+            if "_sa_instance_state" in app_dict:
+                del app_dict["_sa_instance_state"]
+            
+            # 添加简历信息
+            if resume:
+                # 使用文件名作为简历名称
+                app_dict["resume_name"] = resume.filename if hasattr(resume, "filename") else ""
+                app_dict["candidate_name"] = resume.name if hasattr(resume, "name") else ""  # 使用简历名称作为候选人名称
+                app_dict["candidate_email"] = resume.email if hasattr(resume, "email") else None
+                app_dict["candidate_phone"] = resume.phone if hasattr(resume, "phone") else None
+            else:
+                app_dict["resume_name"] = ""
+                app_dict["candidate_name"] = ""
+                app_dict["candidate_email"] = None
+                app_dict["candidate_phone"] = None
+            
+            result.append(app_dict)
+        
+        return result
+
+    def get_by_tenant_with_resume_info(
+        self, db: Session, *, tenant_id: int, skip: int = 0, limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """获取指定租户的所有职位申请，包含简历基本信息"""
+        # 首先获取所有申请
+        applications = db.query(self.model).filter(
+            self.model.tenant_id == tenant_id
+        ).offset(skip).limit(limit).all()
+        
+        result = []
+        for app in applications:
+            # 获取关联的简历
+            resume = db.query(Resume).filter(
+                Resume.id == app.resume_id
+            ).first()
+            
+            # 构建包含简历信息的字典
+            app_dict = app.__dict__.copy()
+            if "_sa_instance_state" in app_dict:
+                del app_dict["_sa_instance_state"]
+            
+            # 添加简历信息
+            if resume:
+                # 使用文件名作为简历名称
+                app_dict["resume_name"] = resume.filename if hasattr(resume, "filename") else ""
+                app_dict["candidate_name"] = resume.name if hasattr(resume, "name") else ""  # 使用简历名称作为候选人名称
+                app_dict["candidate_email"] = resume.email if hasattr(resume, "email") else None
+                app_dict["candidate_phone"] = resume.phone if hasattr(resume, "phone") else None
+            else:
+                app_dict["resume_name"] = ""
+                app_dict["candidate_name"] = ""
+                app_dict["candidate_email"] = None
+                app_dict["candidate_phone"] = None
+            
+            result.append(app_dict)
+        
+        return result
 
 
 job_application = CRUDJobApplication(JobApplication) 

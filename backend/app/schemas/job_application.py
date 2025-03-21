@@ -1,15 +1,17 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
+from app.schemas.resume import Resume, ResumeBase
 
 
 class JobApplicationBase(BaseModel):
     """职位申请基础模型"""
     job_id: int
     resume_id: int
-    status: str = "pending"  # pending, approved, rejected, withdrawn
+    status: Optional[str] = "pending"  # pending, approved, rejected, withdrawn
     tenant_id: Optional[int] = None
     created_by: Optional[int] = None
+    review_notes: Optional[str] = None
 
 
 class JobApplicationCreate(JobApplicationBase):
@@ -23,6 +25,7 @@ class JobApplicationUpdate(BaseModel):
     interview_feedback: Optional[str] = None
     rejection_reason: Optional[str] = None
     updated_by: Optional[int] = None
+    review_notes: Optional[str] = None
 
 
 class JobApplicationInDBBase(JobApplicationBase):
@@ -30,6 +33,8 @@ class JobApplicationInDBBase(JobApplicationBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    apply_time: datetime
+    review_time: Optional[datetime] = None
     
     class Config:
         from_attributes = True
@@ -44,4 +49,23 @@ class JobApplicationWithDetails(JobApplication):
     """带有详细信息的职位申请模型"""
     job_title: Optional[str] = None
     candidate_name: Optional[str] = None
-    resume_name: Optional[str] = None 
+    resume_name: Optional[str] = None
+
+
+class JobApplicationWithResume(JobApplication):
+    """增强的职位申请响应模型，包含简历信息"""
+    resume: Resume
+
+    class Config:
+        from_attributes = True
+
+
+class JobApplicationWithResumeInfo(JobApplication):
+    """增强的职位申请响应模型，包含简历基本信息"""
+    resume_name: str
+    candidate_name: str
+    candidate_email: Optional[str] = None
+    candidate_phone: Optional[str] = None
+    
+    class Config:
+        from_attributes = True 
