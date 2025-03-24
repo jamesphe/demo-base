@@ -66,3 +66,7 @@ class UserInfo(BaseModel):
 class UserInfoResponse(BaseModel):
     code: int = 20000
     data: UserInfo 
+
+class UserRoleUpdate(BaseModel):
+    user_id: int
+    role_ids: List[int] 

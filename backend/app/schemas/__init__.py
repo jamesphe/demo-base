@@ -6,7 +6,8 @@ from .user import (  # noqa: F401
     UserType,
     UserInfo,
     UserInfoResponse,
-    UserInfoResponse
+    UserInfoResponse,
+    UserRoleUpdate
 )
 from .token import Token, TokenPayload  # noqa: F401
 from .job import Job, JobCreate, JobUpdate, JobWithCandidateCount  # noqa: F401
@@ -67,6 +68,7 @@ __all__ = [
     "UserType",
     "UserInfo",
     "UserInfoResponse",
+    "UserRoleUpdate",
     "Token",
     "TokenPayload",
     "Job",

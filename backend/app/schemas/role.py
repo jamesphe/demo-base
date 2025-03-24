@@ -18,19 +18,15 @@ class RoleUpdate(RoleBase):
     description: Optional[str] = None
 
 
-class RoleInDBBase(RoleBase):
+class Role(RoleBase):
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     model_config = {
         "from_attributes": True
     }
 
 
-class Role(RoleInDBBase):
-    pass
-
-
-class RoleWithPermissions(RoleInDBBase):
+class RoleWithPermissions(RoleBase):
     permissions: List[Permission] = [] 

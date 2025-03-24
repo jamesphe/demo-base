@@ -56,6 +56,9 @@ class User(Base):
 
     def get_roles(self) -> list:
         """获取用户角色列表"""
+        # 超级管理员可能需要特殊处理
         if self.is_superuser:
-            return ["admin"]
-        return ["editor"] 
+            return ["admin"] + [role.name for role in self.roles]
+        
+        # 返回用户实际分配的角色名称
+        return [role.name for role in self.roles] 
