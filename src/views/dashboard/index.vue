@@ -7,14 +7,19 @@
 <script>
 import { mapGetters } from 'vuex'
 import adminDashboard from './admin'
-import editorDashboard from './editor'
+import tenantAdminDashboard from './tenant-admin'
+import tenantUserDashboard from './tenant-user'
 
 export default {
   name: 'Dashboard',
-  components: { adminDashboard, editorDashboard },
+  components: {
+    adminDashboard,
+    tenantAdminDashboard,
+    tenantUserDashboard
+  },
   data() {
     return {
-      currentRole: 'adminDashboard'
+      currentRole: 'tenantUserDashboard' // 默认显示租户用户仪表盘
     }
   },
   computed: {
@@ -23,8 +28,11 @@ export default {
     ])
   },
   created() {
-    if (!this.roles.includes('admin')) {
-      this.currentRole = 'editorDashboard'
+    // 根据角色判断显示哪个仪表盘
+    if (this.roles.includes('admin')) {
+      this.currentRole = 'adminDashboard'
+    } else if (this.roles.includes('tenant_admin')) {
+      this.currentRole = 'tenantAdminDashboard'
     }
   }
 }
