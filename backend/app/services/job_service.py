@@ -242,13 +242,9 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         db.refresh(job)
         return job
 
-    def get_job(
-        self,
-        db: Session,
-        job_id: int
-    ) -> Optional[models.Job]:
-        """获取职位详情"""
-        return db.query(models.Job).filter(models.Job.id == job_id).first()
+    def get_job(self, db: Session, *, job_id: int) -> Optional[models.Job]:
+        """根据ID获取职位"""
+        return crud.job.get(db=db, id=job_id)
 
     def list_jobs(
         self,
@@ -341,8 +337,13 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
             "requirements": requirements
         }
 
-    def get_job_by_external_id(self, db: Session, external_id: str) -> Optional[models.Job]:
-        return crud.job.get_by_external_id(db, external_id=external_id)
+    def get_job_by_external_id(self, db: Session, *, external_id: str) -> Optional[models.Job]:
+        """根据外部ID获取职位"""
+        return crud.job.get_by_external_id(db=db, external_id=external_id)
+
+    def create_job_application(self, db: Session, *, obj_in: schemas.JobApplicationCreate) -> models.JobApplication:
+        """创建职位申请"""
+        return crud.job_application.create(db=db, obj_in=obj_in)
 
 # 创建服务实例
 job_service = JobService()

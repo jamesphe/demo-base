@@ -1519,6 +1519,65 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         
         return True, ""
 
+    def create(
+        self,
+        db: Session,
+        *,
+        obj_in: ResumeCreate
+    ) -> models.Resume:
+        """创建简历记录
+        
+        重写 BaseService 的 create 方法，避免使用 self.model
+        """
+        try:
+            # 将 Pydantic 模型转换为字典
+            obj_in_data = obj_in.model_dump()
+            
+            # 创建 ORM 模型实例
+            db_obj = models.Resume(**obj_in_data)
+            
+            # 添加到数据库
+            db.add(db_obj)
+            db.commit()
+            db.refresh(db_obj)
+            
+            return db_obj
+        except Exception as e:
+            db.rollback()
+            raise ValueError(f"创建简历失败: {str(e)}") from e
+
+    def get_resumes_with_filters(
+        self,
+        db: Session,
+        *,
+        tenant_id: Optional[int] = None,
+        filters: dict,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[models.Resume]:
+        """获取带过滤条件的简历列表"""
+        return crud.resume.get_multi_with_filters(
+            db=db,
+            tenant_id=tenant_id,
+            filters=filters,
+            skip=skip,
+            limit=limit
+        )
+
+    def get_resumes_count_with_filters(
+        self,
+        db: Session,
+        *,
+        tenant_id: Optional[int] = None,
+        filters: dict
+    ) -> int:
+        """获取带过滤条件的简历总数"""
+        return crud.resume.get_multi_with_filters_count(
+            db=db,
+            tenant_id=tenant_id,
+            filters=filters
+        )
+
 # 创建服务实例
 resume_service = ResumeService()
 

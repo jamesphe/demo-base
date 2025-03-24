@@ -1,11 +1,14 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.api import deps
 from app.services.job_service import job_service
 from app.services.job_application_service import job_application_service
+from app.services.resume_job_matching_service import (
+    resume_job_matching_service
+)
 
 router = APIRouter()
 
@@ -386,7 +389,8 @@ def create_job_application(
     job_id: int,
     application_in: schemas.JobApplicationCreate,
     current_tenant_id: int = Depends(deps.get_current_tenant_id),
-    current_user_id: int = Depends(deps.get_current_user_id)
+    current_user_id: int = Depends(deps.get_current_user_id),
+    background_tasks: BackgroundTasks
 ) -> Any:
     """创建职位申请"""
     # 检查职位是否存在
@@ -398,27 +402,12 @@ def create_job_application(
     if application_in.job_id != job_id:
         raise HTTPException(status_code=400, detail="职位ID不匹配")
     
-    # 检查简历是否存在
-    resume = crud.resume.get(db=db, id=application_in.resume_id)
-    if not resume:
-        raise HTTPException(status_code=404, detail="简历不存在")
-    
-    # 检查是否已经申请过该职位
-    if job_application_service.check_application_exists(
-        db=db, 
-        job_id=job_id, 
-        resume_id=application_in.resume_id
-    ):
-        raise HTTPException(
-            status_code=400, 
-            detail="已经申请过该职位"
-        )
-    
-    return job_application_service.create_application(
+    return job_application_service.create_application_with_validation(
         db=db,
         application_in=application_in,
         tenant_id=current_tenant_id,
-        created_by=current_user_id
+        created_by=current_user_id,
+        background_tasks=background_tasks
     )
 
 
@@ -446,11 +435,13 @@ def read_job_applications(
         raise HTTPException(status_code=404, detail="职位不存在")
     
     if job.tenant_id != current_tenant_id:
-        raise HTTPException(status_code=403, detail="没有权限访问此职位的申请")
+        raise HTTPException(
+            status_code=403, 
+            detail="没有权限访问此职位的申请"
+        )
     
     applications = job_application_service.get_applications_by_job_with_resume_info(
-        db=db, 
-        job_id=job_id
+        db=db, job_id=job_id
     )
     return applications
 
@@ -480,8 +471,7 @@ def read_job_application(
         raise HTTPException(status_code=404, detail="职位不存在")
     
     application = job_application_service.get_application_with_resume(
-        db=db, 
-        application_id=application_id
+        db=db, application_id=application_id
     )
     if not application:
         raise HTTPException(status_code=404, detail="职位申请不存在")
@@ -563,7 +553,9 @@ def delete_job_application(
     if not job:
         raise HTTPException(status_code=404, detail="职位不存在")
     
-    application = job_application_service.get_application(db=db, application_id=application_id)
+    application = job_application_service.get_application(
+        db=db, application_id=application_id
+    )
     if not application:
         raise HTTPException(status_code=404, detail="职位申请不存在")
     
@@ -574,6 +566,7 @@ def delete_job_application(
     if application.tenant_id != current_tenant_id:
         raise HTTPException(status_code=403, detail="没有权限删除此职位申请")
     
-    return job_application_service.delete_application(db=db, application_id=application_id)
+    return job_application_service.delete_application(
+        db=db, application_id=application_id)
 
 # ... 可能需要添加其他使用 external_id 的端点 ... 

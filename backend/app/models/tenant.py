@@ -31,3 +31,4 @@ class Tenant(Base):
     jobs = relationship("Job", back_populates="tenant")
     skills = relationship("Skill", back_populates="tenant")
     certifications = relationship("Certification", back_populates="tenant")
+    applications = relationship("JobApplication", back_populates="tenant")

@@ -26,6 +26,8 @@ class JobApplicationUpdate(BaseModel):
     rejection_reason: Optional[str] = None
     updated_by: Optional[int] = None
     review_notes: Optional[str] = None
+    match_score: Optional[float] = None
+    match_reason: Optional[str] = None
 
 
 class JobApplicationInDBBase(JobApplicationBase):
@@ -42,7 +44,8 @@ class JobApplicationInDBBase(JobApplicationBase):
 
 class JobApplication(JobApplicationInDBBase):
     """API返回的职位申请模型"""
-    pass
+    match_score: Optional[float] = None
+    match_reason: Optional[str] = None
 
 
 class JobApplicationWithDetails(JobApplication):
@@ -66,6 +69,10 @@ class JobApplicationWithResumeInfo(JobApplication):
     candidate_name: str
     candidate_email: Optional[str] = None
     candidate_phone: Optional[str] = None
+    resume_phone: Optional[str] = None
+    resume_email: Optional[str] = None
+    resume_highest_education: Optional[str] = None
+    resume_experience_years: Optional[int] = None
     
     class Config:
         from_attributes = True 

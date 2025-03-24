@@ -8,6 +8,8 @@ from app import crud, models, schemas
 from app.api import deps
 from app.core.config import settings
 from app.services import resume_service
+from app.services import job_service
+from app.services import job_application_service
 import time
 import random
 
@@ -109,18 +111,20 @@ def read_resumes(
         filters["resume_type"] = resume_type
     
     # 获取简历列表
-    resumes = crud.resume.get_multi_with_filters(
+    resumes = resume_service.get_resumes_with_filters(
         db=db,
-        tenant_id=current_user.tenant_id if not current_user.is_superuser else None,
+        tenant_id=(current_user.tenant_id 
+                  if not current_user.is_superuser else None),
         filters=filters,
         skip=skip,
         limit=limit
     )
     
     # 获取总数
-    total = crud.resume.get_multi_with_filters_count(
+    total = resume_service.get_resumes_count_with_filters(
         db=db,
-        tenant_id=current_user.tenant_id if not current_user.is_superuser else None,
+        tenant_id=(current_user.tenant_id 
+                  if not current_user.is_superuser else None),
         filters=filters
     )
     
@@ -153,7 +157,7 @@ def read_resume(
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
     """获取简历详情"""
-    resume = crud.resume.get(db=db, id=resume_id)
+    resume = resume_service.get_resume(db=db, resume_id=resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="简历不存在")
     
@@ -189,7 +193,7 @@ def get_candidate_resumes(
 ) -> Any:
     """获取候选人的所有简历"""
     # 验证候选人是否存在
-    candidate = crud.candidate.get(db=db, id=candidate_id)
+    candidate = resume_service.get_candidate(db=db, candidate_id=candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="候选人不存在")
     
@@ -201,7 +205,10 @@ def get_candidate_resumes(
             detail="无权访问该候选人的简历"
         )
     
-    resumes = crud.resume.get_by_candidate(db=db, candidate_id=candidate_id)
+    resumes = resume_service.get_resumes_by_candidate(
+        db=db, 
+        candidate_id=candidate_id
+    )
     return resumes
 
 
@@ -226,7 +233,7 @@ async def parse_resume(
 ) -> Any:
     """解析简历内容"""
     # 验证文件权限
-    resume = crud.resume.get_by_file_url(db, file_url=file_url)
+    resume = resume_service.get_resume_by_file_url(db, file_url=file_url)
     if (resume and not current_user.is_superuser and 
             resume.tenant_id != current_user.tenant_id):
         raise HTTPException(
@@ -259,7 +266,7 @@ def update_resume(
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
     """更新简历信息"""
-    resume = crud.resume.get(db=db, id=resume_id)
+    resume = resume_service.get_resume(db=db, resume_id=resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="简历不存在")
     
@@ -276,7 +283,12 @@ def update_resume(
             resume_in.review_status != resume.review_status):
         resume_in.reviewer_id = current_user.id
     
-    updated_resume = crud.resume.update(db=db, db_obj=resume, obj_in=resume_in)
+    # 直接传递 resume_in 对象，而不是转换为字典
+    updated_resume = resume_service.update_resume(
+        db=db, 
+        resume=resume, 
+        resume_data=resume_in
+    )
     return updated_resume
 
 
@@ -300,7 +312,7 @@ def delete_resume(
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
     """删除简历"""
-    resume = crud.resume.get(db=db, id=resume_id)
+    resume = resume_service.get_resume(db=db, resume_id=resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="简历不存在")
     
@@ -315,7 +327,7 @@ def delete_resume(
     # 删除关联的文件
     resume_service.delete_resume_file(resume.file_path)
     
-    resume = crud.resume.remove(db=db, id=resume_id)
+    resume = resume_service.delete_resume(db=db, resume_id=resume_id)
     return resume
 
 
@@ -332,8 +344,9 @@ def delete_resume(
         )
     ]
 )
-def create_resume(
+async def create_resume(
     *,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(deps.get_db),
     resume_in: schemas.ResumeCreate,
     job_id: Optional[int] = Query(None, description="职位ID"),
@@ -367,7 +380,7 @@ def create_resume(
     
     # 验证简历库权限（如果指定了简历库）
     if resume_data.get("repository_id"):
-        repository = crud.repository.get(db, id=resume_data["repository_id"])
+        repository = resume_service.get_repository(db, repository_id=resume_data["repository_id"])
         if not repository:
             raise HTTPException(status_code=404, detail="简历库不存在")
         
@@ -377,19 +390,24 @@ def create_resume(
     
     # 创建简历
     try:
-        # 直接使用字典创建简历
-        resume = crud.resume.create(db=db, obj_in=resume_data)
+        # 同步调用创建简历
+        resume_obj = schemas.ResumeCreate(**resume_data)
+        resume = resume_service.create(db=db, obj_in=resume_obj)
         
         # 如果提供了职位信息，创建职位申请
         job = None
         if job_id:
-            job = crud.job.get(db=db, id=job_id)
+            job = job_service.get_job(db=db, job_id=job_id)
         elif job_external_id:
-            job = crud.job.get_by_external_id(db=db, external_id=job_external_id)
+            job = job_service.get_job_by_external_id(
+                db=db, 
+                external_id=job_external_id
+            )
             
         if job:
             # 检查职位是否属于同一租户
-            if job.tenant_id != current_user.tenant_id and not current_user.is_superuser:
+            if (job.tenant_id != current_user.tenant_id and 
+                    not current_user.is_superuser):
                 raise HTTPException(status_code=403, detail="无权访问该职位")
                 
             # 创建职位申请
@@ -400,7 +418,15 @@ def create_resume(
                 tenant_id=current_user.tenant_id,
                 created_by=current_user.id
             )
-            crud.job_application.create(db=db, obj_in=job_application)
+            
+            # 将创建申请的操作添加到后台任务
+            background_tasks.add_task(
+                job_application_service.create_application_with_validation,
+                db=db,
+                application_in=job_application,
+                tenant_id=current_user.tenant_id,
+                created_by=current_user.id
+            )
             
         return resume
     except Exception as e:

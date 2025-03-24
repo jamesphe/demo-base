@@ -2,10 +2,8 @@ from typing import Dict, Any, Optional, List, AsyncGenerator
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 import httpx
-from datetime import datetime
 from langchain.chat_models.base import BaseChatModel
 from langchain.schema import BaseMessage, ChatResult, ChatGeneration, AIMessage, HumanMessage, SystemMessage
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from pydantic import Field, ConfigDict
 import json
 from openai import OpenAI  # 添加 OpenAI 导入
@@ -19,7 +17,6 @@ except ImportError:
     zhipuai = None
 
 from app.models import LLMConfig
-from app.core.config import settings
 from .base import BaseService
 
 # 设置日志
@@ -65,11 +62,20 @@ class ZhipuChatModel(BaseChatModel):
             formatted_messages = []
             for message in messages:
                 if isinstance(message, SystemMessage):
-                    formatted_messages.append({"role": "system", "content": message.content})
+                    formatted_messages.append({
+                        "role": "system", 
+                        "content": message.content
+                    })
                 elif isinstance(message, AIMessage):
-                    formatted_messages.append({"role": "assistant", "content": message.content})
+                    formatted_messages.append({
+                        "role": "assistant", 
+                        "content": message.content
+                    })
                 else:
-                    formatted_messages.append({"role": "user", "content": message.content})
+                    formatted_messages.append({
+                        "role": "user", 
+                        "content": message.content
+                    })
 
             response = zhipuai.model_api.invoke(
                 model=self.model_name,
@@ -95,11 +101,20 @@ class ZhipuChatModel(BaseChatModel):
             formatted_messages = []
             for message in messages:
                 if isinstance(message, SystemMessage):
-                    formatted_messages.append({"role": "system", "content": message.content})
+                    formatted_messages.append({
+                        "role": "system", 
+                        "content": message.content
+                    })
                 elif isinstance(message, AIMessage):
-                    formatted_messages.append({"role": "assistant", "content": message.content})
+                    formatted_messages.append({
+                        "role": "assistant", 
+                        "content": message.content
+                    })
                 else:
-                    formatted_messages.append({"role": "user", "content": message.content})
+                    formatted_messages.append({
+                        "role": "user", 
+                        "content": message.content
+                    })
 
             response = zhipuai.model_api.sse_invoke(
                 model=self.model_name,
@@ -133,11 +148,20 @@ class OllamaChatModel(BaseChatModel):
             formatted_messages = []
             for message in messages:
                 if isinstance(message, SystemMessage):
-                    formatted_messages.append({"role": "system", "content": message.content})
+                    formatted_messages.append({
+                        "role": "system", 
+                        "content": message.content
+                    })
                 elif isinstance(message, AIMessage):
-                    formatted_messages.append({"role": "assistant", "content": message.content})
+                    formatted_messages.append({
+                        "role": "assistant", 
+                        "content": message.content
+                    })
                 else:
-                    formatted_messages.append({"role": "user", "content": message.content})
+                    formatted_messages.append({
+                        "role": "user", 
+                        "content": message.content
+                    })
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
@@ -170,11 +194,20 @@ class OllamaChatModel(BaseChatModel):
             formatted_messages = []
             for message in messages:
                 if isinstance(message, SystemMessage):
-                    formatted_messages.append({"role": "system", "content": message.content})
+                    formatted_messages.append({
+                        "role": "system", 
+                        "content": message.content
+                    })
                 elif isinstance(message, AIMessage):
-                    formatted_messages.append({"role": "assistant", "content": message.content})
+                    formatted_messages.append({
+                        "role": "assistant", 
+                        "content": message.content
+                    })
                 else:
-                    formatted_messages.append({"role": "user", "content": message.content})
+                    formatted_messages.append({
+                        "role": "user", 
+                        "content": message.content
+                    })
 
             async with httpx.AsyncClient() as client:
                 async with client.stream(
@@ -232,11 +265,20 @@ class OpenAICompatibleChatModel(BaseChatModel):
             formatted_messages = []
             for message in messages:
                 if isinstance(message, SystemMessage):
-                    formatted_messages.append({"role": "system", "content": message.content})
+                    formatted_messages.append({
+                        "role": "system", 
+                        "content": message.content
+                    })
                 elif isinstance(message, AIMessage):
-                    formatted_messages.append({"role": "assistant", "content": message.content})
+                    formatted_messages.append({
+                        "role": "assistant", 
+                        "content": message.content
+                    })
                 else:
-                    formatted_messages.append({"role": "user", "content": message.content})
+                    formatted_messages.append({
+                        "role": "user", 
+                        "content": message.content
+                    })
 
             completion = self.client.chat.completions.create(
                 model=self.model_name,
@@ -258,11 +300,20 @@ class OpenAICompatibleChatModel(BaseChatModel):
             formatted_messages = []
             for message in messages:
                 if isinstance(message, SystemMessage):
-                    formatted_messages.append({"role": "system", "content": message.content})
+                    formatted_messages.append({
+                        "role": "system", 
+                        "content": message.content
+                    })
                 elif isinstance(message, AIMessage):
-                    formatted_messages.append({"role": "assistant", "content": message.content})
+                    formatted_messages.append({
+                        "role": "assistant", 
+                        "content": message.content
+                    })
                 else:
-                    formatted_messages.append({"role": "user", "content": message.content})
+                    formatted_messages.append({
+                        "role": "user", 
+                        "content": message.content
+                    })
 
             completion = self.client.chat.completions.create(
                 model=self.model_name,
@@ -285,11 +336,20 @@ class OpenAICompatibleChatModel(BaseChatModel):
             formatted_messages = []
             for message in messages:
                 if isinstance(message, SystemMessage):
-                    formatted_messages.append({"role": "system", "content": message.content})
+                    formatted_messages.append({
+                        "role": "system", 
+                        "content": message.content
+                    })
                 elif isinstance(message, AIMessage):
-                    formatted_messages.append({"role": "assistant", "content": message.content})
+                    formatted_messages.append({
+                        "role": "assistant", 
+                        "content": message.content
+                    })
                 else:
-                    formatted_messages.append({"role": "user", "content": message.content})
+                    formatted_messages.append({
+                        "role": "user", 
+                        "content": message.content
+                    })
 
             stream = self.client.chat.completions.create(
                 model=self.model_name,
@@ -377,8 +437,9 @@ class LLMService(BaseService[LLMConfig, Any, Any]):
     async def generate_completion(
         self,
         prompt: str,
-        llm_config: LLMConfig,
         system_prompt: str = None,
+        db: Session = None,
+        llm_config: Optional[LLMConfig] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """生成完成响应"""
@@ -386,6 +447,13 @@ class LLMService(BaseService[LLMConfig, Any, Any]):
             logger.debug("=== Generate Completion Start ===")
             logger.debug(f"Prompt: {prompt[:200]}...")  # 只显示前200个字符
             logger.debug(f"System Prompt: {system_prompt}")
+            
+            # 如果没有提供配置，尝试获取默认配置
+            if not llm_config and db:
+                llm_config = await self.get_default_config(db)
+            elif not llm_config:
+                raise ValueError("必须提供 LLM 配置或数据库会话以获取默认配置")
+                
             logger.debug(f"LLM Config: {pformat(llm_config.__dict__)}")
             logger.debug(f"Extra kwargs: {kwargs}")
 
@@ -443,7 +511,9 @@ class LLMService(BaseService[LLMConfig, Any, Any]):
             async for chunk in llm.astream(messages, **kwargs):
                 chunk_count += 1
                 if chunk_count % 10 == 0:  # 每10个chunk记录一次
-                    logger.debug(f"Streaming chunk #{chunk_count}: {chunk[:50]}...")
+                    logger.debug(
+                        f"Streaming chunk #{chunk_count}: {chunk[:50]}..."
+                    )
                 yield chunk
             
             logger.debug(f"Total chunks streamed: {chunk_count}")

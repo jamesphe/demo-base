@@ -566,7 +566,11 @@ CREATE TABLE job_applications (
     review_notes TEXT,
     
     -- 添加租户ID字段
-    tenant_id INTEGER REFERENCES tenant(id)
+    tenant_id INTEGER REFERENCES tenant(id),
+    
+    -- 添加匹配度和匹配理由字段
+    match_score FLOAT DEFAULT 0.0,
+    match_reason TEXT
 );
 
 -- 添加触发器
@@ -581,6 +585,7 @@ CREATE INDEX idx_job_applications_resume ON job_applications(resume_id);
 CREATE INDEX idx_job_applications_status ON job_applications(status);
 CREATE INDEX idx_job_applications_tenant ON job_applications(tenant_id);
 CREATE INDEX idx_job_applications_created_by ON job_applications(created_by);
+CREATE INDEX idx_job_applications_match_score ON job_applications(match_score);
 
 -- 添加新的索引
 CREATE INDEX idx_resumes_publisher ON resumes(publisher_id);

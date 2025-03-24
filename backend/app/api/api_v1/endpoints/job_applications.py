@@ -1,10 +1,13 @@
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Any, List, Dict
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.api import deps
 from app.services.job_application_service import job_application_service
+from app.services.resume_job_matching_service import (
+    resume_job_matching_service
+)
 
 router = APIRouter()
 
@@ -25,35 +28,16 @@ def create_job_application(
     db: Session = Depends(deps.get_db),
     application_in: schemas.JobApplicationCreate,
     current_tenant_id: int = Depends(deps.get_current_tenant_id),
-    current_user_id: int = Depends(deps.get_current_user_id)
+    current_user_id: int = Depends(deps.get_current_user_id),
+    background_tasks: BackgroundTasks
 ) -> Any:
     """创建职位申请"""
-    # 检查职位是否存在
-    job = crud.job.get(db=db, id=application_in.job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="职位不存在")
-    
-    # 检查简历是否存在
-    resume = crud.resume.get(db=db, id=application_in.resume_id)
-    if not resume:
-        raise HTTPException(status_code=404, detail="简历不存在")
-    
-    # 检查是否已经申请过该职位
-    if job_application_service.check_application_exists(
-        db=db, 
-        job_id=application_in.job_id, 
-        resume_id=application_in.resume_id
-    ):
-        raise HTTPException(
-            status_code=400, 
-            detail="已经申请过该职位"
-        )
-    
-    return job_application_service.create_application(
+    return job_application_service.create_application_with_validation(
         db=db,
         application_in=application_in,
         tenant_id=current_tenant_id,
-        created_by=current_user_id
+        created_by=current_user_id,
+        background_tasks=background_tasks
     )
 
 
@@ -104,9 +88,15 @@ def read_applications_by_status(
 ) -> Any:
     """获取指定状态的所有职位申请"""
     # 验证状态值是否有效
-    valid_statuses = ["pending", "reviewed", "interviewed", "offered", "rejected", "withdrawn"]
+    valid_statuses = [
+        "pending", "reviewed", "interviewed", 
+        "offered", "rejected", "withdrawn"
+    ]
     if status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"无效的状态值，有效值为: {', '.join(valid_statuses)}")
+        raise HTTPException(
+            status_code=400, 
+            detail=f"无效的状态值，有效值为: {', '.join(valid_statuses)}"
+        )
     
     applications = job_application_service.get_applications_by_status(
         db=db, 
@@ -143,9 +133,13 @@ def read_applications_by_resume(
         raise HTTPException(status_code=404, detail="简历不存在")
     
     if resume.tenant_id != current_tenant_id:
-        raise HTTPException(status_code=403, detail="没有权限访问此简历的申请")
+        raise HTTPException(
+            status_code=403, 
+            detail="没有权限访问此简历的申请"
+        )
     
-    return job_application_service.get_applications_by_resume(db=db, resume_id=resume_id)
+    return job_application_service.get_applications_by_resume(
+        db=db, resume_id=resume_id)
 
 
 @router.get(
@@ -273,6 +267,59 @@ def read_applications_by_job(
         raise HTTPException(status_code=404, detail="职位不存在")
     
     if job.tenant_id != current_tenant_id:
-        raise HTTPException(status_code=403, detail="没有权限访问此职位的申请")
+        raise HTTPException(
+            status_code=403, 
+            detail="没有权限访问此职位的申请"
+        )
     
-    return job_application_service.get_applications_by_job(db=db, job_id=job_id) 
+    return job_application_service.get_applications_by_job(
+        db=db, job_id=job_id)
+
+
+@router.post(
+    "/{application_id}/analyze-match",
+    response_model=Dict[str, Any],
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["job_application_update"]
+            )
+        )
+    ]
+)
+async def analyze_application_match(
+    *,
+    db: Session = Depends(deps.get_db),
+    application_id: int,
+    current_tenant_id: int = Depends(deps.get_current_tenant_id)
+) -> Any:
+    """手动触发简历与职位匹配度分析"""
+    # 检查职位申请是否存在
+    application = job_application_service.get_application(
+        db=db, 
+        application_id=application_id
+    )
+    if not application:
+        raise HTTPException(status_code=404, detail="职位申请不存在")
+    
+    # 检查权限
+    if application.tenant_id != current_tenant_id:
+        raise HTTPException(status_code=403, detail="没有权限分析此职位申请")
+    
+    # 执行匹配度分析
+    result = await resume_job_matching_service.analyze_resume_job_match(
+        db=db,
+        application_id=application_id
+    )
+    
+    if not result["success"]:
+        raise HTTPException(
+            status_code=500,
+            detail=f"匹配度分析失败: {result.get('error', '未知错误')}"
+        )
+    
+    return {
+        "success": True,
+        "match_score": result["match_score"],
+        "match_reason": result["match_reason"]
+    } 

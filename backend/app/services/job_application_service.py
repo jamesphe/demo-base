@@ -1,5 +1,4 @@
 from typing import List, Optional, Dict, Any
-from datetime import datetime
 from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from fastapi import HTTPException
@@ -83,7 +82,8 @@ class JobApplicationService:
         job_id: int
     ) -> List[Dict[str, Any]]:
         """获取指定职位的所有申请（包含简历基本信息）"""
-        return crud.job_application.get_by_job_with_resume_info(db=db, job_id=job_id)
+        return crud.job_application.get_by_job_with_resume_info(
+            db=db, job_id=job_id)
     
     def get_applications_by_resume(
         self,
@@ -193,6 +193,52 @@ class JobApplicationService:
             status=status,
             review_notes=review_notes
         )
+
+    async def create_application_with_validation(
+        self,
+        db: Session,
+        application_in: schemas.JobApplicationCreate,
+        tenant_id: Optional[int] = None,
+        created_by: Optional[int] = None
+    ) -> models.JobApplication:
+        """创建职位申请（带验证）"""
+        # 检查职位是否存在
+        job = crud.job.get(db=db, id=application_in.job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="职位不存在")
+        
+        # 检查简历是否存在
+        resume = crud.resume.get(db=db, id=application_in.resume_id)
+        if not resume:
+            raise HTTPException(status_code=404, detail="简历不存在")
+        
+        # 检查是否已经申请过该职位
+        if self.check_application_exists(
+            db=db, 
+            job_id=application_in.job_id, 
+            resume_id=application_in.resume_id
+        ):
+            raise HTTPException(
+                status_code=400, 
+                detail="已经申请过该职位"
+            )
+        
+        # 创建职位申请
+        application = self.create_application(
+            db=db,
+            application_in=application_in,
+            tenant_id=tenant_id,
+            created_by=created_by or application_in.created_by
+        )
+        
+        # 在方法内部导入以避免循环导入
+        from app.services.resume_job_matching_service import resume_job_matching_service
+        await resume_job_matching_service.analyze_and_update_match(
+            db=db,
+            application_id=application.id
+        )
+        
+        return application
 
 
 job_application_service = JobApplicationService() 
