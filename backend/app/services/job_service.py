@@ -6,7 +6,7 @@ from sqlalchemy import and_, or_
 
 from app import models, schemas
 from app.schemas.job import JobCreate, JobUpdate
-from .base import BaseService
+from app.services.base import BaseService
 from app.core.security import get_password_hash
 from app.core.config import settings
 from app import crud
@@ -243,8 +243,12 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         return job
 
     def get_job(self, db: Session, *, job_id: int) -> Optional[models.Job]:
+        """获取职位"""
+        return self.get(db, id=job_id)
+
+    def get_job_by_id(self, db: Session, *, job_id: int) -> Optional[models.Job]:
         """根据ID获取职位"""
-        return crud.job.get(db=db, id=job_id)
+        return self.get(db, id=job_id)
 
     def list_jobs(
         self,
@@ -337,9 +341,11 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
             "requirements": requirements
         }
 
-    def get_job_by_external_id(self, db: Session, *, external_id: str) -> Optional[models.Job]:
-        """根据外部ID获取职位"""
-        return crud.job.get_by_external_id(db=db, external_id=external_id)
+    def get_job_by_external_id(self, db: Session, external_id: str) -> Optional[models.Job]:
+        """通过外部ID获取职位"""
+        return db.query(models.Job).filter(
+            models.Job.external_id == external_id
+        ).first()
 
     def create_job_application(self, db: Session, *, obj_in: schemas.JobApplicationCreate) -> models.JobApplication:
         """创建职位申请"""

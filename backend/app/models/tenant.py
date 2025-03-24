@@ -32,3 +32,8 @@ class Tenant(Base):
     skills = relationship("Skill", back_populates="tenant")
     certifications = relationship("Certification", back_populates="tenant")
     applications = relationship("JobApplication", back_populates="tenant")
+    resume_repositories = relationship(
+        "ResumeRepository", 
+        back_populates="tenant",
+        cascade="all, delete-orphan"
+    )

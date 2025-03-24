@@ -1,6 +1,6 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from sqlalchemy.orm import Session
-from fastapi import UploadFile, HTTPException
+from fastapi import UploadFile, HTTPException, BackgroundTasks
 from datetime import datetime
 import uuid
 import os
@@ -11,12 +11,19 @@ from pydantic import ValidationError
 import logging
 from pprint import pformat
 import json
+import time
+import random
 
-from app import models, crud
+from app import models, crud, schemas
 from app.core.config import settings
 from app.schemas.resume import ResumeCreate, ResumeUpdate, SkillInfo, CertificateInfo
 from .base import BaseService
-from app.services import repository_service, llm_config_service
+from app.services import (
+    repository_service,
+    llm_config_service,
+    job_service,
+    job_application_service
+)
 from app.services.parser_service import parser_service
 from app.services.llm_service import llm_service
 
@@ -81,7 +88,14 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         tenant_id: int
     ) -> models.ResumeRepository:
         """获取或创建简历库"""
-        repository = crud.repository.get_by_name(db, name=name)
+        # 先尝试获取已存在的简历库
+        repository = repository_service.get_by_name(
+            db, 
+            name=name,
+            tenant_id=tenant_id
+        )
+        
+        # 如果不存在则创建新的
         if not repository:
             repository = await repository_service.create_repository(
                 db,
@@ -90,69 +104,139 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                 description=description,
                 tenant_id=tenant_id
             )
+        
         return repository
 
     async def process_resume_file(
         self,
         db: Session,
         file: UploadFile,
-        repository_id: int,
-        tenant_id: int,
-        publisher_id: int = None,
-        publisher_type: str = None,
-        publisher_name: str = None
+        repository_id: Optional[int],
+        current_user: models.User,
+        job_id: Optional[int] = None,
+        background_tasks: Optional[BackgroundTasks] = None
     ) -> models.Resume:
         """处理上传的简历文件"""
+        file_info = None
+        resume = None
         try:
             # 保存文件
-            file_info = await self._save_file(file, repository_id)
+            file_info = await self._save_file(
+                file, 
+                repository_id if repository_id else 'default'
+            )
             
             # 解析和分析简历
             resume_data = await self._parse_and_analyze_resume(db, file_info)
-            
             logger.info(f"解析和分析简历: {pformat(resume_data)}")
             
-            # 创建简历记录
-            resume_data["repository_id"] = repository_id
-            resume_data["tenant_id"] = tenant_id
-            resume_data["resume_id"] = str(uuid.uuid4())
-            resume_data["processing_status"] = "pending"
-            resume_data["publisher_id"] = publisher_id
-            resume_data["publisher_type"] = publisher_type
-            resume_data["publisher_name"] = publisher_name
-            resume_data["review_status"] = "pending"
+            # 准备基础数据
+            resume_data.update({
+                "repository_id": repository_id,
+                "file_path": file_info["file_path"],
+                "file_name": file_info["file_name"],
+                "file_type": file_info["file_type"],
+                "processing_status": "pending",
+                "review_status": "pending"
+            })
             
-            resume_in = ResumeCreate(**resume_data)
-            resume = self.create(db=db, obj_in=resume_in)
+            # 使用统一的创建方法
+            resume = self.create_resume_with_job(
+                db=db,
+                resume_data=resume_data,
+                current_user=current_user,
+                job_id=job_id,
+                background_tasks=background_tasks
+            )
+
+            # 更新处理状态为成功
+            resume = self.update(
+                db=db,
+                db_obj=resume,
+                obj_in=ResumeUpdate(
+                    processing_status="completed",
+                    processing_error=None
+                )
+            )
+            return resume
+                
+        except ValueError as e:
+            error_msg = str(e)
+            if resume:
+                # 更新简历状态为验证失败
+                resume = self.update(
+                    db=db,
+                    db_obj=resume,
+                    obj_in=ResumeUpdate(
+                        processing_status="validation_failed",
+                        processing_error=error_msg
+                    )
+                )
+            return resume
+                
+        except Exception as e:
+            error_msg = f"简历处理失败: {str(e)}"
+            logger.error(error_msg, exc_info=True)
             
+            if resume:
+                # 更新简历状态为处理失败
+                resume = self.update(
+                    db=db,
+                    db_obj=resume,
+                    obj_in=ResumeUpdate(
+                        processing_status="failed",
+                        processing_error=error_msg
+                    )
+                )
             return resume
             
-        except Exception as e:
-            # 清理文件
-            if 'file_info' in locals() and file_info.get('file_path'):
+        finally:
+            # 如果出错且没有成功创建简历，则清理文件
+            if (file_info and file_info.get('file_path') and 
+                    not resume):
                 self._delete_file(file_info['file_path'])
-            logger.error(f"Resume processing failed: {str(e)}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"简历处理失败: {str(e)}"
-            )
 
     async def _save_file(
         self, 
         file: UploadFile, 
-        repository_id: int
+        repository_id: Union[int, str]
     ) -> Dict[str, str]:
-        """保存上传的文件"""
+        """保存上传的文件
+        
+        Args:
+            file: 上传的文件
+            repository_id: 简历库ID或默认目录名
+        """
         if not self.validate_file_extension(file.filename):
             raise HTTPException(
                 status_code=400,
                 detail=f"不支持的文件类型: {file.filename}"
             )
             
-        file_info = self._generate_file_info(file, repository_id)
-        await self._write_file(file, file_info['file_path'])
+        resume_id = str(uuid.uuid4())
+        ext = file.filename.split(".")[-1].lower()
+        unique_filename = f"{resume_id}.{ext}"
         
-        return file_info
+        # 构建存储路径
+        repository_path = os.path.join(
+            settings.UPLOAD_DIR, 
+            str(repository_id)
+        )
+        os.makedirs(repository_path, exist_ok=True)
+        
+        file_path = os.path.join(repository_path, unique_filename)
+        
+        # 保存文件
+        async with aiofiles.open(file_path, 'wb') as out_file:
+            content = await file.read()
+            await out_file.write(content)
+            
+        return {
+            "resume_id": resume_id,
+            "file_name": file.filename,
+            "file_path": file_path,
+            "file_type": ext
+        }
 
     def _validate_file_extension(self, filename: str) -> bool:
         """验证文件扩展名"""
@@ -204,10 +288,158 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             llm_config
         )
         
-        return {
+        # 标准化解析结果,确保与Resume模型字段一致
+        standardized_data = {
+            # 基本信息
             "content": resume_text,
-            "parsed_data": analysis_result
+            "parsed_data": analysis_result,
+            
+            # 个人基本信息
+            "name": analysis_result.get("name"),
+            "gender": analysis_result.get("gender"),
+            "birthdate": analysis_result.get("birthdate"),
+            "id_number": analysis_result.get("id_number"),
+            "phone": analysis_result.get("phone"),
+            "email": analysis_result.get("email"),
+            "stature": analysis_result.get("stature"),
+            "weight": analysis_result.get("weight"),
+            "nation": analysis_result.get("nation"),
+            "english_level": analysis_result.get("english_level"),
+            "city": analysis_result.get("city"),
+            "district": analysis_result.get("district"),
+            
+            # 个人状态信息
+            "political_status": analysis_result.get("political_status"),
+            "marital_status": analysis_result.get("marital_status"),
+            "hukou": analysis_result.get("hukou"),
+            "current_address": analysis_result.get("current_address"),
+            
+            # 教育信息
+            "highest_education": analysis_result.get("highest_education"),
+            "highest_degree": analysis_result.get("highest_degree"),
+            "major": analysis_result.get("major"),
+            "graduate_school": analysis_result.get("graduate_school"),
+            "graduation_date": analysis_result.get("graduation_date"),
+            
+            # 工作经验
+            "experience_years": analysis_result.get("experience_years"),
+            "current_company": analysis_result.get("current_company"),
+            "current_position": analysis_result.get("current_position"),
+            "current_salary": analysis_result.get("current_salary"),
+            "work_history": analysis_result.get("work_history", []),
+            
+            # 求职意向
+            "expected_position": analysis_result.get("expected_position"),
+            "expected_salary": analysis_result.get("expected_salary"),
+            "expected_location": analysis_result.get("expected_location"),
+            
+            # 技能与证书
+            "skills": analysis_result.get("skills", []),
+            "certificates": analysis_result.get("certificates", []),
+            
+            # 职称信息
+            "talent_name": analysis_result.get("talent_name"),
+            "talent_team": analysis_result.get("talent_team"),
+            "talent_type": analysis_result.get("talent_type"),
+            "title_rank": analysis_result.get("title_rank"),
+            
+            # 经历信息
+            "edu_experience": analysis_result.get("edu_experience", []),
+            "awards": analysis_result.get("awards", []),
+            
+            # 其他信息
+            "family_situation": analysis_result.get("family_situation"),
+            "other_info": analysis_result.get("other_info"),
+            
+            # 处理状态
+            "processing_status": "pending",
+            "processing_message": None,
+            "processing_error": None,
+            
+            # 匹配状态
+            "matching_status": "待匹配",
+            "matching_score": None,
+            
+            # 版本信息
+            "resume_version": 1,
+            "is_latest": True,
+            
+            # 来源信息
+            "source_channel": None,
+            "source_batch": None,
+            
+            # 质量评分
+            "completeness_score": None
         }
+        
+        # 确保日期字段格式正确
+        date_fields = [
+            "birthdate", "graduation_date"
+        ]
+        for field in date_fields:
+            if standardized_data.get(field):
+                try:
+                    # 确保日期格式为 ISO 格式 (YYYY-MM-DDT00:00:00)
+                    if isinstance(standardized_data[field], datetime):
+                        standardized_data[field] = (
+                            standardized_data[field].strftime(
+                                "%Y-%m-%dT%H:%M:%S"
+                            )
+                        )
+                    else:
+                        date_obj = datetime.strptime(
+                            standardized_data[field], 
+                            "%Y-%m-%d"
+                        )
+                        standardized_data[field] = (
+                            date_obj.strftime("%Y-%m-%dT%H:%M:%S")
+                        )
+                except (ValueError, TypeError):
+                    standardized_data[field] = None
+        
+        # 处理工作经历中的日期
+        if standardized_data.get("work_history"):
+            for work in standardized_data["work_history"]:
+                for date_field in ["start_date", "end_date"]:
+                    if work.get(date_field):
+                        try:
+                            if isinstance(work[date_field], datetime):
+                                work[date_field] = (
+                                    work[date_field].strftime("%Y-%m-%dT%H:%M:%S")
+                                )
+                            else:
+                                date_obj = datetime.strptime(
+                                    work[date_field], 
+                                    "%Y-%m-%d"
+                                )
+                                work[date_field] = (
+                                    date_obj.strftime("%Y-%m-%dT%H:%M:%S")
+                                )
+                        except (ValueError, TypeError):
+                            work[date_field] = None
+        
+        # 处理教育经历中的日期
+        if standardized_data.get("edu_experience"):
+            for edu in standardized_data["edu_experience"]:
+                for date_field in ["start_date", "end_date"]:
+                    if edu.get(date_field):
+                        try:
+                            if isinstance(edu[date_field], datetime):
+                                edu[date_field] = (
+                                    edu[date_field].strftime("%Y-%m-%dT%H:%M:%S")
+                                )
+                            else:
+                                date_obj = datetime.strptime(
+                                    edu[date_field], 
+                                    "%Y-%m-%d"
+                                )
+                                edu[date_field] = (
+                                    date_obj.strftime("%Y-%m-%dT%H:%M:%S")
+                                )
+                        except (ValueError, TypeError):
+                            edu[date_field] = None
+        
+        return standardized_data
 
     async def _analyze_resume_with_llm(
         self, 
@@ -811,7 +1043,11 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         if not resume:
             raise HTTPException(status_code=404, detail="简历不存在")
             
-        target_repo = crud.repository.get(db, id=target_repository_id)
+        target_repo = repository_service.get_by_name(
+            db, 
+            id=target_repository_id,
+            tenant_id=resume.tenant_id
+        )
         if not target_repo:
             raise HTTPException(status_code=404, detail="目标简历库不存在")
             
@@ -1577,6 +1813,128 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             tenant_id=tenant_id,
             filters=filters
         )
+
+    def prepare_resume_data(
+        self,
+        resume_data: dict,
+        current_user: models.User
+    ) -> dict:
+        """准备简历数据，添加发布者信息等"""
+        # 确保生成resume_id
+        if not resume_data.get("resume_id"):
+            # 使用更短的时间戳格式
+            timestamp = str(int(time.time()))[-6:]  # 取时间戳后6位
+            random_num = str(random.randint(1000, 9999))
+            resume_data["resume_id"] = f"R{timestamp}{random_num}"
+        
+        resume_data.update({
+            "publisher_id": current_user.id,
+            "publisher_type": current_user.user_type,
+            "publisher_name": current_user.username,
+            "tenant_id": current_user.tenant_id
+        })
+        
+        # 设置手动创建标志
+        if not resume_data.get("file_path"):
+            resume_data["is_manual_entry"] = True
+        
+        return resume_data
+
+    def validate_repository_access(
+        self,
+        db: Session,
+        repository_id: int,
+        tenant_id: int,
+        is_superuser: bool
+    ) -> None:
+        """验证简历库访问权限"""
+        if not repository_id:
+            return
+        
+        # 修改为使用 get 方法
+        repository = repository_service.get(db, id=repository_id)
+        if not repository:
+            raise ValueError("简历库不存在")
+        
+        if not is_superuser and repository.tenant_id != tenant_id:
+            raise ValueError("无权访问该简历库")
+
+    def create_resume_with_job(
+        self,
+        db: Session,
+        *,
+        resume_data: dict,
+        current_user: models.User,
+        job_id: Optional[int] = None,
+        job_external_id: Optional[str] = None,
+        background_tasks: Optional[BackgroundTasks] = None
+    ) -> models.Resume:
+        """创建简历并关联职位"""
+        try:
+            # 准备简历数据，确保包含resume_id
+            resume_data = self.prepare_resume_data(resume_data, current_user)
+            
+            # 验证简历数据
+            is_valid, error_message = self.validate_resume_data(resume_data)
+            if not is_valid:
+                raise ValueError(error_message)
+            
+            # 验证简历库权限
+            try:
+                self.validate_repository_access(
+                    db,
+                    resume_data.get("repository_id"),
+                    current_user.tenant_id,
+                    current_user.is_superuser
+                )
+            except ValueError as e:
+                raise ValueError(str(e))
+            
+            # 创建简历
+            resume_obj = schemas.ResumeCreate(**resume_data)
+            resume = self.create(db=db, obj_in=resume_obj)
+            
+            # 处理职位申请
+            if job_id or job_external_id:
+                job = None
+                if job_id:
+                    # 直接使用 crud.job 来获取职位
+                    job = crud.job.get(db=db, id=job_id)
+                elif job_external_id:
+                    # 使用查询来获取职位
+                    job = db.query(models.Job).filter(
+                        models.Job.external_id == job_external_id
+                    ).first()
+                
+                if job:
+                    if (job.tenant_id != current_user.tenant_id and 
+                            not current_user.is_superuser):
+                        raise ValueError("无权访问该职位")
+                        
+                    job_application = schemas.JobApplicationCreate(
+                        job_id=job.id,
+                        resume_id=resume.id,
+                        status="pending",
+                        tenant_id=current_user.tenant_id,
+                        created_by=current_user.id
+                    )
+                    
+                    if background_tasks:
+                        # 在函数内部导入以避免循环导入
+                        from app.services.job_application_service import job_application_service
+                        background_tasks.add_task(
+                            job_application_service.create_application_with_validation,
+                            db=db,
+                            application_in=job_application,
+                            tenant_id=current_user.tenant_id,
+                            created_by=current_user.id
+                        )
+                
+            return resume
+            
+        except Exception as e:
+            logger.error(f"创建简历失败: {str(e)}", exc_info=True)
+            raise ValueError(f"创建简历失败: {str(e)}")
 
 # 创建服务实例
 resume_service = ResumeService()

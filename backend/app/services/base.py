@@ -1,5 +1,6 @@
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
 from fastapi import HTTPException
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
@@ -16,12 +17,13 @@ class BaseService(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     基础服务类,提供通用的CRUD操作
     """
 
-    def __init__(self, db: Session):
+    def __init__(self, model_class: Type[ModelType]):
         """
         初始化服务
-        :param db: SQLAlchemy数据库会话
+        Args:
+            model_class: SQLAlchemy模型类
         """
-        self.db = db
+        self.model = model_class
 
     def get(
         self,

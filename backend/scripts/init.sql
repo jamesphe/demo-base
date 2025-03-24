@@ -144,19 +144,47 @@ CREATE TABLE talent_skill (
 );
 
 -- 9. 简历库表
+DROP TABLE IF EXISTS resume_repositories CASCADE;
 CREATE TABLE resume_repositories (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    resume_type VARCHAR(20) DEFAULT 'general' NOT NULL,
+    resume_type VARCHAR(50) DEFAULT 'general' NOT NULL,
     description TEXT,
+    
+    -- 添加租户ID字段
+    tenant_id INTEGER NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    
+    -- 处理状态相关字段
     processing_status VARCHAR(20) DEFAULT 'pending',
     processing_message VARCHAR(200),
-    processing_started_at TIMESTAMP,
-    processing_completed_at TIMESTAMP,
+    processing_started_at TIMESTAMP WITH TIME ZONE,
+    processing_completed_at TIMESTAMP WITH TIME ZONE,
     processing_error VARCHAR(500),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    
+    -- 时间戳
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    
+    -- 添加索引
+    CONSTRAINT idx_resume_repositories_name_tenant UNIQUE (name, tenant_id)
 );
+
+-- 添加索引
+CREATE INDEX idx_resume_repositories_tenant ON resume_repositories(tenant_id);
+CREATE INDEX idx_resume_repositories_type ON resume_repositories(resume_type);
+CREATE INDEX idx_resume_repositories_status ON resume_repositories(processing_status);
+
+-- 添加更新时间触发器
+CREATE TRIGGER update_resume_repositories_updated_at
+    BEFORE UPDATE ON resume_repositories
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 添加注释
+COMMENT ON TABLE resume_repositories IS '简历库表';
+COMMENT ON COLUMN resume_repositories.tenant_id IS '租户ID';
+COMMENT ON COLUMN resume_repositories.resume_type IS '简历类型，默认为general';
+COMMENT ON COLUMN resume_repositories.processing_status IS '处理状态';
 
 -- 10. 简历表
 CREATE TABLE resumes (

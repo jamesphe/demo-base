@@ -4,7 +4,7 @@ from fastapi import (
     File, Form, BackgroundTasks, Query, Path
 )
 from sqlalchemy.orm import Session
-from app import crud, models, schemas
+from app import models, schemas
 from app.api import deps
 from app.core.config import settings
 from app.services import resume_service
@@ -26,7 +26,7 @@ def validate_file_extension(filename: str) -> bool:
     "/upload",
     response_model=schemas.ResponseMsg,
     summary="上传简历文件",
-    description="上传简历文件到指定简历库进行解析",
+    description="上传简历文件进行解析,可选择关联到简历库和职位",
     dependencies=[
         Depends(
             deps.get_current_user_with_tenant_permission(
@@ -38,13 +38,14 @@ def validate_file_extension(filename: str) -> bool:
 async def upload_files(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    repository_name: str = Form(...),
-    resume_type: str = Form(...),
+    repository_name: Optional[str] = Form(None),
+    resume_type: Optional[str] = Form("general"),  # 默认为通用简历
     description: Optional[str] = Form(None),
+    job_id: Optional[int] = Form(None),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
-    """上传简历文件到指定简历库进行解析"""
+    """上传简历文件进行解析"""
     # 验证文件类型
     if not resume_service.validate_file_extension(file.filename):
         raise HTTPException(
@@ -52,25 +53,36 @@ async def upload_files(
             detail=f"不支持的文件类型: {file.filename}"
         )
     
-    # 创建或获取简历库
-    repository = await resume_service.get_or_create_repository(
-        db,
-        name=repository_name,
-        resume_type=resume_type,
-        description=description,
-        tenant_id=current_user.tenant_id
-    )
+    repository_id = None
+    # 只有当提供了repository_name时才创建或获取简历库
+    if repository_name:
+        repository = await resume_service.get_or_create_repository(
+            db,
+            name=repository_name,
+            resume_type=resume_type,
+            description=description,
+            tenant_id=current_user.tenant_id
+        )
+        repository_id = repository.id
     
-    # 异步处理文件上传和解析
+    # 验证职位ID(如果提供)
+    if job_id:
+        job = job_service.get_job(db=db, job_id=job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="职位不存在")
+        if (not current_user.is_superuser and 
+                job.tenant_id != current_user.tenant_id):
+            raise HTTPException(status_code=403, detail="无权访问该职位")
+    
+    # 添加后台任务处理简历
     background_tasks.add_task(
         resume_service.process_resume_file,
         db,
         file,
-        repository.id,
-        current_user.tenant_id,
-        current_user.id,
-        current_user.user_type,
-        current_user.username
+        repository_id,
+        current_user,
+        job_id,
+        background_tasks
     )
     
     return {"message": "简历上传成功，正在处理中"}
@@ -113,8 +125,9 @@ def read_resumes(
     # 获取简历列表
     resumes = resume_service.get_resumes_with_filters(
         db=db,
-        tenant_id=(current_user.tenant_id 
-                  if not current_user.is_superuser else None),
+        tenant_id=(
+            current_user.tenant_id if not current_user.is_superuser else None
+        ),
         filters=filters,
         skip=skip,
         limit=limit
@@ -123,8 +136,9 @@ def read_resumes(
     # 获取总数
     total = resume_service.get_resumes_count_with_filters(
         db=db,
-        tenant_id=(current_user.tenant_id 
-                  if not current_user.is_superuser else None),
+        tenant_id=(
+            current_user.tenant_id if not current_user.is_superuser else None
+        ),
         filters=filters
     )
     
@@ -354,80 +368,15 @@ async def create_resume(
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
     """创建完整的简历信息"""
-    # 设置发布者信息
-    resume_data = resume_in.model_dump()
-    resume_data.update({
-        "publisher_id": current_user.id,
-        "publisher_type": current_user.user_type,
-        "publisher_name": current_user.username,
-        "tenant_id": current_user.tenant_id
-    })
-    
-    # 验证简历数据
-    is_valid, error_message = resume_service.validate_resume_data(resume_data)
-    if not is_valid:
-        raise HTTPException(status_code=400, detail=error_message)
-    
-    # 生成唯一的简历ID
-    if not resume_data.get("resume_id"):
-        resume_data["resume_id"] = (
-            f"R{int(time.time())}{random.randint(1000, 9999)}"
-        )
-    
-    # 设置手动创建标志
-    if not resume_data.get("file_path"):
-        resume_data["is_manual_entry"] = True
-    
-    # 验证简历库权限（如果指定了简历库）
-    if resume_data.get("repository_id"):
-        repository = resume_service.get_repository(db, repository_id=resume_data["repository_id"])
-        if not repository:
-            raise HTTPException(status_code=404, detail="简历库不存在")
-        
-        if (not current_user.is_superuser and 
-                repository.tenant_id != current_user.tenant_id):
-            raise HTTPException(status_code=403, detail="无权访问该简历库")
-    
-    # 创建简历
     try:
-        # 同步调用创建简历
-        resume_obj = schemas.ResumeCreate(**resume_data)
-        resume = resume_service.create(db=db, obj_in=resume_obj)
-        
-        # 如果提供了职位信息，创建职位申请
-        job = None
-        if job_id:
-            job = job_service.get_job(db=db, job_id=job_id)
-        elif job_external_id:
-            job = job_service.get_job_by_external_id(
-                db=db, 
-                external_id=job_external_id
-            )
-            
-        if job:
-            # 检查职位是否属于同一租户
-            if (job.tenant_id != current_user.tenant_id and 
-                    not current_user.is_superuser):
-                raise HTTPException(status_code=403, detail="无权访问该职位")
-                
-            # 创建职位申请
-            job_application = schemas.JobApplicationCreate(
-                job_id=job.id,
-                resume_id=resume.id,
-                status="pending",
-                tenant_id=current_user.tenant_id,
-                created_by=current_user.id
-            )
-            
-            # 将创建申请的操作添加到后台任务
-            background_tasks.add_task(
-                job_application_service.create_application_with_validation,
-                db=db,
-                application_in=job_application,
-                tenant_id=current_user.tenant_id,
-                created_by=current_user.id
-            )
-            
+        resume = resume_service.create_resume_with_job(
+            db=db,
+            resume_data=resume_in.model_dump(),
+            current_user=current_user,
+            job_id=job_id,
+            job_external_id=job_external_id,
+            background_tasks=background_tasks
+        )
         return resume
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"创建简历失败: {str(e)}") 
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) 

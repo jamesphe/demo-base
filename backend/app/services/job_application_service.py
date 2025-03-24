@@ -241,4 +241,8 @@ class JobApplicationService:
         return application
 
 
-job_application_service = JobApplicationService() 
+# 创建服务实例
+job_application_service = JobApplicationService()
+
+# 只导出实例
+__all__ = ["job_application_service"]

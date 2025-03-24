@@ -4,16 +4,18 @@ from fastapi import HTTPException
 from datetime import datetime
 from sqlalchemy import and_, or_
 
-from app import models
-from app.schemas.resume_repository import ResumeRepositoryCreate, ResumeRepositoryUpdate
-from .base import BaseService
+from app import models, schemas
+from app.services.base import BaseService
 
 
-class ResumeRepositoryService(BaseService[models.ResumeRepository, ResumeRepositoryCreate, ResumeRepositoryUpdate]):
+class ResumeRepositoryService(BaseService[models.ResumeRepository, 
+                                       schemas.ResumeRepositoryCreate,
+                                       schemas.ResumeRepositoryUpdate]):
     """简历库服务"""
     
     def __init__(self):
-        super().__init__(models.ResumeRepository)
+        """初始化服务"""
+        super().__init__(model_class=models.ResumeRepository)
 
     async def create_repository(
         self,
@@ -22,23 +24,22 @@ class ResumeRepositoryService(BaseService[models.ResumeRepository, ResumeReposit
         name: str,
         resume_type: str,
         description: Optional[str] = None,
-        tenant_id: int
+        tenant_id: Optional[int] = None
     ) -> models.ResumeRepository:
         """创建简历库"""
         # 检查名称是否已存在
-        existing = self.get_by_name(db, name=name)
-        if existing and existing.tenant_id == tenant_id:
+        existing = self.get_by_name(db, name=name, tenant_id=tenant_id)
+        if existing:
             raise HTTPException(
                 status_code=400,
                 detail="简历库名称已存在"
             )
             
-        repository_in = ResumeRepositoryCreate(
+        repository_in = schemas.ResumeRepositoryCreate(
             name=name,
             resume_type=resume_type,
             description=description,
-            tenant_id=tenant_id,
-            created_at=datetime.utcnow()
+            tenant_id=tenant_id
         )
         
         return self.create(db=db, obj_in=repository_in)
@@ -47,12 +48,18 @@ class ResumeRepositoryService(BaseService[models.ResumeRepository, ResumeReposit
         self,
         db: Session,
         *,
-        name: str
+        name: str,
+        tenant_id: Optional[int] = None
     ) -> Optional[models.ResumeRepository]:
         """根据名称获取简历库"""
-        return db.query(models.ResumeRepository).filter(
+        query = db.query(models.ResumeRepository).filter(
             models.ResumeRepository.name == name
-        ).first()
+        )
+        if tenant_id is not None:
+            query = query.filter(
+                models.ResumeRepository.tenant_id == tenant_id
+            )
+        return query.first()
 
     async def get_repository_detail(
         self,
@@ -180,6 +187,10 @@ class ResumeRepositoryService(BaseService[models.ResumeRepository, ResumeReposit
             self.remove(db=db, id=repo_id)
             
         return target_repo
+
+    def get_repository(self, db: Session, repository_id: int) -> Optional[models.ResumeRepository]:
+        """获取简历库（get方法的别名）"""
+        return self.get(db, id=repository_id)
 
 
 # 创建服务实例
