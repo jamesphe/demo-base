@@ -134,4 +134,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             
         return query.offset(skip).limit(limit).all()
 
-user = CRUDUser(User) 
+user = CRUDUser(User)
+
+# 只导出实例
+__all__ = ["user"] 

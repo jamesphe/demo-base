@@ -2,7 +2,7 @@ from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import datetime, timedelta
-from sqlalchemy import and_, or_
+from sqlalchemy.sql import expression
 from jose import jwt
 
 from app import models, schemas
@@ -73,7 +73,10 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
             if "user_type" in str(e):
                 raise HTTPException(
                     status_code=400,
-                    detail=f"用户类型必须是以下之一: {', '.join([t.value for t in schemas.UserType])}"
+                    detail=(
+                        f"用户类型必须是以下之一: "
+                        f"{', '.join([t.value for t in schemas.UserType])}"
+                    )
                 )
             raise HTTPException(
                 status_code=400,
@@ -227,7 +230,12 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
         user_in = schemas.UserUpdate(is_active=is_active)
         return crud.user.update(db, db_obj=user, obj_in=user_in)
 
-    def delete_user(self, db: Session, user_id: int, current_user: models.User) -> models.User:
+    def delete_user(
+        self, 
+        db: Session, 
+        user_id: int, 
+        current_user: models.User
+    ) -> models.User:
         """删除用户
         
         Args:
@@ -251,6 +259,155 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
                 detail="Cannot delete superuser"
             )
         return crud.user.remove(db=db, id=user_id)
+
+    def get_users(
+        self,
+        db: Session,
+        current_user: models.User,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[models.User]:
+        """获取用户列表"""
+        # 检查是否为超级管理员
+        if not current_user.is_superuser and current_user.user_type != 'tenant':
+            raise HTTPException(
+                status_code=400,
+                detail="该操作需要超级管理员或租户管理员权限"
+            )
+        
+        if current_user.is_superuser:
+            users = crud.user.get_multi(db, skip=skip, limit=limit)
+        else:
+            users = crud.user.search(
+                db,
+                keyword="",  # 如果不需要关键词搜索，传空字符串
+                tenant_id=current_user.tenant_id,
+                skip=skip,
+                limit=limit
+            )
+        return users
+
+    def update_user_roles(
+        self,
+        db: Session,
+        user_id: int,
+        role_ids: List[int],
+        current_user: models.User
+    ) -> models.User:
+        """更新用户角色"""
+        # 获取用户
+        user = crud.user.get(db, id=user_id)
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="用户不存在"
+            )
+        
+        # 验证所有角色ID是否存在
+        for role_id in role_ids:
+            role = crud.role.get(db, id=role_id)
+            if not role:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"角色ID {role_id} 不存在"
+                )
+        
+        # 直接操作关联表
+        # 1. 删除所有现有关联
+        db.execute(
+            "DELETE FROM user_role WHERE user_id = :user_id", 
+            {"user_id": user_id}
+        )
+        
+        # 2. 添加新的关联
+        for role_id in role_ids:
+            db.execute(
+                "INSERT INTO user_role (user_id, role_id) VALUES (:user_id, :role_id)",
+                {"user_id": user_id, "role_id": role_id}
+            )
+        
+        db.commit()
+        db.refresh(user)
+        
+        return user
+
+    def add_user_role(
+        self,
+        db: Session,
+        user_id: int,
+        role_id: int,
+        current_user: models.User
+    ) -> models.User:
+        """为用户添加特定角色"""
+        # 获取用户
+        user = crud.user.get(db, id=user_id)
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="用户不存在"
+            )
+        
+        # 获取角色
+        role = crud.role.get(db, id=role_id)
+        if not role:
+            raise HTTPException(
+                status_code=404,
+                detail="角色不存在"
+            )
+        
+        # 检查角色是否已经分配给用户
+        if role in user.roles:
+            return user  # 角色已存在，直接返回用户
+        
+        # 添加角色关联
+        db.execute(
+            "INSERT INTO user_role (user_id, role_id) VALUES (:user_id, :role_id)",
+            {"user_id": user_id, "role_id": role_id}
+        )
+        
+        db.commit()
+        db.refresh(user)
+        
+        return user
+
+    def remove_user_role(
+        self,
+        db: Session,
+        user_id: int,
+        role_id: int,
+        current_user: models.User
+    ) -> models.User:
+        """从用户中移除特定角色"""
+        # 获取用户
+        user = crud.user.get(db, id=user_id)
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="用户不存在"
+            )
+        
+        # 获取角色
+        role = crud.role.get(db, id=role_id)
+        if not role:
+            raise HTTPException(
+                status_code=404,
+                detail="角色不存在"
+            )
+        
+        # 检查角色是否已分配给用户
+        if role not in user.roles:
+            return user  # 角色不存在，直接返回用户
+        
+        # 删除角色关联
+        db.execute(
+            "DELETE FROM user_role WHERE user_id = :user_id AND role_id = :role_id",
+            {"user_id": user_id, "role_id": role_id}
+        )
+        
+        db.commit()
+        db.refresh(user)
+        
+        return user
 
 
 # 创建服务实例

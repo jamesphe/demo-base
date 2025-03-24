@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.api import deps
-from app.core.config import settings
 from app.services import user_service
 
 router = APIRouter()
@@ -16,13 +15,19 @@ def read_users(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
+    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     获取用户列表
+    超级管理员可以获取所有用户
+    租户管理员只能获取其租户下的用户
     """
-    users = crud.user.get_multi(db, skip=skip, limit=limit)
-    return users
+    return user_service.get_users(
+        db, 
+        current_user=current_user, 
+        skip=skip, 
+        limit=limit
+    )
 
 
 @router.post("/", response_model=schemas.User)
@@ -218,38 +223,12 @@ def update_user_roles(
     """
     更新用户角色
     """
-    # 获取用户
-    user = crud.user.get(db, id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="用户不存在"
-        )
-    
-    # 验证所有角色ID是否存在
-    for role_id in role_ids:
-        role = crud.role.get(db, id=role_id)
-        if not role:
-            raise HTTPException(
-                status_code=404,
-                detail=f"角色ID {role_id} 不存在"
-            )
-    
-    # 直接操作关联表
-    # 1. 删除所有现有关联
-    db.execute("DELETE FROM user_role WHERE user_id = :user_id", {"user_id": user_id})
-    
-    # 2. 添加新的关联
-    for role_id in role_ids:
-        db.execute(
-            "INSERT INTO user_role (user_id, role_id) VALUES (:user_id, :role_id)",
-            {"user_id": user_id, "role_id": role_id}
-        )
-    
-    db.commit()
-    db.refresh(user)
-    
-    return user
+    return user_service.update_user_roles(
+        db,
+        user_id=user_id,
+        role_ids=role_ids,
+        current_user=current_user
+    )
 
 
 @router.get("/{user_id}/roles")
@@ -277,7 +256,10 @@ def get_user_roles(
         )
     
     # 返回角色的基本信息，而不是完整的Role对象
-    return [{"id": role.id, "name": role.name, "description": role.description} for role in user.roles]
+    return [
+        {"id": role.id, "name": role.name, "description": role.description} 
+        for role in user.roles
+    ]
 
 
 @router.post("/batch-roles", response_model=List[schemas.User])
@@ -327,36 +309,12 @@ def add_user_role(
     """
     为用户添加特定角色
     """
-    # 获取用户
-    user = crud.user.get(db, id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="用户不存在"
-        )
-    
-    # 获取角色
-    role = crud.role.get(db, id=role_id)
-    if not role:
-        raise HTTPException(
-            status_code=404,
-            detail="角色不存在"
-        )
-    
-    # 检查角色是否已经分配给用户
-    if role in user.roles:
-        return user  # 角色已存在，直接返回用户
-    
-    # 添加角色关联
-    db.execute(
-        "INSERT INTO user_role (user_id, role_id) VALUES (:user_id, :role_id)",
-        {"user_id": user_id, "role_id": role_id}
+    return user_service.add_user_role(
+        db,
+        user_id=user_id,
+        role_id=role_id,
+        current_user=current_user
     )
-    
-    db.commit()
-    db.refresh(user)
-    
-    return user
 
 
 @router.delete("/{user_id}/roles/{role_id}", response_model=schemas.User)
@@ -370,33 +328,9 @@ def remove_user_role(
     """
     从用户中移除特定角色
     """
-    # 获取用户
-    user = crud.user.get(db, id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="用户不存在"
-        )
-    
-    # 获取角色
-    role = crud.role.get(db, id=role_id)
-    if not role:
-        raise HTTPException(
-            status_code=404,
-            detail="角色不存在"
-        )
-    
-    # 检查角色是否已分配给用户
-    if role not in user.roles:
-        return user  # 角色不存在，直接返回用户
-    
-    # 删除角色关联
-    db.execute(
-        "DELETE FROM user_role WHERE user_id = :user_id AND role_id = :role_id",
-        {"user_id": user_id, "role_id": role_id}
+    return user_service.remove_user_role(
+        db,
+        user_id=user_id,
+        role_id=role_id,
+        current_user=current_user
     )
-    
-    db.commit()
-    db.refresh(user)
-    
-    return user

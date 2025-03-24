@@ -12,7 +12,11 @@ class User(Base):
     tenant_id = Column(Integer, ForeignKey("tenant.id"), nullable=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     username = Column(String(255), unique=True, index=True, nullable=False)
-    user_type = Column(Enum('candidate', 'tenant', 'admin', name='user_type'), nullable=False, default='tenant')
+    user_type = Column(
+        Enum('candidate', 'tenant', 'admin', name='user_type'), 
+        nullable=False, 
+        default='tenant'
+    )
     hashed_password = Column(String(255), nullable=False)
     avatar = Column(String(255))
     introduction = Column(String(255))
