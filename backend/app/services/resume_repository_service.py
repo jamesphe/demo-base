@@ -4,13 +4,14 @@ from fastapi import HTTPException
 from datetime import datetime
 from sqlalchemy import and_, or_
 
-from app import models, schemas
+from app import crud, models
+from app.schemas.resume_repository import ResumeRepositoryCreate as RepositoryCreate, ResumeRepository as Repository, ResumeRepositoryUpdate as RepositoryUpdate
 from app.services.base import BaseService
 
 
 class ResumeRepositoryService(BaseService[models.ResumeRepository, 
-                                       schemas.ResumeRepositoryCreate,
-                                       schemas.ResumeRepositoryUpdate]):
+                                       RepositoryCreate,
+                                       RepositoryUpdate]):
     """简历库服务"""
     
     def __init__(self):
@@ -35,7 +36,7 @@ class ResumeRepositoryService(BaseService[models.ResumeRepository,
                 detail="简历库名称已存在"
             )
             
-        repository_in = schemas.ResumeRepositoryCreate(
+        repository_in = RepositoryCreate(
             name=name,
             resume_type=resume_type,
             description=description,

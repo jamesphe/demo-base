@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from app import crud, schemas
 from app.core.config import settings
 from app.db import base  # noqa: F401
+from app.db.base import Base
+from app.db.session import engine
 
 def init_db(db: Session) -> None:
     # 创建超级管理员
@@ -19,3 +21,5 @@ def init_db(db: Session) -> None:
     # 建议添加：初始化基础数据
     # 例如：简历库类型、面试状态等基础数据
     # TODO: 根据业务需求添加其他初始化数据 
+
+    Base.metadata.create_all(bind=engine) 

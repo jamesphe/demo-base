@@ -49,15 +49,26 @@ from .resume import (  # 将长行拆分为多行
     ResumeList,
     ResumeBasicInfo
 )
-from .resume_repository import (
-    ResumeRepository,
-    ResumeRepositoryCreate,
-    ResumeRepositoryUpdate
+from .role import (
+    Role,
+    RoleCreate,
+    RoleUpdate
 )
-from .role import Role, RoleCreate, RoleUpdate
-from .permission import Permission, PermissionCreate, PermissionUpdate
-from .tenant import Tenant, TenantCreate, TenantUpdate
-from .llm_config import LLMConfig, LLMConfigCreate, LLMConfigUpdate
+from .permission import (
+    Permission,
+    PermissionCreate,
+    PermissionUpdate
+)
+from .tenant import (
+    Tenant,
+    TenantCreate,
+    TenantUpdate
+)
+from .llm_config import (
+    LLMConfig,
+    LLMConfigCreate,
+    LLMConfigUpdate
+)
 from .msg import Msg
 from .notification import (  # noqa: F401
     Notification,
@@ -70,6 +81,17 @@ from .skill import (  # noqa: F401
     SkillUpdate
 )
 from .common import ResponseMsg, ResumeParseResponse
+from .trial_application import (
+    TrialApplication,
+    TrialApplicationCreate,
+    TrialApplicationUpdate,
+    TrialStatus
+)
+from .resume_repository import (
+    ResumeRepository,
+    ResumeRepositoryCreate,
+    ResumeRepositoryUpdate
+)
 
 __all__ = [
     "User",
@@ -133,5 +155,9 @@ __all__ = [
     "SkillCreate",
     "SkillUpdate",
     "ResponseMsg",
-    "ResumeParseResponse"
+    "ResumeParseResponse",
+    "TrialApplication",
+    "TrialApplicationCreate",
+    "TrialApplicationUpdate",
+    "TrialStatus"
 ] 

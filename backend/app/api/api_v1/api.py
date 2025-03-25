@@ -7,6 +7,7 @@ from app.api.api_v1.endpoints import (
     talent_educations, talent_experiences, resume_reviews,
     job_applications
 )
+from app.api.api_v1.endpoints import trial_application
 
 api_router = APIRouter()
 
@@ -139,4 +140,11 @@ api_router.include_router(
     job_applications.router, 
     prefix="/job-applications", 
     tags=["职位申请管理"]
+)
+
+# 试用相关
+api_router.include_router(
+    trial_application.router,
+    prefix="/user/trial",
+    tags=["试用管理"]
 )

@@ -45,6 +45,7 @@ class User(Base):
         back_populates="publisher",
         foreign_keys="[Job.publisher_id]"
     )
+    trial_applications = relationship("TrialApplication", back_populates="user")
 
     def has_permission(self, permission_name: str) -> bool:
         """检查用户是否拥有指定权限"""

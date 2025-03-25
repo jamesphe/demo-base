@@ -21,6 +21,7 @@ from .talent_skill import TalentSkill  # noqa: F401
 from .notification import Notification  # noqa: F401
 from .talent_pool import TalentPool, TalentPoolMember  # noqa: F401
 from .certification import Certification  # 添加这一行
+from .trial_application import TrialApplication  # 添加这一行
 
 __all__ = [
     "User",
@@ -47,5 +48,6 @@ __all__ = [
     "Notification",
     "TalentPool",
     "TalentPoolMember",
-    "Certification"  # 添加这一行
+    "Certification",
+    "TrialApplication"
 ] 

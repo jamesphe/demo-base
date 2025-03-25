@@ -9,6 +9,7 @@ from .crud_permission import permission
 from .crud_tenant import tenant
 from .crud_llm_config import llm_config
 from .crud_job_application import job_application
+from .crud_trial_application import trial_application
 # ... 其他crud导入
 
 # 直接导出所有crud操作
@@ -23,7 +24,8 @@ crud = {
     "permission": permission,
     "tenant": tenant,
     "llm_config": llm_config,
-    "job_application": job_application
+    "job_application": job_application,
+    "trial_application": trial_application
 }
 
 __all__ = ["crud"]

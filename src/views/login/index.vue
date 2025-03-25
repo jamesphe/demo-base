@@ -1,106 +1,126 @@
 <template>
   <div class="login-container">
-    <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" autocomplete="on" label-position="left">
-
-      <div class="title-container">
-        <h3 class="title">后台管理系统</h3>
-        <div class="sub-title">欢迎回来，请登录您的账号</div>
+    <div class="login-box">
+      <div class="login-left">
+        <div class="login-banner">
+          <h2 class="platform-name">企业招聘管理系统</h2>
+          <p class="platform-slogan">高效、智能的一站式招聘解决方案</p>
+          <div class="platform-features">
+            <div class="feature-item">
+              <svg-icon icon-class="chart" class="feature-icon" />
+              <span>数据分析</span>
+            </div>
+            <div class="feature-item">
+              <svg-icon icon-class="peoples" class="feature-icon" />
+              <span>人才管理</span>
+            </div>
+            <div class="feature-item">
+              <svg-icon icon-class="message" class="feature-icon" />
+              <span>沟通协作</span>
+            </div>
+          </div>
+          <div class="platform-image">
+            <img src="@/assets/login-illustration.svg" alt="登录插图">
+          </div>
+        </div>
       </div>
 
-      <el-form-item prop="username">
-        <span class="svg-container">
-          <svg-icon icon-class="user" />
-        </span>
-        <el-input
-          ref="username"
-          v-model="loginForm.username"
-          placeholder="Username"
-          name="username"
-          type="text"
-          tabindex="1"
-          autocomplete="on"
-        />
-      </el-form-item>
+      <div class="login-right">
+        <div class="login-form-container">
+          <div class="login-header">
+            <h3 class="welcome-text">欢迎回来</h3>
+            <p class="login-tip">请登录您的账号继续使用</p>
+          </div>
 
-      <el-tooltip v-model="capsTooltip" content="Caps lock is On" placement="right" manual>
-        <el-form-item prop="password">
-          <span class="svg-container">
-            <svg-icon icon-class="password" />
-          </span>
-          <el-input
-            :key="passwordType"
-            ref="password"
-            v-model="loginForm.password"
-            :type="passwordType"
-            placeholder="Password"
-            name="password"
-            tabindex="2"
-            autocomplete="on"
-            @keyup.native="checkCapslock"
-            @blur="capsTooltip = false"
-            @keyup.enter.native="handleLogin"
-          />
-          <span class="show-pwd" @click="showPwd">
-            <svg-icon :icon-class="passwordType === 'password' ? 'eye' : 'eye-open'" />
-          </span>
-        </el-form-item>
-      </el-tooltip>
+          <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form">
+            <el-form-item prop="username">
+              <el-input
+                ref="username"
+                v-model="loginForm.username"
+                placeholder="用户名/邮箱"
+                name="username"
+                type="text"
+                prefix-icon="el-icon-user"
+                autocomplete="on"
+              />
+            </el-form-item>
 
-      <el-button :loading="loading" type="primary" class="login-button" @click.native.prevent="handleLogin">
-        {{ loading ? '登录中...' : '登录' }}
-      </el-button>
+            <el-form-item prop="password">
+              <el-input
+                ref="password"
+                v-model="loginForm.password"
+                :type="passwordType"
+                placeholder="密码"
+                name="password"
+                prefix-icon="el-icon-lock"
+                autocomplete="on"
+                @keyup.enter.native="handleLogin"
+              />
+              <span class="show-pwd" @click="showPwd">
+                <svg-icon :icon-class="passwordType === 'password' ? 'eye' : 'eye-open'" />
+              </span>
+            </el-form-item>
 
-      <div style="position:relative">
-        <div class="tips">
-          <span>Username : admin</span>
-          <span>Password : any</span>
+            <div class="login-options">
+              <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+              <a href="#" class="forget-password">忘记密码?</a>
+            </div>
+
+            <el-button :loading="loading" type="primary" class="login-button" @click.native.prevent="handleLogin">
+              {{ loading ? '登录中...' : '登录' }}
+            </el-button>
+
+            <div class="other-login-methods">
+              <div class="divider">
+                <span>或使用以下方式登录</span>
+              </div>
+              <div class="social-login">
+                <div class="social-icon" @click="socialLogin('wechat')">
+                  <svg-icon icon-class="wechat" />
+                </div>
+                <div class="social-icon" @click="socialLogin('qq')">
+                  <svg-icon icon-class="qq" />
+                </div>
+                <div class="social-icon" @click="socialLogin('dingtalk')">
+                  <svg-icon icon-class="international" />
+                </div>
+              </div>
+            </div>
+
+            <div class="register-link">
+              <span>还没有账号?</span>
+              <a href="#">立即注册</a>
+            </div>
+          </el-form>
         </div>
-        <div class="tips">
-          <span style="margin-right:18px;">Username : editor</span>
-          <span>Password : any</span>
-        </div>
-
-        <el-button class="thirdparty-button" type="primary" @click="showDialog=true">
-          Or connect with
-        </el-button>
       </div>
-    </el-form>
-
-    <el-dialog title="Or connect with" :visible.sync="showDialog">
-      Can not be simulated on local, so please combine you own business simulation! ! !
-      <br>
-      <br>
-      <br>
-      <social-sign />
-    </el-dialog>
+    </div>
   </div>
 </template>
 
 <script>
 import { validUsername } from '@/utils/validate'
-import SocialSign from './components/SocialSignin'
 
 export default {
   name: 'Login',
-  components: { SocialSign },
   data() {
     const validateUsername = (rule, value, callback) => {
       if (!validUsername(value)) {
-        callback(new Error('Please enter the correct user name'))
+        callback(new Error('请输入正确的用户名'))
       } else {
         callback()
       }
     }
     const validatePassword = (rule, value, callback) => {
       if (value.length < 3) {
-        callback(new Error('The password can not be less than 3 digits'))
+        callback(new Error('密码不能少于3个字符'))
       } else {
         callback()
       }
     }
     return {
       loginForm: {
-        username: 'admin@admin.com',
+        username: 'admin',
         password: 'admin'
       },
       loginRules: {
@@ -108,11 +128,11 @@ export default {
         password: [{ required: true, trigger: 'blur', validator: validatePassword }]
       },
       passwordType: 'password',
-      capsTooltip: false,
       loading: false,
       showDialog: false,
       redirect: undefined,
-      otherQuery: {}
+      otherQuery: {},
+      rememberMe: false
     }
   },
   watch: {
@@ -127,9 +147,6 @@ export default {
       immediate: true
     }
   },
-  created() {
-    // window.addEventListener('storage', this.afterQRScan)
-  },
   mounted() {
     if (this.loginForm.username === '') {
       this.$refs.username.focus()
@@ -137,14 +154,7 @@ export default {
       this.$refs.password.focus()
     }
   },
-  destroyed() {
-    // window.removeEventListener('storage', this.afterQRScan)
-  },
   methods: {
-    checkCapslock(e) {
-      const { key } = e
-      this.capsTooltip = key && key.length === 1 && (key >= 'A' && key <= 'Z')
-    },
     showPwd() {
       if (this.passwordType === 'password') {
         this.passwordType = ''
@@ -164,10 +174,11 @@ export default {
             password: this.loginForm.password
           })
             .then(() => {
-              this.$router.push({ path: this.redirect || '/', query: this.otherQuery })
+              this.$router.push({ path: this.redirect || '/dashboard' })
             })
             .catch(error => {
-              console.error('Login error:', error)
+              console.error('登录错误:', error)
+              this.$message.error('登录失败，请检查用户名和密码')
             })
             .finally(() => {
               this.loading = false
@@ -182,180 +193,285 @@ export default {
         }
         return acc
       }, {})
+    },
+    socialLogin(type) {
+      this.$message.info(`${type}登录功能正在开发中`)
     }
-    // afterQRScan() {
-    //   if (e.key === 'x-admin-oauth-code') {
-    //     const code = getQueryObject(e.newValue)
-    //     const codeMap = {
-    //       wechat: 'code',
-    //       tencent: 'code'
-    //     }
-    //     const type = codeMap[this.auth_type]
-    //     const codeName = code[type]
-    //     if (codeName) {
-    //       this.$store.dispatch('LoginByThirdparty', codeName).then(() => {
-    //         this.$router.push({ path: this.redirect || '/' })
-    //       })
-    //     } else {
-    //       alert('第三方登录失败')
-    //     }
-    //   }
-    // }
   }
 }
 </script>
 
 <style lang="scss">
-/* 修复input 背景不协调 和光标变色 */
-$bg: #1f1f1f; // 深色背景
-$light_gray: #fff;
-$cursor: #fff;
-$theme-color: #1890ff;
-$card-bg: #2d2d2d; // 添加到全局样式中
+/* 全局样式 */
+$bg-color: #f5f7fa;
+$primary-color: #1890ff;
+$text-color: #333;
+$light-text: #909399;
+$border-color: #e4e7ed;
+$card-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 
-@supports (-webkit-mask: none) and (not (cater-color: $cursor)) {
-  .login-container .el-input input {
-    color: $cursor;
-  }
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
 }
 
-/* reset element-ui css */
+/* 登录页样式 */
 .login-container {
-  .el-input {
-    display: inline-block;
-    height: 47px;
-    width: 85%;
-
-    input {
-      background: rgba(255, 255, 255, 0.04);
-      border: none;
-      border-radius: 4px;
-      padding: 12px 15px;
-      color: $light_gray;
-      height: 47px;
-      transition: all 0.3s;
-
-      &:focus {
-        background: rgba(255, 255, 255, 0.08);
-        box-shadow: 0 0 0 2px rgba($theme-color, 0.2);
-      }
-
-      &:-webkit-autofill {
-        box-shadow: 0 0 0 1000px $card-bg inset !important;
-        -webkit-text-fill-color: $light_gray !important;
-      }
-    }
-  }
-
-  .el-form-item {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: rgba(255, 255, 255, 0.04);
-    border-radius: 4px;
-    transition: all 0.3s;
-
-    &:hover {
-      border-color: rgba($theme-color, 0.8);
-      background: rgba(255, 255, 255, 0.08);
-    }
-  }
-
-  .login-button {
-    width: 100%;
-    height: 47px;
-    border-radius: 4px;
-    font-size: 16px;
-    font-weight: 500;
-    transition: all 0.3s;
-    background: $theme-color;
-    border-color: $theme-color;
-    margin: 10px 0 30px 0;
-
-    &:hover {
-      background: lighten($theme-color, 10%);
-      border-color: lighten($theme-color, 10%);
-    }
-  }
-}
-</style>
-
-<style lang="scss" scoped>
-$bg: #1f1f1f;
-$dark_gray: #888;
-$light_gray: #fff;
-$card-bg: #2d2d2d; // 在 scoped 样式中保留
-
-.login-container {
-  min-height: 100%;
+  height: 100vh;
   width: 100%;
-  background-color: $bg;
+  background-color: $bg-color;
   overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 
-  .login-form {
-    position: relative;
-    width: 520px;
-    max-width: 100%;
-    padding: 160px 35px 0;
-    margin: 0 auto;
-    background: $card-bg;
+  .login-box {
+    width: 1000px;
+    height: 600px;
+    display: flex;
     border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-    margin-top: 120px;
+    box-shadow: $card-shadow;
+    overflow: hidden;
   }
 
-  .tips {
-    font-size: 14px;
-    color: $dark_gray;
-    margin-bottom: 10px;
-  }
-
-  .svg-container {
-    padding: 6px 5px 6px 15px;
-    color: $dark_gray;
-    vertical-align: middle;
-    width: 30px;
-    display: inline-block;
-  }
-
-  .title-container {
+  .login-left {
+    flex: 1;
+    background: linear-gradient(135deg, #1890ff 0%, #36cfc9 100%);
+    color: white;
+    padding: 40px;
     position: relative;
+    overflow: hidden;
 
-    .title {
-      font-size: 28px;
-      color: $light_gray;
-      margin: 0px auto 20px auto;
-      text-align: center;
-      font-weight: bold;
+    .login-banner {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      z-index: 1;
+      position: relative;
     }
 
-    .sub-title {
-      font-size: 14px;
-      color: $dark_gray;
+    .platform-name {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .platform-slogan {
+      font-size: 16px;
+      margin-bottom: 40px;
+      opacity: 0.9;
+    }
+
+    .platform-features {
+      display: flex;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+
+      .feature-item {
+        display: flex;
+        align-items: center;
+        margin-right: 20px;
+        margin-bottom: 15px;
+
+        .feature-icon {
+          font-size: 18px;
+          margin-right: 8px;
+        }
+      }
+    }
+
+    .platform-image {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      img {
+        max-width: 100%;
+        max-height: 250px;
+      }
+    }
+  }
+
+  .login-right {
+    width: 450px;
+    background-color: white;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    .login-form-container {
+      width: 100%;
+    }
+
+    .login-header {
       text-align: center;
       margin-bottom: 40px;
+
+      .welcome-text {
+        font-size: 24px;
+        color: $text-color;
+        margin-bottom: 10px;
+      }
+
+      .login-tip {
+        font-size: 14px;
+        color: $light-text;
+        margin: 0;
+      }
+    }
+
+    .login-form {
+      .el-form-item {
+        margin-bottom: 25px;
+      }
+
+      .el-input {
+        height: 40px;
+
+        input {
+          height: 40px;
+          padding-left: 15px;
+          background-color: #f5f7fa;
+          border: 1px solid #e4e7ed;
+          border-radius: 4px;
+
+          &:focus {
+            border-color: $primary-color;
+            background-color: white;
+          }
+        }
+      }
+
+      .show-pwd {
+        position: absolute;
+        right: 10px;
+        top: 0;
+        font-size: 16px;
+        color: $light-text;
+        cursor: pointer;
+        height: 40px;
+        display: flex;
+        align-items: center;
+      }
+    }
+
+    .login-options {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+
+      .forget-password {
+        color: $primary-color;
+        font-size: 14px;
+        text-decoration: none;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+
+    .login-button {
+      width: 100%;
+      height: 40px;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 25px;
+    }
+
+    .other-login-methods {
+      margin-bottom: 25px;
+
+      .divider {
+        display: flex;
+        align-items: center;
+        color: $light-text;
+        font-size: 14px;
+        margin: 20px 0;
+
+        &:before,
+        &:after {
+          content: "";
+          flex: 1;
+          border-top: 1px solid $border-color;
+        }
+
+        span {
+          padding: 0 10px;
+        }
+      }
+
+      .social-login {
+        display: flex;
+        justify-content: center;
+
+        .social-icon {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background-color: #f5f7fa;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 10px;
+          cursor: pointer;
+          transition: all 0.3s;
+
+          &:hover {
+            background-color: #e6f7ff;
+            color: $primary-color;
+          }
+
+          svg {
+            font-size: 20px;
+          }
+        }
+      }
+    }
+
+    .register-link {
+      text-align: center;
+      font-size: 14px;
+      color: $light-text;
+
+      a {
+        color: $primary-color;
+        text-decoration: none;
+        margin-left: 5px;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
     }
   }
+}
 
-  .show-pwd {
-    position: absolute;
-    right: 10px;
-    top: 7px;
-    font-size: 16px;
-    color: $dark_gray;
-    cursor: pointer;
-    user-select: none;
-  }
+@media (max-width: 1000px) {
+  .login-container {
+    .login-box {
+      width: 90%;
+      height: auto;
+      flex-direction: column;
+    }
 
-  .thirdparty-button {
-    position: absolute;
-    right: 0;
-    bottom: 6px;
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: $light_gray;
+    .login-left {
+      display: none;
+    }
 
-    &:hover {
-      background: rgba(255, 255, 255, 0.12);
-      border-color: rgba(255, 255, 255, 0.2);
+    .login-right {
+      width: auto;
+      padding: 30px;
     }
   }
 }
