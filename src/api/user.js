@@ -25,3 +25,41 @@ export function logout() {
     method: 'post'
   })
 }
+
+export function register(data) {
+  return request({
+    url: '/user/register',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 申请免费试用
+ * @param {Object} data - 试用申请数据
+ */
+export function applyForTrial(data) {
+  return request({
+    url: '/user/trial/apply',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 获取试用状态
+ */
+export function getTrialStatus() {
+  return request({
+    url: '/user/trial/status',
+    method: 'get'
+  })
+}
+
+// 获取当前用户的权限列表
+export function getUserPermissions() {
+  return request({
+    url: '/users/permissions/me',
+    method: 'get'
+  })
+}

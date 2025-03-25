@@ -39,16 +39,12 @@ export const constantRoutes = [
   },
   {
     path: '/',
-    component: Layout,
-    redirect: '/dashboard',
-    children: [
-      {
-        path: 'dashboard',
-        component: () => import('@/views/dashboard/index'),
-        name: 'Dashboard',
-        meta: { title: '首页', icon: 'el-icon-s-home' }
-      }
-    ]
+    name: 'Home',
+    component: () => import('@/views/home/index.vue'),
+    meta: {
+      title: '首页',
+      requiresAuth: false // 设置为 false 表示不需要权限验证
+    }
   },
   {
     path: '/profile',
@@ -221,6 +217,29 @@ export const constantRoutes = [
         meta: { title: '权限管理' }
       }
     ]
+  },
+  {
+    path: '/register',
+    component: () => import('@/views/register/index'),
+    hidden: true
+  },
+  {
+    path: '/trial-application',
+    component: () => import('@/views/trial-application/index'),
+    name: 'TrialApplication',
+    meta: {
+      title: '申请免费试用',
+      requiresAuth: false // 明确设置为不需要登录权限
+    }
+  },
+  {
+    path: '/trial-status',
+    component: () => import('@/views/trial-status/index'),
+    name: 'TrialStatus',
+    meta: {
+      title: '试用状态',
+      requireAuth: true
+    }
   }
 ]
 
@@ -238,6 +257,19 @@ const createRouter = () => new Router({
 })
 
 const router = createRouter()
+
+// 路由守卫
+router.beforeEach((to, from, next) => {
+  // 如果路由需要权限验证
+  if (to.meta.requiresAuth) {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      next({ name: 'Login' })
+      return
+    }
+  }
+  next()
+})
 
 export function resetRouter() {
   const newRouter = createRouter()

@@ -5,12 +5,19 @@ import NProgress from 'nprogress' // progress bar
 import 'nprogress/nprogress.css' // progress bar style
 import { getToken } from '@/utils/auth' // get token from cookie
 import getPageTitle from '@/utils/get-page-title'
+import { getUserPermissions } from '@/api/user' // 导入获取用户权限的API函数
 
 NProgress.configure({ showSpinner: false }) // NProgress Configuration
 
-const whiteList = ['/login', '/auth-redirect'] // no redirect whitelist
+const whiteList = ['/', '/login', '/register', '/trial-application'] // 无需权限验证的路由路径白名单
 
 router.beforeEach(async(to, from, next) => {
+  // 如果是白名单中的路径，直接放行
+  if (whiteList.includes(to.path)) {
+    next()
+    return
+  }
+
   // start progress bar
   NProgress.start()
 
@@ -26,25 +33,28 @@ router.beforeEach(async(to, from, next) => {
       next({ path: '/' })
       NProgress.done() // hack: https://github.com/PanJiaChen/vue-element-admin/pull/2939
     } else {
-      // determine whether the user has obtained his permission roles through getInfo
-      const hasRoles = store.getters.roles && store.getters.roles.length > 0
-      if (hasRoles) {
-        next()
+      // 获取用户信息
+      const hasGetUserInfo = store.getters.name
+      if (hasGetUserInfo) {
+        // 如果是试用用户且试用已过期，跳转到试用状态页面
+        if (store.getters.isTrialUser && store.getters.trialStatus === 'expired' &&
+            to.path !== '/trial-status' && to.path !== '/pricing') {
+          next({ path: '/trial-status' })
+        } else {
+          next()
+        }
       } else {
         try {
-          // get user info
-          // note: roles must be a object array! such as: ['admin'] or ,['developer','editor']
-          const { roles } = await store.dispatch('user/getInfo')
+          await store.dispatch('user/getInfo')
+          await store.dispatch('user/getTrialStatus')
 
-          // generate accessible routes map based on roles
-          const accessRoutes = await store.dispatch('permission/generateRoutes', roles)
-
-          // dynamically add accessible routes
-          router.addRoutes(accessRoutes)
-
-          // hack method to ensure that addRoutes is complete
-          // set the replace: true, so the navigation will not leave a history record
-          next({ ...to, replace: true })
+          // 如果是试用用户且试用已过期，跳转到试用状态页面
+          if (store.getters.isTrialUser && store.getters.trialStatus === 'expired' &&
+              to.path !== '/trial-status' && to.path !== '/pricing') {
+            next({ path: '/trial-status' })
+          } else {
+            next()
+          }
         } catch (error) {
           // remove token and go to login page to re-login
           await store.dispatch('user/resetToken')
@@ -72,11 +82,11 @@ router.afterEach(() => {
   // finish progress bar
   NProgress.done()
 })
-
+// eslint-disable-next-line no-unused-vars
 async function getPermissionList() {
   try {
     console.log('开始获取权限列表...')
-    const res = await getList()
+    const res = await getUserPermissions() // 使用导入的函数
     console.log('获取权限列表结果:', res)
     return res
   } catch (error) {
@@ -88,3 +98,4 @@ async function getPermissionList() {
     throw error
   }
 }
+

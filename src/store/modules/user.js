@@ -1,4 +1,4 @@
-import { login, logout, getInfo } from '@/api/user'
+import { login, logout, getInfo, getTrialStatus } from '@/api/user'
 import { getToken, setToken, removeToken } from '@/utils/auth'
 import router, { resetRouter } from '@/router'
 
@@ -7,7 +7,9 @@ const state = {
   name: '',
   avatar: '',
   introduction: '',
-  roles: []
+  roles: [],
+  trialStatus: null,
+  isTrialUser: false
 }
 
 const mutations = {
@@ -25,12 +27,18 @@ const mutations = {
   },
   SET_ROLES: (state, roles) => {
     state.roles = roles
+  },
+  SET_TRIAL_STATUS(state, status) {
+    state.trialStatus = status
+  },
+  SET_IS_TRIAL_USER(state, isTrialUser) {
+    state.isTrialUser = isTrialUser
   }
 }
 
 const actions = {
   // user login
-  login({ commit }, userInfo) {
+  login({ commit, dispatch }, userInfo) {
     const { username, password } = userInfo
     return new Promise((resolve, reject) => {
       login({ username: username.trim(), password: password })
@@ -38,6 +46,8 @@ const actions = {
           const { access_token } = response
           commit('SET_TOKEN', access_token)
           setToken(access_token)
+          dispatch('getInfo')
+          dispatch('getTrialStatus')
           resolve()
         })
         .catch(error => {
@@ -52,7 +62,7 @@ const actions = {
       getInfo()
         .then(response => {
           const { data } = response
-          
+
           if (!data) {
             reject('Verification failed, please Login again.')
           }
@@ -124,12 +134,47 @@ const actions = {
 
     // reset visited views and cached views
     dispatch('tagsView/delAllViews', null, { root: true })
+  },
+
+  register({ commit }, userInfo) {
+    const { username, email, password } = userInfo
+    return new Promise((resolve, reject) => {
+      // 导入 register API 或使用其他方式处理注册
+      import('@/api/user').then(({ register }) => {
+        register({ username, email, password }).then(response => {
+          resolve(response)
+        }).catch(error => {
+          reject(error)
+        })
+      })
+    })
+  },
+
+  // 获取用户试用状态
+  getTrialStatus({ commit }) {
+    return new Promise((resolve, reject) => {
+      getTrialStatus().then(response => {
+        const { data } = response
+        commit('SET_TRIAL_STATUS', data.status)
+        commit('SET_IS_TRIAL_USER', data.status === 'active')
+        resolve(data)
+      }).catch(error => {
+        reject(error)
+      })
+    })
   }
+}
+
+const getters = {
+  trialStatus: state => state.trialStatus,
+  isTrialUser: state => state.isTrialUser,
+  userLoggedIn: state => !!state.token
 }
 
 export default {
   namespaced: true,
   state,
   mutations,
-  actions
+  actions,
+  getters
 }
