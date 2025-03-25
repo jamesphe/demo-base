@@ -334,21 +334,3 @@ def remove_user_role(
         role_id=role_id,
         current_user=current_user
     )
-
-
-@router.get("/permissions/me", response_model=List[str])
-def get_my_permissions(
-    db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_user)
-) -> Any:
-    """
-    获取当前登录用户的权限集合
-    返回权限标识符列表
-    """
-    # 从用户的角色中收集所有权限
-    permissions = set()
-    for role in current_user.roles:
-        for permission in role.permissions:
-            permissions.add(permission.code)
-    
-    return list(permissions)

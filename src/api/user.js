@@ -59,7 +59,7 @@ export function getTrialStatus() {
 // 获取当前用户的权限列表
 export function getUserPermissions() {
   return request({
-    url: '/users/permissions/me',
+    url: '/permissions/me',
     method: 'get'
   })
 }

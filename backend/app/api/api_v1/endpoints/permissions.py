@@ -99,4 +99,21 @@ def delete_permission(
     if not permission:
         raise HTTPException(status_code=404, detail="权限不存在")
     permission = crud.permission.remove(db=db, id=permission_id)
-    return permission 
+    return permission
+
+
+@router.get("/me", response_model=List[str])
+def get_my_permissions(
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user)
+) -> Any:
+    """
+    获取当前登录用户的权限集合
+    返回权限标识符列表
+    """
+    permissions = set()
+    for role in current_user.roles:
+        for permission in role.permissions:
+            permissions.add(permission.code)
+    
+    return list(permissions) 
