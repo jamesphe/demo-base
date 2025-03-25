@@ -1,21 +1,18 @@
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from typing import Any, List, Optional
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.api import deps
 from app.services.job_service import job_service
 from app.services.job_application_service import job_application_service
-from app.services.resume_job_matching_service import (
-    resume_job_matching_service
-)
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[schemas.JobWithCandidateCount],
+    response_model=schemas.JobListResponse,
     dependencies=[
         Depends(
             deps.get_current_user_with_tenant_permission(
@@ -26,17 +23,62 @@ router = APIRouter()
 )
 def read_jobs(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = 1,
+    pageSize: int = 10,
+    keyword: Optional[str] = None,
+    status: Optional[int] = None,
+    departmentId: Optional[int] = None,
+    createTime: Optional[List[str]] = Query(None),
     current_tenant_id: int = Depends(deps.get_current_tenant_id)
 ) -> Any:
-    """获取职位列表"""
-    return job_service.list_jobs(
+    """获取职位列表
+    
+    Args:
+        page: 当前页码，从1开始
+        pageSize: 每页数量
+        keyword: 职位名称关键词
+        status: 职位状态(0-关闭 1-开启)
+        departmentId: 部门ID
+        createTime: 创建时间范围，格式["2024-01-01", "2024-03-20"]
+    """
+    # 转换前端分页参数为数据库分页参数
+    skip = (page - 1) * pageSize
+    limit = pageSize
+    
+    # 构建查询条件
+    filters = {
+        "tenant_id": current_tenant_id
+    }
+    
+    if keyword:
+        filters["title"] = {"like": f"%{keyword}%"}
+    if status is not None:
+        filters["status"] = status
+    if departmentId:
+        filters["department_id"] = departmentId
+    if createTime and len(createTime) == 2:
+        filters["create_time"] = {
+            "between": createTime
+        }
+        
+    # 调用service层获取数据
+    jobs, total = job_service.list_jobs_with_count(
         db=db,
         skip=skip,
         limit=limit,
-        tenant_id=current_tenant_id
+        tenant_id=current_tenant_id,
+        filters=filters
     )
+    
+    # 返回符合前端格式的响应
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {
+            "total": total,
+            "list": jobs
+        }
+    }
 
 
 @router.post(
@@ -441,7 +483,8 @@ def read_job_applications(
         )
     
     applications = job_application_service.get_applications_by_job_with_resume_info(
-        db=db, job_id=job_id
+        db=db, 
+        job_id=job_id
     )
     return applications
 
@@ -511,7 +554,10 @@ def update_job_application(
     if not job:
         raise HTTPException(status_code=404, detail="职位不存在")
     
-    application = job_application_service.get_application(db=db, application_id=application_id)
+    application = job_application_service.get_application(
+        db=db, 
+        application_id=application_id
+    )
     if not application:
         raise HTTPException(status_code=404, detail="职位申请不存在")
     

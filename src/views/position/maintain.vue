@@ -87,10 +87,20 @@
             <span class="salary-text">{{ row.salaryMin }}-{{ row.salaryMax }}K/{{ row.salaryUnit === 'month' ? '月' : '年' }}</span>
           </template>
         </el-table-column>
+        <el-table-column label="经验要求" width="100" align="center">
+          <template slot-scope="{row}">
+            <span>{{ row.experienceRequired }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="学历要求" width="120" align="center">
+          <template slot-scope="{row}">
+            <span>{{ row.educationRequired }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template slot-scope="{row}">
-            <el-tag :type="row.status === 'active' ? 'success' : row.status === 'paused' ? 'warning' : 'info'">
-              {{ row.status === 'active' ? '招聘中' : row.status === 'paused' ? '已暂停' : '已结束' }}
+            <el-tag :type="getStatusType(row.status)">
+              {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -222,6 +232,22 @@
         <el-form-item label="任职要求" prop="requirements">
           <el-input type="textarea" :rows="4" v-model="positionForm.requirements" placeholder="请输入任职要求"/>
         </el-form-item>
+
+        <el-form-item label="经验要求" prop="experienceRequired">
+          <el-input v-model="positionForm.experienceRequired" placeholder="请输入经验要求"/>
+        </el-form-item>
+
+        <el-form-item label="学历要求" prop="educationRequired">
+          <el-input v-model="positionForm.educationRequired" placeholder="请输入学历要求"/>
+        </el-form-item>
+
+        <el-form-item label="招聘人数" prop="headcount">
+          <el-input-number v-model="positionForm.headcount" :min="1" placeholder="请输入招聘人数"/>
+        </el-form-item>
+
+        <el-form-item label="福利待遇" prop="benefits">
+          <el-input type="textarea" :rows="4" v-model="positionForm.benefits" placeholder="请输入福利待遇"/>
+        </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
@@ -266,7 +292,11 @@ export default {
         salaryMax: '',
         salaryUnit: 'month',
         description: '',
-        requirements: ''
+        requirements: '',
+        experienceRequired: '',
+        educationRequired: '',
+        headcount: 1,
+        benefits: ''
       },
       cityOptions: [], // 需要添加城市数据
       rules: {
@@ -283,11 +313,48 @@ export default {
     this.getList()
   },
   methods: {
+    getStatusType(status) {
+      const statusMap = {
+        draft: 'info',
+        active: 'success',
+        paused: 'warning',
+        closed: 'danger'
+      }
+      return statusMap[status] || 'info'
+    },
+    
+    getStatusText(status) {
+      const statusMap = {
+        draft: '草稿',
+        active: '招聘中',
+        paused: '已暂停',
+        closed: '已结束'
+      }
+      return statusMap[status] || '未知'
+    },
+
     async getList() {
       this.listLoading = true
       try {
         const { data } = await getPositionList(this.listQuery)
-        this.list = data.items
+        this.list = data.list.map(item => ({
+          id: item.id,
+          title: item.title,
+          type: item.job_type === '全职' ? 'fulltime' : item.job_type === '兼职' ? 'parttime' : 'intern',
+          department: '', // 接口中暂无此字段
+          location: item.location,
+          salaryMin: item.salary_min / 1000,
+          salaryMax: item.salary_max / 1000,
+          salaryUnit: item.salary_type === '月薪' ? 'month' : 'year',
+          description: item.description,
+          requirements: item.requirements,
+          benefits: item.benefits,
+          experienceRequired: item.experience_required,
+          educationRequired: item.education_required,
+          headcount: item.headcount,
+          status: item.status,
+          createTime: new Date(item.created_at).getTime()
+        }))
         this.total = data.total
       } catch (error) {
         console.error('获取职位列表失败:', error)
@@ -320,7 +387,11 @@ export default {
         salaryMax: '',
         salaryUnit: 'month',
         description: '',
-        requirements: ''
+        requirements: '',
+        experienceRequired: '',
+        educationRequired: '',
+        headcount: 1,
+        benefits: ''
       }
       this.dialogVisible = true
     },
@@ -335,7 +406,27 @@ export default {
     async updatePosition() {
       try {
         await this.$refs.form.validate()
-        await updatePosition(this.positionForm)
+        const submitData = {
+          title: this.positionForm.title,
+          job_type: this.positionForm.type === 'fulltime' ? '全职' : 
+                    this.positionForm.type === 'parttime' ? '兼职' : '实习',
+          location: this.positionForm.location,
+          salary_min: this.positionForm.salaryMin * 1000,
+          salary_max: this.positionForm.salaryMax * 1000,
+          salary_type: this.positionForm.salaryUnit === 'month' ? '月薪' : '年薪',
+          description: this.positionForm.description,
+          requirements: this.positionForm.requirements,
+          benefits: this.positionForm.benefits,
+          experience_required: this.positionForm.experienceRequired,
+          education_required: this.positionForm.educationRequired,
+          headcount: this.positionForm.headcount
+        }
+        
+        if (this.positionForm.id) {
+          submitData.id = this.positionForm.id
+        }
+        
+        await updatePosition(submitData)
         this.dialogVisible = false
         this.$message.success('更新成功')
         this.getList()

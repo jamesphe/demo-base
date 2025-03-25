@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 from pydantic import BaseModel, Field
 
 
@@ -116,4 +116,13 @@ class Job(JobBase):
 # 添加带有候选人数量的 Job Schema
 class JobWithCandidateCount(Job):
     """带候选人数量的职位模型"""
-    candidate_count: int = 0 
+    candidate_count: int = 0
+
+
+class JobListResponse(BaseModel):
+    code: int
+    message: str
+    data: dict[str, Any] = {
+        "total": int,
+        "list": List[JobWithCandidateCount]
+    } 

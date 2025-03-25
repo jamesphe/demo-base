@@ -3,7 +3,7 @@ import request from '@/utils/request'
 // 获取职位列表
 export function getPositionList(params) {
   return request({
-    url: '/position/list',
+    url: '/jobs',
     method: 'get',
     params
   })

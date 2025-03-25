@@ -6,11 +6,16 @@ from .user import (  # noqa: F401
     UserType,
     UserInfo,
     UserInfoResponse,
-    UserInfoResponse,
     UserRoleUpdate
 )
 from .token import Token, TokenPayload  # noqa: F401
-from .job import Job, JobCreate, JobUpdate, JobWithCandidateCount  # noqa: F401
+from .job import (  # 将长行拆分为多行
+    Job,
+    JobCreate,
+    JobUpdate,
+    JobWithCandidateCount,
+    JobListResponse
+)  # noqa: F401
 from .job_requirement import (
     JobRequiredSkill,
     JobRequiredSkillCreate,
@@ -37,7 +42,13 @@ from .interview import (  # noqa: F401
     InterviewUpdate,
     InterviewWithDetails
 )
-from .resume import Resume, ResumeCreate, ResumeUpdate, ResumeList, ResumeBasicInfo
+from .resume import (  # 将长行拆分为多行
+    Resume,
+    ResumeCreate,
+    ResumeUpdate,
+    ResumeList,
+    ResumeBasicInfo
+)
 from .resume_repository import (
     ResumeRepository,
     ResumeRepositoryCreate,
@@ -75,6 +86,7 @@ __all__ = [
     "JobCreate",
     "JobUpdate",
     "JobWithCandidateCount",
+    "JobListResponse",
     "JobRequiredSkill",
     "JobRequiredSkillCreate",
     "JobRequiredCertification",

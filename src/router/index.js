@@ -64,6 +64,26 @@ export const constantRoutes = [
       }
     ]
   },
+  // 职位管理
+  {
+    path: '/position',
+    component: Layout,
+    meta: { title: '职位管理', icon: 'el-icon-suitcase' },
+    children: [
+      {
+        path: 'publish',
+        component: () => import('@/views/position/publish'),
+        name: 'PositionPublish',
+        meta: { title: '职位发布' }
+      },
+      {
+        path: 'maintain',
+        component: () => import('@/views/position/maintain'),
+        name: 'PositionMaintain',
+        meta: { title: '职位维护' }
+      }
+    ]
+  },
   // 简历管理
   {
     path: '/resume',
@@ -133,26 +153,6 @@ export const constantRoutes = [
         component: () => import('@/views/candidate/recommendation'),
         name: 'CandidateRecommendation',
         meta: { title: '候选人推荐' }
-      }
-    ]
-  },
-  // 职位管理
-  {
-    path: '/position',
-    component: Layout,
-    meta: { title: '职位管理', icon: 'el-icon-suitcase' },
-    children: [
-      {
-        path: 'publish',
-        component: () => import('@/views/position/publish'),
-        name: 'PositionPublish',
-        meta: { title: '职位发布' }
-      },
-      {
-        path: 'maintain',
-        component: () => import('@/views/position/maintain'),
-        name: 'PositionMaintain',
-        meta: { title: '职位维护' }
       }
     ]
   },

@@ -19,11 +19,13 @@ service.interceptors.request.use(
       // 修改这里,使用Bearer认证方案
       config.headers['Authorization'] = `Bearer ${getToken()}`
     }
+
+    console.log('发送请求:', config.url, config.method, config.params || config.data)
     return config
   },
   error => {
     // do something with request error
-    console.log(error) // for debug
+    console.error('请求错误:', error)
     return Promise.reject(error)
   }
 )
@@ -44,11 +46,7 @@ service.interceptors.response.use(
     const res = response.data
     
     // 添加响应数据日志
-    console.log('接口响应数据:', {
-      url: response.config.url,
-      status: response.status,
-      data: res
-    })
+    console.log('收到响应:', response.config.url, response.status, response.data)
 
     // 处理登录成功的情况
     if (res.access_token) {
@@ -70,16 +68,10 @@ service.interceptors.response.use(
     return Promise.reject(new Error(errorMsg))
   },
   error => {
-    console.error('请求错误:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      params: error.config?.params,
-      data: error.config?.data,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      responseData: error.response?.data,
-      errorMessage: error.message
-    })
+    console.error('响应错误:', error)
+    if (error.response) {
+      console.error('错误详情:', error.response.status, error.response.data)
+    }
 
     const errMsg = error.response?.data?.detail || error.message || 'Error'
     Message({

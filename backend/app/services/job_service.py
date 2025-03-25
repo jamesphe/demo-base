@@ -351,6 +351,84 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         """创建职位申请"""
         return crud.job_application.create(db=db, obj_in=obj_in)
 
+    def list_jobs_with_count(
+        self,
+        db: Session,
+        *,
+        skip: int = 0,
+        limit: int = 100,
+        tenant_id: Optional[int] = None,
+        **filters
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """
+        获取职位列表及总数
+        
+        Args:
+            db: 数据库会话
+            skip: 跳过的记录数
+            limit: 返回的最大记录数
+            tenant_id: 租户ID
+            **filters: 其他过滤条件
+            
+        Returns:
+            Tuple[List[Dict[str, Any]], int]: 职位列表和总数
+        """
+        # 构建基础查询
+        query = db.query(crud.job.model)
+        
+        # 应用租户过滤
+        if tenant_id is not None:
+            query = query.filter(crud.job.model.tenant_id == tenant_id)
+        
+        # 应用其他过滤条件
+        for field, value in filters.items():
+            if field in filters and hasattr(crud.job.model, field):
+                if isinstance(value, dict) and "like" in value:
+                    query = query.filter(getattr(crud.job.model, field).like(value["like"]))
+                elif isinstance(value, dict) and "between" in value and len(value["between"]) == 2:
+                    start_date, end_date = value["between"]
+                    query = query.filter(
+                        getattr(crud.job.model, field) >= start_date,
+                        getattr(crud.job.model, field) <= end_date
+                    )
+                else:
+                    query = query.filter(getattr(crud.job.model, field) == value)
+        
+        # 获取总数
+        total = query.count()
+        
+        # 应用分页并获取结果
+        jobs = query.offset(skip).limit(limit).all()
+        
+        # 将 SQLAlchemy 模型转换为字典
+        job_list = []
+        for job in jobs:
+            job_dict = {
+                "id": job.id,
+                "external_id": job.external_id,
+                "tenant_id": job.tenant_id,
+                "publisher_id": job.publisher_id,
+                "title": job.title,
+                "job_type": job.job_type,
+                "headcount": job.headcount,
+                "salary_min": job.salary_min,
+                "salary_max": job.salary_max,
+                "salary_type": job.salary_type,
+                "location": job.location,
+                "experience_required": job.experience_required,
+                "education_required": job.education_required,
+                "description": job.description,
+                "requirements": job.requirements,
+                "benefits": job.benefits,
+                "status": job.status,
+                "created_at": job.created_at,
+                "published_at": job.published_at,
+                "closed_at": job.closed_at
+            }
+            job_list.append(job_dict)
+        
+        return job_list, total
+
 # 创建服务实例
 job_service = JobService()
 
