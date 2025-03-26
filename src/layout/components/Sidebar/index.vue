@@ -35,8 +35,11 @@ export default {
   computed: {
     ...mapGetters([
       'sidebar',
-      'routes'
+      'permission_routes'
     ]),
+    routes() {
+      return this.$store.getters.permission_routes.filter(route => !route.hidden)
+    },
     activeMenu() {
       const route = this.$route
       const { meta, path } = route

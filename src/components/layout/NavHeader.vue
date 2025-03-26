@@ -224,7 +224,7 @@ export default {
     async handleLogout() {
       try {
         await this.$store.dispatch('user/logout')
-        this.handleNavigation('/login')
+        this.handleNavigation('/')
       } catch (error) {
         console.error('登出错误:', error)
       }
