@@ -16,12 +16,30 @@ class TrialApplicationService:
     ) -> models.TrialApplication:
         """处理试用申请"""
         email = application_data.get("email")
+        company_name = application_data.get("company_name")
+        contact_phone = application_data.get("contact_phone")
         
         # 检查邮箱是否已经存在
         if crud.user.get_by_email(db, email=email):
             raise HTTPException(
                 status_code=400,
                 detail="该邮箱已被注册"
+            )
+        
+        # 检查公司名是否已存在
+        existing_company = crud.trial_application.get_by_company_name(db, company_name=company_name)
+        if existing_company:
+            raise HTTPException(
+                status_code=400,
+                detail="该公司名已申请过试用"
+            )
+        
+        # 检查联系人手机是否已存在
+        existing_phone = crud.trial_application.get_by_contact_phone(db, contact_phone=contact_phone)
+        if existing_phone:
+            raise HTTPException(
+                status_code=400,
+                detail="该手机号已申请过试用"
             )
         
         # 检查是否有未完成的申请

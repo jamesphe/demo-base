@@ -1,5 +1,5 @@
 <template>
-  <div class="sidebar-container">
+  <div :class="{'has-logo':showLogo}">
     <logo v-if="showLogo" :collapse="isCollapse" />
     <el-scrollbar wrap-class="scrollbar-wrapper">
       <el-menu
@@ -30,14 +30,13 @@ import SidebarItem from './SidebarItem'
 import variables from '@/styles/variables.scss'
 
 export default {
+  name: 'Sidebar',
   components: { SidebarItem, Logo },
   computed: {
     ...mapGetters([
-      'sidebar'
+      'sidebar',
+      'routes'
     ]),
-    routes() {
-      return this.$router.options.routes.filter(route => !route.hidden)
-    },
     activeMenu() {
       const route = this.$route
       const { meta, path } = route
@@ -56,6 +55,14 @@ export default {
     isCollapse() {
       return !this.sidebar.opened
     }
+  },
+  mounted() {
+    // 添加 passive 选项
+    this.$el.addEventListener('scroll', this.handleScroll, { passive: true })
+  },
+  beforeDestroy() {
+    // 移除事件监听
+    this.$el.removeEventListener('scroll', this.handleScroll)
   }
 }
 </script>

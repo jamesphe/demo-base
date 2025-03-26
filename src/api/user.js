@@ -39,10 +39,21 @@ export function register(data) {
  * @param {Object} data - 试用申请数据
  */
 export function applyForTrial(data) {
+  // 转换数据格式从驼峰命名到下划线命名
+  const convertedData = {
+    company_name: data.companyName,
+    contact_name: data.contactName,
+    contact_phone: data.contactPhone,
+    contact_email: data.contactEmail,
+    company_size: data.companySize,
+    business_description: data.businessDescription,
+    application_reason: data.applicationReason
+  }
+
   return request({
     url: '/user/trial/apply',
     method: 'post',
-    data
+    data: convertedData
   })
 }
 

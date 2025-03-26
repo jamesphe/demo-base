@@ -1,10 +1,10 @@
 import Vue from 'vue'
 import Router from 'vue-router'
+import Layout from '@/layout'
+import { getToken } from '@/utils/auth'
+import store from '@/store'
 
 Vue.use(Router)
-
-/* Layout */
-import Layout from '@/layout'
 
 /**
  * constantRoutes
@@ -24,8 +24,13 @@ export const constantRoutes = [
   },
   {
     path: '/login',
-    component: () => import('@/views/login/index'),
-    hidden: true
+    name: 'login',
+    component: () => import('@/views/login/index.vue'),
+    hidden: true,
+    meta: {
+      title: '登录',
+      requiresAuth: false
+    }
   },
   {
     path: '/404',
@@ -43,7 +48,7 @@ export const constantRoutes = [
     component: () => import('@/views/home/index.vue'),
     meta: {
       title: '首页',
-      requiresAuth: false // 设置为 false 表示不需要权限验证
+      requiresAuth: false
     }
   },
   {
@@ -240,6 +245,23 @@ export const constantRoutes = [
       title: '试用状态',
       requireAuth: true
     }
+  },
+  {
+    path: '/dashboard',
+    component: Layout,
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/dashboard/index'),
+        name: 'Dashboard',
+        meta: {
+          title: '控制台',
+          icon: 'dashboard',
+          hasNavHeader: true,
+          requiresAuth: true
+        }
+      }
+    ]
   }
 ]
 
@@ -252,22 +274,44 @@ export const asyncRoutes = [
 ]
 
 const createRouter = () => new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
   scrollBehavior: () => ({ y: 0 }),
   routes: constantRoutes
 })
 
 const router = createRouter()
 
-// 路由守卫
+// 全局导航守卫
 router.beforeEach((to, from, next) => {
+  // 可以在这里处理路由信息
+  const routeInfo = {
+    currentRoute: to.path,
+    routeName: to.name,
+    hasNavHeader: to.meta.hasNavHeader
+  }
+
+  // 使用命名空间提交 mutation
+  store.commit('route/SET_ROUTE_INFO', routeInfo)
+
+  // 获取token
+  const token = localStorage.getItem('token') || getToken()
+
+  console.log('路由守卫 - 目标路由:', to)
+  console.log('路由守卫 - 来源路由:', from)
+
   // 如果路由需要权限验证
   if (to.meta.requiresAuth) {
-    const token = localStorage.getItem('token')
+    console.log('路由守卫 - 需要权限验证')
+    console.log('路由守卫 - Token状态:', token ? '存在' : '不存在')
     if (!token) {
-      next({ name: 'Login' })
+      console.log('路由守卫 - 无Token，重定向到登录页')
+      next({ name: 'login' })
       return
     }
   }
+
+  console.log('路由守卫 - 放行')
   next()
 })
 

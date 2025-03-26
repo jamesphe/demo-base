@@ -203,6 +203,10 @@
 import CountTo from 'vue-count-to'
 import 'animate.css'
 import NavHeader from '@/components/layout/NavHeader.vue'
+import Vue from 'vue'
+
+// 全局注册 NavHeader 组件
+Vue.component('NavHeader', NavHeader)
 
 export default {
   name: 'HomePage',

@@ -166,23 +166,15 @@ export default {
       })
     },
     handleLogin() {
-      this.$refs.loginForm.validate(valid => {
+      this.$refs.loginForm.validate(async valid => {
         if (valid) {
-          this.loading = true
-          this.$store.dispatch('user/login', {
-            username: this.loginForm.username.trim(),
-            password: this.loginForm.password
-          })
-            .then(() => {
-              this.$router.push({ path: this.redirect || '/dashboard' })
-            })
-            .catch(error => {
-              console.error('登录错误:', error)
-              this.$message.error('登录失败，请检查用户名和密码')
-            })
-            .finally(() => {
-              this.loading = false
-            })
+          try {
+            await this.$store.dispatch('user/login', this.loginForm)
+            // 登录成功后跳转到 dashboard
+            this.$router.push('/dashboard')
+          } catch (error) {
+            console.error('登录失败:', error)
+          }
         }
       })
     },
@@ -338,15 +330,32 @@ body {
 
         input {
           height: 40px;
-          padding-left: 15px;
+          padding-left: 40px !important;
           background-color: #f5f7fa;
           border: 1px solid #e4e7ed;
           border-radius: 4px;
+          transition: all 0.3s;
+
+          &:hover {
+            border-color: #c0c4cc;
+          }
 
           &:focus {
             border-color: $primary-color;
             background-color: white;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.1);
           }
+        }
+      }
+
+      .el-input__prefix {
+        left: 12px;
+        height: 40px;
+        line-height: 40px;
+
+        .el-input__icon {
+          line-height: 40px;
+          color: #909399;
         }
       }
 
@@ -355,11 +364,16 @@ body {
         right: 10px;
         top: 0;
         font-size: 16px;
-        color: $light-text;
+        color: #909399;
         cursor: pointer;
         height: 40px;
         display: flex;
         align-items: center;
+        transition: all 0.3s;
+
+        &:hover {
+          color: $primary-color;
+        }
       }
     }
 

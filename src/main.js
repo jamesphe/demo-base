@@ -1,4 +1,5 @@
 import Vue from 'vue'
+import Router from 'vue-router'
 
 import Cookies from 'js-cookie'
 
@@ -42,6 +43,9 @@ Vue.use(Element, {
 Object.keys(filters).forEach(key => {
   Vue.filter(key, filters[key])
 })
+
+// 正确注册 Vue Router
+Vue.use(Router)
 
 Vue.config.productionTip = false
 

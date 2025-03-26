@@ -26,8 +26,8 @@ async def login_access_token(
     )
     if not user:
         raise HTTPException(
-            status_code=400,
-            detail="Incorrect email or password"
+            status_code=401,
+            detail="用户名或密码错误"
         )
     elif not user.is_active:
         raise HTTPException(status_code=400, detail="用户未激活")

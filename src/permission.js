@@ -12,69 +12,54 @@ NProgress.configure({ showSpinner: false }) // NProgress Configuration
 const whiteList = ['/', '/login', '/register', '/trial-application'] // 无需权限验证的路由路径白名单
 
 router.beforeEach(async(to, from, next) => {
-  // 如果是白名单中的路径，直接放行
-  if (whiteList.includes(to.path)) {
-    next()
-    return
-  }
-
-  // start progress bar
+  // 开始进度条
   NProgress.start()
 
-  // set page title
+  // 设置页面标题
   document.title = getPageTitle(to.meta.title)
 
-  // determine whether the user has logged in
-  const hasToken = getToken()
+  try {
+    // 如果是白名单中的路径，直接放行，不获取用户信息
+    if (whiteList.includes(to.path)) {
+      next()
+      NProgress.done()
+      return
+    }
 
-  if (hasToken) {
-    if (to.path === '/login') {
-      // if is logged in, redirect to the home page
-      next({ path: '/' })
-      NProgress.done() // hack: https://github.com/PanJiaChen/vue-element-admin/pull/2939
-    } else {
-      // 获取用户信息
-      const hasGetUserInfo = store.getters.name
-      if (hasGetUserInfo) {
-        // 如果是试用用户且试用已过期，跳转到试用状态页面
-        if (store.getters.isTrialUser && store.getters.trialStatus === 'expired' &&
-            to.path !== '/trial-status' && to.path !== '/pricing') {
-          next({ path: '/trial-status' })
-        } else {
-          next()
-        }
+    const hasToken = getToken()
+
+    if (hasToken) {
+      if (to.path === '/login') {
+        next({ path: '/dashboard' })
       } else {
-        try {
-          await store.dispatch('user/getInfo')
-          await store.dispatch('user/getTrialStatus')
-
-          // 如果是试用用户且试用已过期，跳转到试用状态页面
-          if (store.getters.isTrialUser && store.getters.trialStatus === 'expired' &&
-              to.path !== '/trial-status' && to.path !== '/pricing') {
-            next({ path: '/trial-status' })
-          } else {
+        const hasGetUserInfo = store.getters.name
+        if (hasGetUserInfo) {
+          next()
+        } else {
+          try {
+            // 只有在需要时才获取用户信息
+            await store.dispatch('user/getInfo')
+            await store.dispatch('user/getTrialStatus')
             next()
+          } catch (error) {
+            await store.dispatch('user/resetToken')
+            Message.error(error || 'Has Error')
+            next('/login')
           }
-        } catch (error) {
-          // remove token and go to login page to re-login
-          await store.dispatch('user/resetToken')
-          Message.error(error || 'Has Error')
-          next(`/login?redirect=${to.path}`)
-          NProgress.done()
         }
       }
-    }
-  } else {
-    /* has no token*/
-
-    if (whiteList.indexOf(to.path) !== -1) {
-      // in the free login whitelist, go directly
-      next()
     } else {
-      // other pages that do not have permission to access are redirected to the login page.
-      next(`/login?redirect=${to.path}`)
-      NProgress.done()
+      if (to.meta.requiresAuth) {
+        next('/login')
+      } else {
+        next()
+      }
     }
+  } catch (error) {
+    console.error('路由守卫错误:', error)
+    next('/login')
+  } finally {
+    NProgress.done()
   }
 })
 

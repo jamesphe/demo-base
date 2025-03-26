@@ -47,14 +47,14 @@
             <el-button
               type="text"
               class="login-btn"
-              @click="$router.push('/login')"
+              @click="goTo('/login')"
             >
               <i class="el-icon-user" /> 登录
             </el-button>
             <el-button
               type="primary"
               class="trial-btn"
-              @click="$router.push('/trial-application')"
+              @click="goTo('/trial-application')"
             >
               <i class="el-icon-data-analysis" /> 免费试用
             </el-button>
@@ -103,10 +103,10 @@
 
           <el-dropdown trigger="click" @command="handleCommand">
             <span class="user-profile">
-              <el-avatar :size="32" :src="userInfo.avatar || ''">
-                {{ userInfo.username ? userInfo.username.charAt(0).toUpperCase() : 'U' }}
+              <el-avatar :size="32" :src="userAvatar">
+                {{ userName ? userName.charAt(0).toUpperCase() : 'U' }}
               </el-avatar>
-              <span class="username">{{ userInfo.username }}</span>
+              <span class="username">{{ userName }}</span>
               <i class="el-icon-arrow-down el-icon--right" />
             </span>
             <el-dropdown-menu slot="dropdown">
@@ -131,6 +131,8 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
+
 export default {
   name: 'NavHeader',
   props: {
@@ -141,10 +143,6 @@ export default {
     activeSection: {
       type: String,
       default: ''
-    },
-    isLoggedIn: {
-      type: Boolean,
-      default: false
     },
     userInfo: {
       type: Object,
@@ -180,16 +178,56 @@ export default {
     }
   },
   computed: {
+    ...mapGetters({
+      userLoggedIn: 'user/userLoggedIn',
+      userAvatar: 'user/avatar',
+      userName: 'user/name'
+    }),
     unreadCount() {
       return this.notifications.filter(n => !n.read).length
-    },
-    userLoggedIn() {
-      return this.isLoggedIn
     }
   },
   methods: {
     handleCommand(command) {
-      this.$emit('command', command)
+      console.log('处理导航命令:', command)
+      switch (command) {
+        case 'dashboard':
+          this.handleNavigation('/dashboard')
+          break
+        case 'profile':
+          this.handleNavigation('/profile')
+          break
+        case 'settings':
+          this.handleNavigation('/settings')
+          break
+        case 'logout':
+          this.handleLogout()
+          break
+      }
+    },
+    handleNavigation(path) {
+      if (!this.$router) {
+        console.error('Router is not available')
+        return
+      }
+
+      Promise.resolve(this.$router.push(path))
+        .catch(err => {
+          if (err.name !== 'NavigationDuplicated') {
+            console.error('导航错误:', err)
+          }
+        })
+    },
+    goTo(path) {
+      this.handleNavigation(path)
+    },
+    async handleLogout() {
+      try {
+        await this.$store.dispatch('user/logout')
+        this.handleNavigation('/login')
+      } catch (error) {
+        console.error('登出错误:', error)
+      }
     },
     toggleMobileMenu() {
       this.mobileMenuOpen = !this.mobileMenuOpen

@@ -37,52 +37,70 @@ const mutations = {
 }
 
 const actions = {
-  // user login
+  // login action
   login({ commit, dispatch }, userInfo) {
-    const { username, password } = userInfo
     return new Promise((resolve, reject) => {
-      login({ username: username.trim(), password: password })
-        .then(response => {
-          const { access_token } = response
-          commit('SET_TOKEN', access_token)
-          setToken(access_token)
-          dispatch('getInfo')
-          dispatch('getTrialStatus')
-          resolve()
-        })
-        .catch(error => {
-          reject(error)
-        })
+      login(userInfo).then(response => {
+        // 添加日志来检查响应
+        console.log('Login response:', response)
+
+        // 获取 token（兼容不同的返回格式）
+        const token = response.accessToken || response.token || response.data?.token || response.data?.accessToken
+
+        if (!token) {
+          reject(new Error('登录失败：未获取到token'))
+          return
+        }
+
+        // 同时使用两种方式存储 token 以确保兼容性
+        commit('SET_TOKEN', token)
+        setToken(token)
+        localStorage.setItem('token', token)
+
+        setTimeout(() => {
+          dispatch('getInfo').then(() => {
+            resolve()
+          }).catch(error => {
+            reject(error)
+          })
+        }, 100)
+      }).catch(error => {
+        reject(error)
+      })
     })
   },
 
   // get user info
   getInfo({ commit, state }) {
     return new Promise((resolve, reject) => {
-      getInfo()
-        .then(response => {
-          const { data } = response
+      // 如果没有 token，直接返回
+      if (!state.token) {
+        resolve()
+        return
+      }
 
-          if (!data) {
-            reject('Verification failed, please Login again.')
-          }
+      getInfo().then(response => {
+        const { data } = response
 
-          const { roles, name, avatar, introduction } = data
+        if (!data) {
+          reject('Verification failed, please Login again.')
+        }
 
-          // roles must be a non-empty array
-          if (!roles || roles.length <= 0) {
-            reject('getInfo: roles must be a non-null array!')
-          }
+        const { roles, name, avatar, introduction } = data
 
-          commit('SET_ROLES', roles)
-          commit('SET_NAME', name)
-          commit('SET_AVATAR', avatar)
-          commit('SET_INTRODUCTION', introduction)
-          resolve(data)
-        })
-        .catch(error => {
-          reject(error)
-        })
+        // roles must be a non-empty array
+        if (!roles || roles.length <= 0) {
+          reject('getInfo: roles must be a non-null array!')
+        }
+
+        commit('SET_ROLES', roles)
+        commit('SET_NAME', name)
+        commit('SET_AVATAR', avatar)
+        commit('SET_INTRODUCTION', introduction)
+        resolve(data)
+      }).catch(error => {
+        reject(error)
+      })
     })
   },
 
@@ -168,7 +186,10 @@ const actions = {
 const getters = {
   trialStatus: state => state.trialStatus,
   isTrialUser: state => state.isTrialUser,
-  userLoggedIn: state => !!state.token
+  userLoggedIn: state => !!state.token,
+  token: state => state.token,
+  avatar: state => state.avatar,
+  name: state => state.name
 }
 
 export default {

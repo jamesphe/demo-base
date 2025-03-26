@@ -1,8 +1,8 @@
 <template>
   <div class="navbar">
-    <hamburger id="hamburger-container" :is-active="sidebar.opened" class="hamburger-container" @toggleClick="toggleSideBar" />
+    <hamburger class="hamburger-container" :is-active="sidebar.opened" @toggleClick="toggleSideBar" />
 
-    <breadcrumb id="breadcrumb-container" class="breadcrumb-container" />
+    <breadcrumb class="breadcrumb-container" />
 
     <div class="right-menu">
       <template v-if="device!=='mobile'">
@@ -10,7 +10,9 @@
 
         <error-log class="errLog-container right-menu-item hover-effect" />
 
-        <screenfull id="screenfull" class="right-menu-item hover-effect" />
+        <el-tooltip content="全屏" effect="dark" placement="bottom">
+          <screenfull class="right-menu-item hover-effect" />
+        </el-tooltip>
 
         <el-tooltip content="Global Size" effect="dark" placement="bottom">
           <size-select id="size-select" class="right-menu-item hover-effect" />
@@ -20,24 +22,15 @@
 
       <el-dropdown class="avatar-container right-menu-item hover-effect" trigger="click">
         <div class="avatar-wrapper">
-          <img :src="avatar+'?imageView2/1/w/80/h/80'" class="user-avatar">
+          <img :src="avatar" class="user-avatar">
           <i class="el-icon-caret-bottom" />
         </div>
         <el-dropdown-menu slot="dropdown">
-          <router-link to="/profile/index">
-            <el-dropdown-item>Profile</el-dropdown-item>
+          <router-link to="/profile">
+            <el-dropdown-item>个人中心</el-dropdown-item>
           </router-link>
-          <router-link to="/">
-            <el-dropdown-item>Dashboard</el-dropdown-item>
-          </router-link>
-          <a target="_blank" href="https://github.com/PanJiaChen/vue-element-admin/">
-            <el-dropdown-item>Github</el-dropdown-item>
-          </a>
-          <a target="_blank" href="https://panjiachen.github.io/vue-element-admin-site/#/">
-            <el-dropdown-item>Docs</el-dropdown-item>
-          </a>
           <el-dropdown-item divided @click.native="logout">
-            <span style="display:block;">Log Out</span>
+            <span style="display:block;">退出登录</span>
           </el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>
@@ -55,6 +48,7 @@ import SizeSelect from '@/components/SizeSelect'
 import Search from '@/components/HeaderSearch'
 
 export default {
+  name: 'Navbar',
   components: {
     Breadcrumb,
     Hamburger,
@@ -94,9 +88,9 @@ export default {
     line-height: 46px;
     height: 100%;
     float: left;
+    padding: 0 15px;
     cursor: pointer;
     transition: background .3s;
-    -webkit-tap-highlight-color:transparent;
 
     &:hover {
       background: rgba(0, 0, 0, .025)

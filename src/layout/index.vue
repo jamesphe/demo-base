@@ -1,23 +1,48 @@
 <template>
   <div class="app-wrapper">
+    <!-- 左侧导航栏 -->
     <sidebar class="sidebar-container" />
+
     <div class="main-container">
+      <!-- 顶部导航栏 -->
       <navbar />
-      <div class="content">
-        <router-view />
+
+      <!-- 面包屑导航 -->
+      <div class="app-breadcrumb">
+        <breadcrumb />
       </div>
+
+      <!-- 主要内容区域 -->
+      <app-main />
     </div>
   </div>
 </template>
 
 <script>
-import { Sidebar, Navbar } from './components'
+import { Navbar, Sidebar, AppMain, Breadcrumb } from './components'
 
 export default {
   name: 'Layout',
   components: {
+    Navbar,
     Sidebar,
-    Navbar
+    AppMain,
+    Breadcrumb
+  },
+  computed: {
+    debugInfo() {
+      return {
+        currentRoute: this.$route.path,
+        routeName: this.$route.name,
+        hasNavHeader: !!this.$options.components.NavHeader
+      }
+    }
+  },
+  created() {
+    console.log('Layout组件创建:', {
+      route: this.$route,
+      components: this.$options.components
+    })
   }
 }
 </script>
@@ -27,26 +52,35 @@ export default {
   position: relative;
   height: 100%;
   width: 100%;
-  
-  .sidebar-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 1001;
-    width: 210px;
-    height: 100%;
-    overflow: hidden;
-    transition: width 0.28s;
+
+  &:after {
+    content: "";
+    display: table;
+    clear: both;
   }
-  
-  .main-container {
-    min-height: 100%;
-    margin-left: 210px;
-    position: relative;
-    
-    .content {
-      padding: 20px;
-    }
-  }
+}
+
+.sidebar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 210px;
+  height: 100%;
+  background: #304156;
+  z-index: 1001;
+  transition: width 0.28s;
+}
+
+.main-container {
+  min-height: 100%;
+  margin-left: 210px;
+  position: relative;
+}
+
+.app-breadcrumb {
+  padding: 15px 20px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,21,41,.08);
 }
 </style>

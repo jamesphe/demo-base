@@ -267,13 +267,13 @@ export default {
       loading: false,
       agreement: false,
       formData: {
-        companyName: '',
-        contactName: '',
-        contactPhone: '',
-        contactEmail: '',
-        companySize: '',
-        businessDescription: '',
-        applicationReason: ''
+        companyName: '未来智联科技有限公司',
+        contactName: '刘洋',
+        contactPhone: '13912345678',
+        contactEmail: 'liuyang@futurelink.com',
+        companySize: '201-500',
+        businessDescription: '公司专注于智慧人力资源管理平台研发，现阶段正在扩大产品推广团队，主要业务方向为SaaS招聘系统，近期有大规模招聘需求。',
+        applicationReason: '希望借助系统解决当前招聘流程繁琐、候选人筛选效率低等问题，提升HR团队工作效率，并借助AI智能推荐提升招聘质量。'
       },
       rules: {
         companyName: [
@@ -314,9 +314,22 @@ export default {
           this.loading = true
           try {
             await applyForTrial(this.formData)
-            this.$message.success('申请提交成功，我们将尽快审核')
+
+            // 使用 Element UI 的 MessageBox 显示成功对话框
+            await this.$confirm('申请提交成功！我们将在1-2个工作日内完成审核，请注意查收邮件通知。', '提交成功', {
+              confirmButtonText: '返回首页',
+              cancelButtonText: '留在当前页面',
+              type: 'success',
+              center: true
+            })
+
+            // 用户点击"返回首页"后才跳转
             this.$router.push('/')
           } catch (error) {
+            if (error === 'cancel') {
+              // 用户选择留在当前页面，不做任何处理
+              return
+            }
             this.$message.error(error.message || '申请提交失败，请稍后重试')
           } finally {
             this.loading = false

@@ -52,5 +52,17 @@ class CRUDTrialApplication(CRUDBase[TrialApplication, TrialApplicationCreate, Tr
             self.model.contact_email == email
         ).first()
 
+    def get_by_company_name(self, db: Session, *, company_name: str) -> Optional[TrialApplication]:
+        """根据公司名称获取试用申请记录"""
+        return db.query(self.model).filter(
+            self.model.company_name == company_name
+        ).first()
+
+    def get_by_contact_phone(self, db: Session, *, contact_phone: str) -> Optional[TrialApplication]:
+        """根据联系电话获取试用申请记录"""
+        return db.query(self.model).filter(
+            self.model.contact_phone == contact_phone
+        ).first()
+
 
 trial_application = CRUDTrialApplication(TrialApplication) 
