@@ -11,6 +11,7 @@ const state = {
 
 const mutations = {
   TOGGLE_SIDEBAR: state => {
+    console.log('TOGGLE_SIDEBAR mutation 被触发，当前状态:', state.sidebar.opened)
     state.sidebar.opened = !state.sidebar.opened
     state.sidebar.withoutAnimation = false
     if (state.sidebar.opened) {
@@ -18,6 +19,7 @@ const mutations = {
     } else {
       Cookies.set('sidebarStatus', 0)
     }
+    console.log('TOGGLE_SIDEBAR mutation 执行后状态:', state.sidebar.opened)
   },
   CLOSE_SIDEBAR: (state, withoutAnimation) => {
     Cookies.set('sidebarStatus', 0)
@@ -35,6 +37,7 @@ const mutations = {
 
 const actions = {
   toggleSideBar({ commit }) {
+    console.log('toggleSideBar action 被触发')
     commit('TOGGLE_SIDEBAR')
   },
   closeSideBar({ commit }, { withoutAnimation }) {

@@ -1,6 +1,11 @@
 <template>
   <div :class="{'has-logo':showLogo}">
-    <logo v-if="showLogo" :collapse="isCollapse" />
+    <div class="sidebar-logo-container" :style="{ background: variables.menuBg }">
+      <router-link to="/" class="sidebar-logo-link">
+        <img v-if="logo" :src="logo" class="sidebar-logo">
+        <h1 class="sidebar-title" :style="{ color: variables.menuText }">{{ title }}</h1>
+      </router-link>
+    </div>
     <el-scrollbar wrap-class="scrollbar-wrapper">
       <el-menu
         :default-active="activeMenu"
@@ -25,13 +30,12 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import Logo from './Logo'
 import SidebarItem from './SidebarItem'
 import variables from '@/styles/variables.scss'
 
 export default {
   name: 'Sidebar',
-  components: { SidebarItem, Logo },
+  components: { SidebarItem },
   computed: {
     ...mapGetters([
       'sidebar',
@@ -57,6 +61,12 @@ export default {
     },
     isCollapse() {
       return !this.sidebar.opened
+    },
+    logo() {
+      return require('@/assets/logo.png')
+    },
+    title() {
+      return '系统名称'
     }
   },
   mounted() {
@@ -83,6 +93,42 @@ export default {
     border: none;
     height: 100%;
     width: 100% !important;
+  }
+}
+
+.sidebar-logo-container {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  line-height: 50px;
+  text-align: center;
+  overflow: hidden;
+  transition: background .3s;
+
+  .sidebar-logo-link {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .sidebar-logo {
+      width: 32px;
+      height: 32px;
+      vertical-align: middle;
+      margin-right: 12px;
+    }
+
+    .sidebar-title {
+      display: inline-block;
+      margin: 0;
+      font-weight: 600;
+      line-height: 50px;
+      font-size: 14px;
+      font-family: Avenir, Helvetica Neue, Arial, Helvetica, sans-serif;
+      vertical-align: middle;
+      transition: color .3s;
+    }
   }
 }
 </style>

@@ -58,7 +58,9 @@ const actions = {
         localStorage.setItem('token', token)
 
         setTimeout(() => {
-          dispatch('getInfo').then(() => {
+          dispatch('getInfo').then(({ roles }) => {
+            // 根据权限生成可访问的路由
+            dispatch('permission/generateRoutes', roles, { root: true })
             resolve()
           }).catch(error => {
             reject(error)

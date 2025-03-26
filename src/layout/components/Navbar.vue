@@ -66,7 +66,11 @@ export default {
   },
   methods: {
     toggleSideBar() {
+      console.log('触发折叠菜单', this.sidebar.opened)
       this.$store.dispatch('app/toggleSideBar')
+      this.$nextTick(() => {
+        console.log('菜单状态更新后:', this.sidebar.opened)
+      })
     },
     async logout() {
       await this.$store.dispatch('user/logout')

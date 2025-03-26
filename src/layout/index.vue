@@ -1,5 +1,5 @@
 <template>
-  <div class="app-wrapper">
+  <div :class="classObj" class="app-wrapper">
     <!-- 左侧导航栏 -->
     <sidebar class="sidebar-container" />
 
@@ -20,6 +20,7 @@
 
 <script>
 import { Navbar, Sidebar, AppMain, Breadcrumb } from './components'
+import { mapState } from 'vuex'
 
 export default {
   name: 'Layout',
@@ -30,6 +31,16 @@ export default {
     Breadcrumb
   },
   computed: {
+    ...mapState({
+      sidebar: state => state.app.sidebar
+    }),
+    classObj() {
+      return {
+        hideSidebar: !this.sidebar.opened,
+        openSidebar: this.sidebar.opened,
+        withoutAnimation: this.sidebar.withoutAnimation
+      }
+    },
     debugInfo() {
       return {
         currentRoute: this.$route.path,
@@ -58,24 +69,35 @@ export default {
     display: table;
     clear: both;
   }
-}
 
-.sidebar-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 210px;
-  height: 100%;
-  background: #304156;
-  z-index: 1001;
-  transition: width 0.28s;
-}
+  &.hideSidebar {
+    .sidebar-container {
+      width: 54px !important;
+    }
+    .main-container {
+      margin-left: 54px;
+    }
+  }
 
-.main-container {
-  min-height: 100%;
-  margin-left: 210px;
-  position: relative;
+  .sidebar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 210px;
+    height: 100%;
+    background: #304156;
+    z-index: 1001;
+    transition: width 0.28s;
+    overflow: hidden;
+  }
+
+  .main-container {
+    min-height: 100%;
+    margin-left: 210px;
+    position: relative;
+    transition: margin-left 0.28s;
+  }
 }
 
 .app-breadcrumb {
