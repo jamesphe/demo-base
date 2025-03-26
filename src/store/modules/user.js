@@ -58,15 +58,24 @@ const actions = {
         localStorage.setItem('token', token)
 
         setTimeout(() => {
+          console.log('开始获取用户信息')
           dispatch('getInfo').then(({ roles }) => {
+            console.log('获取用户信息成功，开始生成路由')
             // 根据权限生成可访问的路由
-            dispatch('permission/generateRoutes', roles, { root: true })
-            resolve()
+            dispatch('permission/generateRoutes', roles, { root: true }).then(() => {
+              console.log('路由生成成功')
+              resolve()
+            }).catch(error => {
+              console.error('路由生成失败', error)
+              reject(error)
+            })
           }).catch(error => {
+            console.error('获取用户信息失败', error)
             reject(error)
           })
         }, 100)
       }).catch(error => {
+        console.error('登录失败', error)
         reject(error)
       })
     })
