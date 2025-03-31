@@ -2,14 +2,14 @@
   <div v-if="!item.hidden">
     <template v-if="!item.children">
       <el-menu-item :index="resolvePath(item.path)">
-        <i v-if="item.icon" :class="item.icon"></i>
+        <i v-if="item.icon" :class="item.icon" />
         <span slot="title">{{ item.title }}</span>
       </el-menu-item>
     </template>
 
     <el-submenu v-else :index="resolvePath(item.path)">
       <template slot="title">
-        <i v-if="item.icon" :class="item.icon"></i>
+        <i v-if="item.icon" :class="item.icon" />
         <span>{{ item.title }}</span>
       </template>
       <sidebar-item
@@ -42,6 +42,9 @@ export default {
       if (this.isExternalLink(routePath)) {
         return routePath
       }
+      if (routePath.startsWith('/')) {
+        return routePath
+      }
       return path.resolve(this.basePath, routePath)
     },
     isExternalLink(path) {
@@ -49,4 +52,4 @@ export default {
     }
   }
 }
-</script> 
+</script>

@@ -46,6 +46,7 @@ export const constantRoutes = [
     path: '/',
     name: 'Home',
     component: () => import('@/views/home/index.vue'),
+    hidden: true,
     meta: {
       title: '首页',
       requiresAuth: false
@@ -64,187 +65,6 @@ export const constantRoutes = [
         meta: { title: '个人中心', icon: 'user', noCache: true }
       }
     ]
-  },
-  // 职位管理
-  {
-    path: '/position',
-    component: Layout,
-    meta: { title: '职位管理', icon: 'el-icon-suitcase' },
-    children: [
-      {
-        path: 'publish',
-        component: () => import('@/views/position/publish'),
-        name: 'PositionPublish',
-        meta: { title: '职位发布' }
-      },
-      {
-        path: 'maintain',
-        component: () => import('@/views/position/maintain'),
-        name: 'PositionMaintain',
-        meta: { title: '职位维护' }
-      }
-    ]
-  },
-  // 简历管理
-  {
-    path: '/resume',
-    component: Layout,
-    meta: { title: '简历管理', icon: 'el-icon-document' },
-    children: [
-      {
-        path: 'upload',
-        component: () => import('@/views/resume/upload'),
-        name: 'ResumeUpload',
-        meta: { title: '简历上传' }
-      },
-      {
-        path: 'parse',
-        component: () => import('@/views/resume/parse'),
-        name: 'ResumeParse',
-        meta: { title: '简历解析' }
-      },
-      {
-        path: 'storage',
-        component: () => import('@/views/resume/storage'),
-        name: 'ResumeStorage',
-        meta: { title: '简历存储' }
-      },
-      {
-        path: 'search',
-        component: () => import('@/views/resume/search'),
-        name: 'ResumeSearch',
-        meta: { title: '简历检索' }
-      },
-      {
-        path: 'ai-chat',
-        name: 'ResumeAIChat',
-        component: () => import('@/views/resume/ai-chat/index.vue'),
-        meta: { title: 'AI简历助手' }
-      },
-      {
-        path: 'detail/:id',
-        name: 'ResumeDetail',
-        component: () => import('@/views/resume/detail/index.vue'),
-        meta: { title: '简历详情' },
-        hidden: true
-      }
-    ]
-  },
-  // 候选人管理
-  {
-    path: '/candidate',
-    component: Layout,
-    name: 'Candidate',
-    meta: { title: '候选管理', icon: 'el-icon-s-custom' },
-    children: [
-      {
-        path: 'profile',
-        component: () => import('@/views/candidate/profile'),
-        name: 'CandidateProfile',
-        meta: { title: '候选人档案' }
-      },
-      {
-        path: 'evaluation',
-        component: () => import('@/views/candidate/evaluation'),
-        name: 'CandidateEvaluation',
-        meta: { title: '候选人评估' }
-      },
-      {
-        path: 'recommendation',
-        component: () => import('@/views/candidate/recommendation'),
-        name: 'CandidateRecommendation',
-        meta: { title: '候选人推荐' }
-      }
-    ]
-  },
-  // 面试管理
-  {
-    path: '/interview',
-    component: Layout,
-    meta: { title: '面试管理', icon: 'el-icon-date' },
-    children: [
-      {
-        path: 'schedule',
-        component: () => import('@/views/interview/schedule'),
-        name: 'InterviewSchedule',
-        meta: { title: '面试安排' }
-      },
-      {
-        path: 'record',
-        component: () => import('@/views/interview/record'),
-        name: 'InterviewRecord',
-        meta: { title: '面试记录' }
-      }
-    ]
-  },
-  // 招聘分析
-  {
-    path: '/analysis',
-    component: Layout,
-    meta: { title: '招聘分析', icon: 'el-icon-data-line' },
-    children: [
-      {
-        path: 'progress',
-        component: () => import('@/views/analysis/progress'),
-        name: 'AnalysisProgress',
-        meta: { title: '招聘进度' }
-      },
-      {
-        path: 'effect',
-        component: () => import('@/views/analysis/effect'),
-        name: 'AnalysisEffect',
-        meta: { title: '招聘效果' }
-      }
-    ]
-  },
-  // 系统设置
-  {
-    path: '/settings',
-    component: Layout,
-    meta: { title: '系统设置', icon: 'el-icon-setting' },
-    children: [
-      {
-        path: 'user',
-        component: () => import('@/views/settings/user'),
-        name: 'SettingsUser',
-        meta: { title: '用户管理' }
-      },
-      {
-        path: 'role',
-        component: () => import('@/views/settings/role'),
-        name: 'SettingsRole',
-        meta: { title: '角色管理' }
-      },
-      {
-        path: 'permission',
-        component: () => import('@/views/settings/permission'),
-        name: 'SettingsPermission',
-        meta: { title: '权限管理' }
-      }
-    ]
-  },
-  {
-    path: '/register',
-    component: () => import('@/views/register/index'),
-    hidden: true
-  },
-  {
-    path: '/trial-application',
-    component: () => import('@/views/trial-application/index'),
-    name: 'TrialApplication',
-    meta: {
-      title: '申请免费试用',
-      requiresAuth: false // 明确设置为不需要登录权限
-    }
-  },
-  {
-    path: '/trial-status',
-    component: () => import('@/views/trial-status/index'),
-    name: 'TrialStatus',
-    meta: {
-      title: '试用状态',
-      requireAuth: true
-    }
   },
   {
     path: '/dashboard',
@@ -270,7 +90,243 @@ export const constantRoutes = [
  * 需要根据用户角色动态加载的路由
  */
 export const asyncRoutes = [
-  { path: '*', redirect: '/404', hidden: true }
+  { path: '*', redirect: '/404', hidden: true },
+  // 职位管理
+  {
+    path: '/position',
+    component: Layout,
+    meta: {
+      title: '职位管理',
+      icon: 'el-icon-suitcase',
+      roles: ['admin', 'tenant_admin', 'tenant_hr']
+    },
+    children: [
+      {
+        path: 'publish',
+        component: () => import('@/views/position/publish'),
+        name: 'PositionPublish',
+        meta: {
+          title: '职位发布',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
+      },
+      {
+        path: 'maintain',
+        component: () => import('@/views/position/maintain'),
+        name: 'PositionMaintain',
+        meta: {
+          title: '职位维护',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
+      }
+    ]
+  },
+  // 简历管理
+  {
+    path: '/resume',
+    component: Layout,
+    meta: {
+      title: '简历管理',
+      icon: 'el-icon-document',
+      roles: ['admin', 'tenant_admin', 'tenant_hr', 'tenant_viewer']
+    },
+    children: [
+      {
+        path: 'upload',
+        component: () => import('@/views/resume/upload'),
+        name: 'ResumeUpload',
+        meta: {
+          title: '简历上传',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
+      },
+      {
+        path: 'parse',
+        component: () => import('@/views/resume/parse'),
+        name: 'ResumeParse',
+        meta: {
+          title: '简历解析',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
+      },
+      {
+        path: 'storage',
+        component: () => import('@/views/resume/storage'),
+        name: 'ResumeStorage',
+        meta: {
+          title: '简历存储',
+          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer']
+        }
+      },
+      {
+        path: 'search',
+        component: () => import('@/views/resume/search'),
+        name: 'ResumeSearch',
+        meta: {
+          title: '简历检索',
+          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer']
+        }
+      },
+      {
+        path: 'ai-chat',
+        name: 'ResumeAIChat',
+        component: () => import('@/views/resume/ai-chat/index.vue'),
+        meta: {
+          title: 'AI简历助手',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
+      },
+      {
+        path: 'detail/:id',
+        name: 'ResumeDetail',
+        component: () => import('@/views/resume/detail/index.vue'),
+        meta: {
+          title: '简历详情',
+          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer']
+        },
+        hidden: true
+      }
+    ]
+  },
+  // 候选人管理
+  {
+    path: '/candidate',
+    component: Layout,
+    name: 'Candidate',
+    meta: {
+      title: '候选管理',
+      icon: 'el-icon-s-custom',
+      roles: ['admin', 'tenant_admin', 'tenant_hr', 'tenant_viewer']
+    },
+    children: [
+      {
+        path: 'profile',
+        component: () => import('@/views/candidate/profile'),
+        name: 'CandidateProfile',
+        meta: {
+          title: '候选人档案',
+          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer']
+        }
+      },
+      {
+        path: 'evaluation',
+        component: () => import('@/views/candidate/evaluation'),
+        name: 'CandidateEvaluation',
+        meta: {
+          title: '候选人评估',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
+      },
+      {
+        path: 'recommendation',
+        component: () => import('@/views/candidate/recommendation'),
+        name: 'CandidateRecommendation',
+        meta: {
+          title: '候选人推荐',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
+      }
+    ]
+  },
+  // 面试管理
+  {
+    path: '/interview',
+    component: Layout,
+    meta: {
+      title: '面试管理',
+      icon: 'el-icon-date',
+      roles: ['admin', 'tenant_admin', 'tenant_hr']
+    },
+    children: [
+      {
+        path: 'schedule',
+        component: () => import('@/views/interview/schedule'),
+        name: 'InterviewSchedule',
+        meta: {
+          title: '面试安排',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
+      },
+      {
+        path: 'record',
+        component: () => import('@/views/interview/record'),
+        name: 'InterviewRecord',
+        meta: {
+          title: '面试记录',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
+      }
+    ]
+  },
+  // 招聘分析
+  {
+    path: '/analysis',
+    component: Layout,
+    meta: {
+      title: '招聘分析',
+      icon: 'el-icon-data-line',
+      roles: ['admin', 'tenant_admin']
+    },
+    children: [
+      {
+        path: 'progress',
+        component: () => import('@/views/analysis/progress'),
+        name: 'AnalysisProgress',
+        meta: {
+          title: '招聘进度',
+          roles: ['tenant_admin']
+        }
+      },
+      {
+        path: 'effect',
+        component: () => import('@/views/analysis/effect'),
+        name: 'AnalysisEffect',
+        meta: {
+          title: '招聘效果',
+          roles: ['tenant_admin']
+        }
+      }
+    ]
+  },
+  // 系统设置
+  {
+    path: '/settings',
+    component: Layout,
+    meta: {
+      title: '系统设置',
+      icon: 'el-icon-setting',
+      roles: ['admin', 'tenant_admin']
+    },
+    children: [
+      {
+        path: 'user',
+        component: () => import('@/views/settings/user'),
+        name: 'SettingsUser',
+        meta: {
+          title: '用户管理',
+          roles: ['tenant_admin']
+        }
+      },
+      {
+        path: 'role',
+        component: () => import('@/views/settings/role'),
+        name: 'SettingsRole',
+        meta: {
+          title: '角色管理',
+          roles: ['tenant_admin']
+        }
+      },
+      {
+        path: 'permission',
+        component: () => import('@/views/settings/permission'),
+        name: 'SettingsPermission',
+        meta: {
+          title: '权限管理',
+          roles: ['tenant_admin']
+        }
+      }
+    ]
+  }
 ]
 
 const createRouter = () => new Router({

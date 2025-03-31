@@ -51,10 +51,18 @@ const actions = {
     return new Promise(resolve => {
       let accessedRoutes
       if (roles.includes('admin')) {
-        accessedRoutes = asyncRoutes || []
+        // 管理员角色，添加所有路由
+        accessedRoutes = asyncRoutes
       } else {
+        // 非管理员角色，过滤路由
         accessedRoutes = filterAsyncRoutes(asyncRoutes, roles)
       }
+
+      // 添加404路由到最后
+      if (accessedRoutes.length > 0) {
+        accessedRoutes.push({ path: '*', redirect: '/404', hidden: true })
+      }
+
       commit('SET_ROUTES', accessedRoutes)
       resolve(accessedRoutes)
     })
