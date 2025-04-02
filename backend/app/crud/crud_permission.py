@@ -32,5 +32,12 @@ class CRUDPermission(CRUDBase[Permission, PermissionCreate, PermissionUpdate]):
             .all()
         )
 
+    def count(
+        self,
+        db: Session
+    ) -> int:
+        """获取权限总数"""
+        return db.query(Permission).count()
+
 
 permission = CRUDPermission(Permission) 

@@ -11,10 +11,10 @@ router = APIRouter()
 @router.get("/", response_model=schemas.PermissionListResponse)
 def read_permissions(
     db: Session = Depends(deps.get_db),
-    page: int = Query(1, ge=1, description="页码"),
-    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
+    page: int = 1,
+    per_page: int = 100
 ) -> Any:
-    """获取权限列表"""
+    """获取所有权限列表"""
     skip = (page - 1) * per_page
     permissions = crud.permission.get_multi(db, skip=skip, limit=per_page)
     total = crud.permission.count(db)

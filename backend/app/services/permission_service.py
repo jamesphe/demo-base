@@ -1,16 +1,19 @@
 from typing import List, Dict, Any, Optional, Set
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
-from datetime import datetime
-from sqlalchemy import and_, or_
 
-from app import models, schemas
+from app import models
 from app.schemas.permission import PermissionCreate, PermissionUpdate
-from app.schemas.role import RoleCreate, RoleUpdate
 from .base import BaseService
 
 
-class PermissionService(BaseService[models.Permission, PermissionCreate, PermissionUpdate]):
+class PermissionService(
+    BaseService[
+        models.Permission,
+        PermissionCreate,
+        PermissionUpdate
+    ]
+):
     """权限服务"""
     
     def __init__(self):

@@ -1,8 +1,9 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 
-from app import crud, models, schemas
+from app import crud, schemas
 from app.api import deps
 
 router = APIRouter()
@@ -58,6 +59,9 @@ def create_role(
     return role
 
 
+class RolePermissionUpdate(BaseModel):
+    permission_ids: List[int]
+
 @router.put(
     "/{role_id}/permissions",
     response_model=schemas.Role,
@@ -73,7 +77,7 @@ def update_role_permissions(
     *,
     db: Session = Depends(deps.get_db),
     role_id: int,
-    permission_ids: List[int],
+    body: RolePermissionUpdate,
 ) -> Any:
     """更新角色权限"""
     role = crud.role.get(db=db, id=role_id)
@@ -84,13 +88,33 @@ def update_role_permissions(
         )
     
     permissions = []
-    for perm_id in permission_ids:
+    for perm_id in body.permission_ids:
         perm = crud.permission.get(db=db, id=perm_id)
-        if perm:
-            permissions.append(perm)
+        if not perm:
+            raise HTTPException(
+                status_code=400,
+                detail=f"权限ID {perm_id} 不存在"
+            )
+        permissions.append(perm)
     
     role.permissions = permissions
     db.add(role)
     db.commit()
     db.refresh(role)
-    return role 
+    return role
+
+
+@router.get("/{role_id}/permissions", response_model=List[schemas.Permission])
+def read_role_permissions(
+    *,
+    db: Session = Depends(deps.get_db),
+    role_id: int,
+) -> Any:
+    """获取角色的权限列表"""
+    role = crud.role.get(db=db, id=role_id)
+    if not role:
+        raise HTTPException(
+            status_code=404,
+            detail="角色不存在"
+        )
+    return role.permissions 

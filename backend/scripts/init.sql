@@ -382,8 +382,19 @@ CREATE TABLE role (
 CREATE TABLE permission (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
-    description VARCHAR(255)
+    description VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 为权限表添加更新时间触发器
+CREATE TRIGGER update_permission_updated_at
+    BEFORE UPDATE ON permission
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 添加权限表索引
+CREATE INDEX idx_permission_name ON permission(name);
 
 -- 18. 角色-权限关联表
 CREATE TABLE role_permission (

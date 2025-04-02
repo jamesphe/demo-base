@@ -28,8 +28,10 @@ class PermissionInDBBase(PermissionBase):
     }
 
 
-class Permission(PermissionInDBBase):
-    pass
+class Permission(PermissionBase):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class PermissionListResponse(ListResponse[Permission]):
