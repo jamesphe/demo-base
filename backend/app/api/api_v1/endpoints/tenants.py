@@ -1,27 +1,46 @@
-from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Any
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app import crud, models, schemas
+from app import crud, schemas
 from app.api import deps
 from app.services.tenant_service import tenant_service
+
 
 router = APIRouter()
 
 
 @router.get(
     "/",
-    response_model=List[schemas.Tenant],
+    response_model=schemas.TenantListResponse,
     dependencies=[Depends(deps.get_current_active_superuser)]
 )
 def read_tenants(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="页码"),
+    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
 ) -> Any:
     """获取租户列表"""
-    tenants = crud.tenant.get_multi(db, skip=skip, limit=limit)
-    return tenants
+    # 转换分页参数
+    skip = (page - 1) * per_page
+    
+    # 获取数据和总数
+    tenants = crud.tenant.get_multi(db, skip=skip, limit=per_page)
+    total = crud.tenant.count(db)
+    
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+    
+    # 返回统一格式
+    return {
+        "data": tenants,
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
+        }
+    }
 
 
 @router.post(

@@ -1,11 +1,12 @@
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
 from app.utils.security import generate_random_password
+from app.services.user_service import user_service
 
 
 class TrialApplicationService:
@@ -15,7 +16,7 @@ class TrialApplicationService:
         application_data: Dict[str, Any]
     ) -> models.TrialApplication:
         """处理试用申请"""
-        email = application_data.get("email")
+        email = application_data.get("contact_email")
         company_name = application_data.get("company_name")
         contact_phone = application_data.get("contact_phone")
         
@@ -102,7 +103,8 @@ class TrialApplicationService:
     @staticmethod
     def approve_trial(
         db: Session, 
-        trial_id: int
+        trial_id: int,
+        approval_data: Dict[str, Any]
     ) -> models.TrialApplication:
         """审批通过试用申请"""
         trial = crud.trial_application.get(db, id=trial_id)
@@ -112,26 +114,58 @@ class TrialApplicationService:
         if trial.status != "pending":
             raise HTTPException(status_code=400, detail="只能审批待处理的申请")
         
-        # 创建用户账号
+        # 验证邮箱是否已被使用
+        if crud.user.get_by_email(db, email=approval_data["admin"]["email"]):
+            raise HTTPException(
+                status_code=400,
+                detail="管理员邮箱已被使用"
+            )
+        
+        # 创建租户
+        tenant_data = approval_data["tenant"]
+        tenant_in = schemas.TenantCreate(
+            tenant_name=tenant_data["name"],
+            contact_person=tenant_data["contact_person"],
+            phone=tenant_data["phone"],
+            email=tenant_data["email"],
+            address=tenant_data["address"],
+            status="active"
+        )
+        tenant = crud.tenant.create(db, obj_in=tenant_in)
+        
+        # 创建管理员账号
+        admin_data = approval_data["admin"]
         user_in = schemas.UserCreate(
-            email=trial.contact_email,
-            username=trial.company_name,
-            password=generate_random_password(length=8),
+            email=admin_data["email"],
+            username=admin_data["username"],
+            password=admin_data["password"],
             is_active=True,
-            user_type="tenant"
+            user_type="tenant",
+            tenant_id=tenant.id
         )
         user = crud.user.create(db, obj_in=user_in)
         
-        # 设置试用期为14天
-        start_date = datetime.now()
-        end_date = start_date + timedelta(days=14)
+        # 获取租户管理员角色并分配给新用户
+        tenant_admin_role = crud.role.get_by_name(db, name="tenant_admin")
+        if tenant_admin_role:
+            user_service.add_user_role(
+                db,
+                user_id=user.id,
+                role_id=tenant_admin_role.id,
+                current_user=user  # 这里传入新创建的用户作为当前用户
+            )
+        
+        # 设置试用期
+        start_date = datetime.strptime(approval_data["trial_start_date"], "%Y-%m-%d")
+        end_date = start_date + timedelta(days=approval_data["trial_days"])
         
         # 更新试用申请状态
         trial_update = schemas.TrialApplicationUpdate(
             status="active",
             trial_start_date=start_date,
             trial_end_date=end_date,
-            user_id=user.id
+            user_id=user.id,
+            tenant_id=tenant.id
         )
         return crud.trial_application.update(
             db, 
@@ -175,3 +209,52 @@ class TrialApplicationService:
             skip=skip, 
             limit=limit
         )
+
+    @staticmethod
+    def get_trial_list(db: Session, skip: int = 0, limit: int = 100) -> List[models.TrialApplication]:
+        """获取所有试用申请记录"""
+        return db.query(models.TrialApplication)\
+            .order_by(models.TrialApplication.id.desc())\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+
+    @staticmethod
+    def get_pending_trials_with_count(
+        db: Session,
+        skip: int = 0,
+        limit: int = 100
+    ) -> tuple[List[models.TrialApplication], int]:
+        """获取待审核的试用申请列表及总数"""
+        # 获取数据
+        trials = crud.trial_application.get_pending_applications(
+            db, 
+            skip=skip, 
+            limit=limit
+        )
+        
+        # 获取总数
+        total = db.query(models.TrialApplication).filter(
+            models.TrialApplication.status == "pending"
+        ).count()
+        
+        return trials, total
+
+    @staticmethod
+    def get_trial_list_with_count(
+        db: Session,
+        skip: int = 0,
+        limit: int = 100
+    ) -> tuple[List[models.TrialApplication], int]:
+        """获取所有试用申请记录及总数"""
+        # 获取数据
+        trials = db.query(models.TrialApplication)\
+            .order_by(models.TrialApplication.id.desc())\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        
+        # 获取总数
+        total = db.query(models.TrialApplication).count()
+        
+        return trials, total

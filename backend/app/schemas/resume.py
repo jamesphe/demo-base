@@ -2,6 +2,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pydantic import BaseModel, Field
 from enum import Enum
+from .common import ListResponse
 
 
 # 基础信息模型
@@ -523,4 +524,8 @@ class ProcessingStatus(str, Enum):
     PENDING = "pending"
     COMPLETED = "completed"
     VALIDATION_FAILED = "validation_failed"
-    FAILED = "failed" 
+    FAILED = "failed"
+
+
+class ResumeListResponse(ListResponse[Resume]):
+    pass 

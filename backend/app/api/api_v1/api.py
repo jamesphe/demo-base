@@ -145,6 +145,6 @@ api_router.include_router(
 # 试用相关
 api_router.include_router(
     trial_application.router,
-    prefix="/user/trial",
+    prefix="/trial",
     tags=["试用管理"]
 )

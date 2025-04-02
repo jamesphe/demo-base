@@ -1,5 +1,5 @@
 <template>
-  <el-table :data="list" style="width: 100%;padding-top: 15px;">
+  <el-table :data="list || []" style="width: 100%;padding-top: 15px;">
     <el-table-column label="Order_No" min-width="200">
       <template slot-scope="scope">
         {{ scope.row.order_no | orderNoFilter }}
@@ -30,15 +30,15 @@ export default {
         success: 'success',
         pending: 'danger'
       }
-      return statusMap[status]
+      return statusMap[status] || ''
     },
     orderNoFilter(str) {
-      return str.substring(0, 30)
+      return str ? str.substring(0, 30) : ''
     }
   },
   data() {
     return {
-      list: null
+      list: []
     }
   },
   created() {
@@ -47,7 +47,15 @@ export default {
   methods: {
     fetchData() {
       transactionList().then(response => {
-        this.list = response.data.items.slice(0, 8)
+        if (response && response.data && response.data.items) {
+          this.list = response.data.items.slice(0, 8)
+        } else {
+          this.list = []
+          console.warn('No transaction data received')
+        }
+      }).catch(error => {
+        console.error('Error fetching transaction data:', error)
+        this.list = []
       })
     }
   }

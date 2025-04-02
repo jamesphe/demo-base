@@ -23,8 +23,12 @@ export default {
       return 'router-link'
     }
   },
+  created() {
+    console.log('AppLink created with to:', this.to)
+  },
   methods: {
     linkProps(url) {
+      console.log('AppLink linkProps called with url:', url)
       if (isExternal(url)) {
         return {
           href: url,

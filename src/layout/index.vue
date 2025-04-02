@@ -7,11 +7,6 @@
       <!-- 顶部导航栏 -->
       <navbar />
 
-      <!-- 面包屑导航 -->
-      <div class="app-breadcrumb">
-        <breadcrumb />
-      </div>
-
       <!-- 主要内容区域 -->
       <app-main />
     </div>
@@ -19,7 +14,7 @@
 </template>
 
 <script>
-import { Navbar, Sidebar, AppMain, Breadcrumb } from './components'
+import { Navbar, Sidebar, AppMain } from './components'
 import { mapState } from 'vuex'
 
 export default {
@@ -27,8 +22,7 @@ export default {
   components: {
     Navbar,
     Sidebar,
-    AppMain,
-    Breadcrumb
+    AppMain
   },
   computed: {
     ...mapState({
@@ -54,6 +48,14 @@ export default {
       route: this.$route,
       components: this.$options.components
     })
+  },
+  mounted() {
+    window.addEventListener('scroll', this.handleScroll, {
+      passive: true
+    })
+  },
+  beforeDestroy() {
+    window.removeEventListener('scroll', this.handleScroll)
   }
 }
 </script>
@@ -98,11 +100,5 @@ export default {
     position: relative;
     transition: margin-left 0.28s;
   }
-}
-
-.app-breadcrumb {
-  padding: 15px 20px;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,21,41,.08);
 }
 </style>

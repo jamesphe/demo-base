@@ -4,6 +4,7 @@ import getters from './getters'
 import user from './modules/user'
 import route from './modules/route'
 import permission from './modules/permission'
+import trial from './modules/trial'
 
 Vue.use(Vuex)
 
@@ -24,6 +25,7 @@ const store = new Vuex.Store({
   modules: {
     user,
     route,
+    trial,
     ...modulesList,
     permission
   },

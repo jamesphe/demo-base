@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field
+from .common import ListResponse
 
 
 class TrialApplicationBase(BaseModel):
@@ -99,4 +100,10 @@ class TrialStatus(BaseModel):
                 "contact_name": "张三"
             }
         }
-    } 
+    }
+
+
+# 添加列表响应模型
+class TrialApplicationListResponse(ListResponse[TrialApplication]):
+    """试用申请列表响应模型"""
+    pass 

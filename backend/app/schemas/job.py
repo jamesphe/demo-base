@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, List, Any
 from pydantic import BaseModel, Field
+from .common import ListResponse
 
 
 # 先定义 JobRequiredSkill 和 JobRequiredCertification
@@ -119,10 +120,5 @@ class JobWithCandidateCount(Job):
     candidate_count: int = 0
 
 
-class JobListResponse(BaseModel):
-    code: int
-    message: str
-    data: dict[str, Any] = {
-        "total": int,
-        "list": List[JobWithCandidateCount]
-    } 
+class JobListResponse(ListResponse[Job]):
+    pass 

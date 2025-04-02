@@ -33,6 +33,22 @@ def init_permissions(db: Session) -> None:
         {"name": "job_create", "description": "创建职位"},
         {"name": "job_update", "description": "更新职位"},
         {"name": "job_delete", "description": "删除职位"},
+        {"name": "tenant_read", "description": "查看租户"},
+        {"name": "tenant_create", "description": "创建租户"},
+        {"name": "tenant_update", "description": "更新租户"},
+        {"name": "tenant_delete", "description": "删除租户"},
+        {"name": "user_read", "description": "查看用户"},
+        {"name": "user_create", "description": "创建用户"},
+        {"name": "user_update", "description": "更新用户"},
+        {"name": "user_delete", "description": "删除用户"},
+        {"name": "role_read", "description": "查看角色"},
+        {"name": "role_create", "description": "创建角色"},
+        {"name": "role_update", "description": "更新角色"},
+        {"name": "role_delete", "description": "删除角色"},
+        {"name": "interview_read", "description": "查看面试"},
+        {"name": "interview_create", "description": "创建面试"},
+        {"name": "interview_update", "description": "更新面试"},
+        {"name": "interview_delete", "description": "删除面试"},
     ]
     
     roles = [
@@ -59,6 +75,47 @@ def init_permissions(db: Session) -> None:
                 "candidate_read",
                 "interview_read",
                 "interview_create"
+            ]
+        },
+        {
+            "name": "tenant_admin",
+            "description": "租户管理员",
+            "permissions": [
+                "candidate_read",
+                "candidate_create",
+                "candidate_update",
+                "job_read",
+                "job_create",
+                "job_update",
+                "job_delete",
+                "interview_read",
+                "interview_create",
+                "interview_update",
+                "interview_delete",
+                "user_read",
+                "user_create",
+                "user_update",
+                "user_delete",
+                "role_read",
+                "role_create",
+                "role_update",
+                "role_delete",
+                "tenant_read",
+                "tenant_create",
+                "tenant_update",
+                "tenant_delete"
+            ]
+        },
+        {
+            "name": "tenant_user",
+            "description": "租户用户",
+            "permissions": [
+                "candidate_read",
+                "job_read",
+                "interview_read",
+                "user_read",
+                "role_read",
+                "tenant_read"
             ]
         }
     ]

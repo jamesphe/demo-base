@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Generic, TypeVar, List
 from pydantic import BaseModel, Field
 
 
@@ -30,3 +30,15 @@ class ResumeParseResponse(BaseModel):
                 }
             }
         }
+
+T = TypeVar('T')
+
+class Meta(BaseModel):
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+
+class ListResponse(BaseModel, Generic[T]):
+    data: List[T]
+    meta: Meta

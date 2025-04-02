@@ -84,22 +84,16 @@ const actions = {
   // get user info
   getInfo({ commit, state }) {
     return new Promise((resolve, reject) => {
-      // 如果没有 token，直接返回
-      if (!state.token) {
-        resolve()
-        return
-      }
-
-      getInfo().then(response => {
+      getInfo(state.token).then(response => {
         const { data } = response
 
         if (!data) {
-          reject('Verification failed, please Login again.')
+          reject('验证失败，请重新登录')
         }
 
         const { roles, name, avatar, introduction } = data
 
-        // roles must be a non-empty array
+        // roles 必须是非空数组
         if (!roles || roles.length <= 0) {
           reject('getInfo: roles must be a non-null array!')
         }

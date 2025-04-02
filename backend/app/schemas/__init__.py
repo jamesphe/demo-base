@@ -62,7 +62,9 @@ from .permission import (
 from .tenant import (
     Tenant,
     TenantCreate,
-    TenantUpdate
+    TenantUpdate,
+    TenantInDBBase,
+    TenantListResponse
 )
 from .llm_config import (
     LLMConfig,

@@ -18,45 +18,53 @@ router.beforeEach(async(to, from, next) => {
   // 设置页面标题
   document.title = getPageTitle(to.meta.title)
 
-  try {
-    // 如果是白名单中的路径，直接放行，不获取用户信息
-    if (whiteList.includes(to.path)) {
-      next()
-      NProgress.done()
-      return
-    }
+  console.log('全局路由守卫 - 目标路由:', to)
+  console.log('全局路由守卫 - 来源路由:', from)
+  console.log('全局路由守卫 - 当前路由匹配:', to.matched)
 
+  try {
     const hasToken = getToken()
 
     if (hasToken) {
       if (to.path === '/login') {
         next({ path: '/dashboard' })
+        NProgress.done()
       } else {
-        const hasGetUserInfo = store.getters.name
-        if (hasGetUserInfo) {
+        // 检查是否已经加载了权限路由
+        const hasRoles = store.getters.roles && store.getters.roles.length > 0
+        if (hasRoles) {
           next()
         } else {
           try {
-            // 只有在需要时才获取用户信息
-            await store.dispatch('user/getInfo')
-            await store.dispatch('user/getTrialStatus')
-            next()
+            // 获取用户信息
+            const { roles } = await store.dispatch('user/getInfo')
+
+            // 根据角色生成可访问的路由表
+            const accessRoutes = await store.dispatch('permission/generateRoutes', roles)
+
+            // 使用 router.addRoutes 替代 router.addRoute
+            router.addRoutes(accessRoutes)
+
+            // 重新导航到目标路由
+            next({ ...to, replace: true })
           } catch (error) {
+            // 处理错误
             await store.dispatch('user/resetToken')
-            Message.error(error || 'Has Error')
-            next('/login')
+            Message.error(error?.message || '获取用户信息失败')
+            next(`/login?redirect=${to.path}`)
+            NProgress.done()
           }
         }
       }
     } else {
-      if (to.meta.requiresAuth) {
-        next('/login')
-      } else {
+      if (whiteList.indexOf(to.path) !== -1) {
         next()
+      } else {
+        next(`/login?redirect=${to.path}`)
       }
     }
   } catch (error) {
-    console.error('路由守卫错误:', error)
+    console.error('Navigation guard error:', error)
     next('/login')
   } finally {
     NProgress.done()
@@ -83,4 +91,6 @@ async function getPermissionList() {
     throw error
   }
 }
+
+export default router
 

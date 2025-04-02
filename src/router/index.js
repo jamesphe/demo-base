@@ -38,6 +38,16 @@ export const constantRoutes = [
     hidden: true
   },
   {
+    path: '/trial-application',
+    name: 'TrialApplication',
+    component: () => import('@/views/trial-application/index'),
+    hidden: true,
+    meta: {
+      title: '申请免费试用',
+      requiresAuth: false
+    }
+  },
+  {
     path: '/401',
     component: () => import('@/views/error-page/401'),
     hidden: true
@@ -90,6 +100,37 @@ export const constantRoutes = [
  * 需要根据用户角色动态加载的路由
  */
 export const asyncRoutes = [
+  {
+    path: '/tenant',
+    component: Layout,
+    name: 'Tenant',
+    meta: {
+      title: '租户管理',
+      icon: 'el-icon-s-home',
+      roles: ['admin']
+    },
+    children: [
+      {
+        path: '',
+        component: () => import('@/views/tenant/index'),
+        name: 'TenantManagement',
+        meta: {
+          title: '租户列表',
+          roles: ['admin']
+        }
+      },
+      {
+        path: 'trial',
+        name: 'TenantTrial',
+        component: () => import('@/views/tenant/trial'),
+        meta: {
+          title: '试用管理',
+          roles: ['admin'],
+          activeMenu: '/tenant/trial'
+        }
+      }
+    ]
+  },
   { path: '*', redirect: '/404', hidden: true },
   // 职位管理
   {

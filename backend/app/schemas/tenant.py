@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 
@@ -27,10 +27,17 @@ class TenantInDBBase(TenantBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    model_config = {
-        "from_attributes": True
-    }
+    class Config:
+        from_attributes = True
+        json_encoders = {
+            datetime: lambda v: v.strftime("%Y-%m-%d %H:%M:%S") if v else None
+        }
 
 
 class Tenant(TenantInDBBase):
-    pass 
+    pass
+
+
+class TenantListResponse(BaseModel):
+    data: List[Tenant]
+    meta: dict 

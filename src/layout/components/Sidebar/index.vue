@@ -1,11 +1,6 @@
 <template>
   <div :class="{'has-logo':showLogo}">
-    <div class="sidebar-logo-container" :style="{ background: variables.menuBg }">
-      <router-link to="/" class="sidebar-logo-link">
-        <img v-if="logo" :src="logo" class="sidebar-logo">
-        <h1 class="sidebar-title" :style="{ color: variables.menuText }">{{ title }}</h1>
-      </router-link>
-    </div>
+    <logo v-if="showLogo" :collapse="isCollapse" />
     <el-scrollbar wrap-class="scrollbar-wrapper">
       <el-menu
         :default-active="activeMenu"
@@ -30,24 +25,22 @@
 
 <script>
 import { mapGetters } from 'vuex'
+import Logo from './Logo'
 import SidebarItem from './SidebarItem'
 import variables from '@/styles/variables.scss'
 
 export default {
-  name: 'Sidebar',
-  components: { SidebarItem },
+  components: { SidebarItem, Logo },
   computed: {
     ...mapGetters([
       'sidebar',
       'permission_routes'
     ]),
     routes() {
-      return this.$store.getters.permission_routes.filter(route => !route.hidden)
+      return this.permission_routes
     },
     activeMenu() {
-      const route = this.$route
-      const { meta, path } = route
-      // if set path, the sidebar will highlight the path you set
+      const { meta, path } = this.$route
       if (meta.activeMenu) {
         return meta.activeMenu
       }
@@ -61,21 +54,7 @@ export default {
     },
     isCollapse() {
       return !this.sidebar.opened
-    },
-    logo() {
-      return require('@/assets/logo.png')
-    },
-    title() {
-      return '系统名称'
     }
-  },
-  mounted() {
-    // 添加 passive 选项
-    this.$el.addEventListener('scroll', this.handleScroll, { passive: true })
-  },
-  beforeDestroy() {
-    // 移除事件监听
-    this.$el.removeEventListener('scroll', this.handleScroll)
   }
 }
 </script>

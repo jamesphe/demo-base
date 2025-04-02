@@ -51,7 +51,7 @@ export function applyForTrial(data) {
   }
 
   return request({
-    url: '/user/trial/apply',
+    url: '/trial/apply',
     method: 'post',
     data: convertedData
   })

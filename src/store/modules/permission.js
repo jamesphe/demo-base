@@ -6,9 +6,13 @@ import { asyncRoutes, constantRoutes } from '@/router'
  * @param route
  */
 function hasPermission(roles, route) {
+  console.log('Checking permission for route:', route.path, 'roles:', roles)
   if (route.meta && route.meta.roles) {
-    return roles.some(role => route.meta.roles.includes(role))
+    const hasRole = roles.some(role => route.meta.roles.includes(role))
+    console.log('Route requires roles:', route.meta.roles, 'Has permission:', hasRole)
+    return hasRole
   } else {
+    console.log('Route has no role requirements')
     return true
   }
 }
@@ -49,20 +53,16 @@ const mutations = {
 const actions = {
   generateRoutes({ commit }, roles) {
     return new Promise(resolve => {
+      console.log('generateRoutes action called with roles:', roles)
       let accessedRoutes
       if (roles.includes('admin')) {
-        // 管理员角色，添加所有路由
-        accessedRoutes = asyncRoutes
+        console.log('User is admin, getting all routes')
+        accessedRoutes = asyncRoutes || []
       } else {
-        // 非管理员角色，过滤路由
+        console.log('Filtering routes for roles:', roles)
         accessedRoutes = filterAsyncRoutes(asyncRoutes, roles)
       }
-
-      // 添加404路由到最后
-      if (accessedRoutes.length > 0) {
-        accessedRoutes.push({ path: '*', redirect: '/404', hidden: true })
-      }
-
+      console.log('Final accessed routes:', accessedRoutes)
       commit('SET_ROUTES', accessedRoutes)
       resolve(accessedRoutes)
     })

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union, List
 from sqlalchemy.orm import Session
 
 from app.crud.base import CRUDBase
@@ -16,6 +16,10 @@ class CRUDTenant(CRUDBase[Tenant, TenantCreate, TenantUpdate]):
         return db.query(Tenant).filter(
             Tenant.external_id == external_id
         ).first()
+
+    def count(self, db: Session) -> int:
+        """获取租户总数"""
+        return db.query(self.model).count()
 
 
 tenant = CRUDTenant(Tenant) 

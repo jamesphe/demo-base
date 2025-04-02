@@ -23,8 +23,8 @@ router = APIRouter()
 )
 def read_jobs(
     db: Session = Depends(deps.get_db),
-    page: int = 1,
-    pageSize: int = 10,
+    page: int = Query(1, ge=1, description="页码"),
+    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
     keyword: Optional[str] = None,
     status: Optional[int] = None,
     departmentId: Optional[int] = None,
@@ -35,15 +35,14 @@ def read_jobs(
     
     Args:
         page: 当前页码，从1开始
-        pageSize: 每页数量
+        per_page: 每页数量
         keyword: 职位名称关键词
         status: 职位状态(0-关闭 1-开启)
         departmentId: 部门ID
         createTime: 创建时间范围，格式["2024-01-01", "2024-03-20"]
     """
-    # 转换前端分页参数为数据库分页参数
-    skip = (page - 1) * pageSize
-    limit = pageSize
+    # 转换分页参数
+    skip = (page - 1) * per_page
     
     # 构建查询条件
     filters = {
@@ -61,22 +60,26 @@ def read_jobs(
             "between": createTime
         }
         
-    # 调用service层获取数据
+    # 获取数据和总数
     jobs, total = job_service.list_jobs_with_count(
         db=db,
         skip=skip,
-        limit=limit,
+        limit=per_page,
         tenant_id=current_tenant_id,
         filters=filters
     )
     
-    # 返回符合前端格式的响应
+    # 计算总页数
+    total_pages = (total + per_page - 1) // per_page
+    
+    # 返回统一格式
     return {
-        "code": 200,
-        "message": "success",
-        "data": {
+        "data": jobs,
+        "meta": {
             "total": total,
-            "list": jobs
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
         }
     }
 
