@@ -51,9 +51,16 @@ class JobBase(BaseModel):
         description="学历要求",
         max_length=50
     )
+    department: Optional[str] = Field(
+        None, 
+        description="所属部门",
+        max_length=100
+    )
     description: str = Field(..., description="职位描述")
     requirements: Optional[str] = Field(None, description="岗位要求")
     benefits: Optional[str] = Field(None, description="福利待遇")
+    salary_structure: Optional[str] = Field(None, description="薪资构成说明")
+    preferences: Optional[str] = Field(None, description="加分项说明")
 
 
 class JobCreate(JobBase):

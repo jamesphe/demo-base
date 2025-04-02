@@ -68,48 +68,125 @@
         highlight-current-row
         style="width: 100%"
       >
-        <el-table-column label="职位名称" prop="title" min-width="180" show-overflow-tooltip>
+        <el-table-column
+          label="职位名称"
+          prop="title"
+          min-width="180"
+          show-overflow-tooltip
+        >
           <template slot-scope="{row}">
             <el-link type="primary" @click="handleEdit(row)">{{ row.title }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column label="部门" prop="department" width="120" align="center" />
-        <el-table-column label="工作地点" prop="location" width="100" align="center" />
-        <el-table-column label="职位类型" width="100" align="center">
+
+        <el-table-column
+          label="部门"
+          prop="department"
+          width="120"
+          align="center"
+          show-overflow-tooltip
+        />
+
+        <el-table-column
+          label="工作地点"
+          prop="location"
+          width="180"
+          align="center"
+          show-overflow-tooltip
+        />
+
+        <el-table-column
+          label="职位类型"
+          width="80"
+          align="center"
+        >
           <template slot-scope="{row}">
             <el-tag :type="row.type === 'fulltime' ? 'primary' : row.type === 'parttime' ? 'success' : 'warning'">
               {{ row.type === 'fulltime' ? '全职' : row.type === 'parttime' ? '兼职' : '实习' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="薪资范围" width="150" align="center">
+
+        <el-table-column
+          label="薪资范围"
+          width="120"
+          align="center"
+        >
           <template slot-scope="{row}">
             <span class="salary-text">{{ row.salaryMin }}-{{ row.salaryMax }}K/{{ row.salaryUnit === 'month' ? '月' : '年' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="经验要求" width="100" align="center">
+
+        <el-table-column
+          label="经验要求"
+          width="100"
+          align="center"
+          show-overflow-tooltip
+        >
           <template slot-scope="{row}">
             <span>{{ row.experienceRequired }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="学历要求" width="120" align="center">
+
+        <el-table-column
+          label="学历要求"
+          width="90"
+          align="center"
+        >
           <template slot-scope="{row}">
-            <span>{{ row.educationRequired }}</span>
+            <el-tag size="mini" type="info">
+              {{ getEducationText(row.educationRequired) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100" align="center">
+
+        <el-table-column
+          label="状态"
+          width="80"
+          align="center"
+        >
           <template slot-scope="{row}">
             <el-tag :type="getStatusType(row.status)">
               {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="发布时间" width="160" align="center">
+
+        <el-table-column
+          label="发布时间"
+          width="140"
+          align="center"
+        >
           <template slot-scope="{row}">
-            <span>{{ row.createTime | parseTime('{y}-{m}-{d} {h}:{i}') }}</span>
+            <span>{{ formatTime(row.createTime) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" align="center" width="340" fixed="right">
+
+        <el-table-column
+          v-if="isAdmin"
+          label="所属租户"
+          width="120"
+          align="center"
+          show-overflow-tooltip
+        >
+          <template slot-scope="{row}">
+            <el-tooltip
+              :content="row.tenant ? `租户代码: ${row.tenant.code}` : ''"
+              placement="top"
+            >
+              <el-tag size="mini" type="info">
+                {{ row.tenant ? row.tenant.name : '-' }}
+              </el-tag>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+
+        <el-table-column
+          label="操作"
+          align="center"
+          width="280"
+          fixed="right"
+        >
           <template slot-scope="{row}">
             <el-button-group>
               <el-button
@@ -173,81 +250,157 @@
     <!-- 编辑弹窗 -->
     <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="65%" @close="resetForm">
       <el-form ref="form" :model="positionForm" :rules="rules" label-width="120px" class="position-form">
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="职位名称" prop="title">
-              <el-input v-model="positionForm.title" placeholder="请输入职位名称"/>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="职位类型" prop="type">
-              <el-select v-model="positionForm.type" placeholder="请选择职位类型" style="width: 100%">
-                <el-option label="全职" value="fulltime" />
-                <el-option label="兼职" value="parttime" />
-                <el-option label="实习" value="intern" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-card class="box-card">
+          <div slot="header" class="card-header">
+            <span>基本信息</span>
+            <small class="text-muted">请填写职位基本信息</small>
+          </div>
 
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="部门" prop="department">
-              <el-input v-model="positionForm.department" placeholder="请输入部门"/>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="工作地点" prop="location">
-              <el-cascader
-                v-model="positionForm.location"
-                :options="cityOptions"
-                placeholder="请选择工作地点"
-                style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-form-item label="薪资范围">
           <el-row :gutter="20">
-            <el-col :span="8">
-              <el-input-number v-model="positionForm.salaryMin" :min="1" placeholder="最低薪资" style="width: 100%"/>
+            <el-col :span="12">
+              <el-form-item label="职位名称" prop="title">
+                <el-input v-model="positionForm.title" placeholder="请输入职位名称" />
+              </el-form-item>
             </el-col>
-            <el-col :span="8">
-              <el-input-number v-model="positionForm.salaryMax" :min="1" placeholder="最高薪资" style="width: 100%"/>
-            </el-col>
-            <el-col :span="8">
-              <el-select v-model="positionForm.salaryUnit" style="width: 100%">
-                <el-option label="K/月" value="month" />
-                <el-option label="K/年" value="year" />
-              </el-select>
+            <el-col :span="12">
+              <el-form-item label="职位类型" prop="type">
+                <el-select v-model="positionForm.type" placeholder="请选择职位类型" style="width: 100%">
+                  <el-option label="全职" value="fulltime" />
+                  <el-option label="兼职" value="parttime" />
+                  <el-option label="实习" value="intern" />
+                  <el-option label="外包" value="outsource" />
+                </el-select>
+              </el-form-item>
             </el-col>
           </el-row>
-        </el-form-item>
 
-        <el-form-item label="职位描述" prop="description">
-          <el-input type="textarea" :rows="4" v-model="positionForm.description" placeholder="请输入职位描述"/>
-        </el-form-item>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="所属部门" prop="department">
+                <el-input v-model="positionForm.department" placeholder="请输入所属部门" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="招聘人数" prop="headcount">
+                <el-input-number v-model="positionForm.headcount" :min="1" :max="999" style="width: 100%" />
+              </el-form-item>
+            </el-col>
+          </el-row>
 
-        <el-form-item label="任职要求" prop="requirements">
-          <el-input type="textarea" :rows="4" v-model="positionForm.requirements" placeholder="请输入任职要求"/>
-        </el-form-item>
+          <el-form-item label="工作地点" prop="location">
+            <el-input
+              v-model="positionForm.location"
+              placeholder="请输入工作地点，如: 北京市朝阳区望京SOHO"
+              :maxlength="255"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-card>
 
-        <el-form-item label="经验要求" prop="experienceRequired">
-          <el-input v-model="positionForm.experienceRequired" placeholder="请输入经验要求"/>
-        </el-form-item>
+        <el-card class="box-card">
+          <div slot="header" class="card-header">
+            <span>薪资福利</span>
+            <small class="text-muted">请设置薪资范围和福利待遇</small>
+          </div>
 
-        <el-form-item label="学历要求" prop="educationRequired">
-          <el-input v-model="positionForm.educationRequired" placeholder="请输入学历要求"/>
-        </el-form-item>
+          <el-form-item label="薪资范围" prop="salary" class="salary-range">
+            <el-col :span="8">
+              <el-input-number
+                v-model="positionForm.salaryMin"
+                :min="1"
+                :step="1"
+                controls-position="right"
+                placeholder="最低薪资"
+              />
+            </el-col>
+            <el-col :span="1" class="salary-separator">
+              <span>至</span>
+            </el-col>
+            <el-col :span="8">
+              <el-input-number
+                v-model="positionForm.salaryMax"
+                :min="positionForm.salaryMin || 1"
+                :step="1"
+                controls-position="right"
+                placeholder="最高薪资"
+              />
+            </el-col>
+            <el-col :span="6" :offset="1">
+              <el-select v-model="positionForm.salaryUnit" style="width: 100%">
+                <el-option label="月薪" value="month" />
+                <el-option label="年薪" value="year" />
+                <el-option label="面议" value="negotiate" />
+              </el-select>
+            </el-col>
+          </el-form-item>
 
-        <el-form-item label="招聘人数" prop="headcount">
-          <el-input-number v-model="positionForm.headcount" :min="1" placeholder="请输入招聘人数"/>
-        </el-form-item>
+          <el-form-item label="福利待遇" prop="benefits">
+            <el-checkbox-group v-model="positionForm.benefits" class="benefit-group">
+              <el-checkbox label="五险一金">五险一金</el-checkbox>
+              <el-checkbox label="年终奖">年终奖</el-checkbox>
+              <el-checkbox label="加班补助">加班补助</el-checkbox>
+              <el-checkbox label="餐补">餐补</el-checkbox>
+              <el-checkbox label="交通补助">交通补助</el-checkbox>
+              <el-checkbox label="通讯补贴">通讯补贴</el-checkbox>
+              <el-checkbox label="节日福利">节日福利</el-checkbox>
+              <el-checkbox label="带薪年假">带薪年假</el-checkbox>
+              <el-checkbox label="定期体检">定期体检</el-checkbox>
+              <el-checkbox label="员工旅游">员工旅游</el-checkbox>
+            </el-checkbox-group>
+          </el-form-item>
+        </el-card>
 
-        <el-form-item label="福利待遇" prop="benefits">
-          <el-input type="textarea" :rows="4" v-model="positionForm.benefits" placeholder="请输入福利待遇"/>
-        </el-form-item>
+        <el-card class="box-card">
+          <div slot="header" class="card-header">
+            <span>要求与职责</span>
+            <small class="text-muted">请详细描述职位要求与职责</small>
+          </div>
+
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="学历要求" prop="educationRequired">
+                <el-select v-model="positionForm.educationRequired" style="width: 100%">
+                  <el-option label="不限" value="none" />
+                  <el-option label="大专" value="college" />
+                  <el-option label="本科" value="bachelor" />
+                  <el-option label="硕士" value="master" />
+                  <el-option label="博士" value="doctor" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="工作经验" prop="experienceRequired">
+                <el-select v-model="positionForm.experienceRequired" style="width: 100%">
+                  <el-option label="经验不限" value="none" />
+                  <el-option label="应届生" value="fresh" />
+                  <el-option label="1年以下" value="0-1" />
+                  <el-option label="1-3年" value="1-3" />
+                  <el-option label="3-5年" value="3-5" />
+                  <el-option label="5-10年" value="5-10" />
+                  <el-option label="10年以上" value="10+" />
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-form-item label="职位描述" prop="description">
+            <el-input
+              v-model="positionForm.description"
+              type="textarea"
+              :rows="6"
+              placeholder="请详细描述该职位的主要工作内容、职责范围等"
+            />
+          </el-form-item>
+
+          <el-form-item label="任职要求" prop="requirements">
+            <el-input
+              v-model="positionForm.requirements"
+              type="textarea"
+              :rows="6"
+              placeholder="请详细描述该职位的任职要求，如专业技能、语言要求、性格特征等"
+            />
+          </el-form-item>
+        </el-card>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
@@ -287,7 +440,7 @@ export default {
         title: '',
         type: '',
         department: '',
-        location: [],
+        location: '',
         salaryMin: '',
         salaryMax: '',
         salaryUnit: 'month',
@@ -296,20 +449,48 @@ export default {
         experienceRequired: '',
         educationRequired: '',
         headcount: 1,
-        benefits: ''
+        benefits: []
       },
-      cityOptions: [], // 需要添加城市数据
+      cityOptions: [
+        {
+          value: '北京',
+          label: '北京',
+          children: [
+            { value: '朝阳区', label: '朝阳区' },
+            { value: '海淀区', label: '海淀区' },
+            { value: '东城区', label: '东城区' },
+            { value: '西城区', label: '西城区' }
+          ]
+        },
+        {
+          value: '上海',
+          label: '上海',
+          children: [
+            { value: '浦东新区', label: '浦东新区' },
+            { value: '徐汇区', label: '徐汇区' },
+            { value: '黄浦区', label: '黄浦区' }
+          ]
+        }
+        // 可以继续添加更多城市
+      ],
       rules: {
         title: [{ required: true, message: '请输入职位名称', trigger: 'blur' }],
         type: [{ required: true, message: '请选择职位类型', trigger: 'change' }],
         department: [{ required: true, message: '请输入部门', trigger: 'blur' }],
-        location: [{ required: true, message: '请选择工作地点', trigger: 'change' }],
+        location: [{ required: true, message: '请输入工作地点', trigger: 'blur' }],
         description: [{ required: true, message: '请输入职位描述', trigger: 'blur' }],
-        requirements: [{ required: true, message: '请输入任职要求', trigger: 'blur' }]
-      }
+        requirements: [{ required: true, message: '请输入任职要求', trigger: 'blur' }],
+        experienceRequired: [{ required: true, message: '请选择工作经验', trigger: 'change' }],
+        educationRequired: [{ required: true, message: '请选择学历要求', trigger: 'change' }],
+        headcount: [{ required: true, message: '请输入招聘人数', trigger: 'blur' }],
+        salaryMin: [{ required: true, message: '请输入最低薪资', trigger: 'blur' }],
+        salaryMax: [{ required: true, message: '请输入最高薪资', trigger: 'blur' }]
+      },
+      isAdmin: false // 是否为系统管理员
     }
   },
   created() {
+    this.isAdmin = this.$store.getters.roles.includes('admin')
     this.getList()
   },
   methods: {
@@ -322,7 +503,7 @@ export default {
       }
       return statusMap[status] || 'info'
     },
-    
+
     getStatusText(status) {
       const statusMap = {
         draft: '草稿',
@@ -333,31 +514,71 @@ export default {
       return statusMap[status] || '未知'
     },
 
+    getEducationText(education) {
+      const educationMap = {
+        'bachelor': '本科',
+        'master': '硕士',
+        'phd': '博士',
+        'college': '大专',
+        'highschool': '高中',
+        'other': '其他'
+      }
+      return educationMap[education.toLowerCase()] || education
+    },
+
+    formatTime(time) {
+      if (!time) return ''
+      const date = new Date(time)
+      if (isNaN(date.getTime())) return ''
+
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hour = String(date.getHours()).padStart(2, '0')
+      const minute = String(date.getMinutes()).padStart(2, '0')
+
+      return `${year}-${month}-${day} ${hour}:${minute}`
+    },
+
     async getList() {
       this.listLoading = true
       try {
-        const { data } = await getPositionList(this.listQuery)
-        this.list = data.list.map(item => ({
+        const { data, meta } = await getPositionList({
+          ...this.listQuery,
+          page: this.listQuery.page,
+          limit: this.listQuery.limit
+        })
+
+        this.list = (data || []).map(item => ({
           id: item.id,
           title: item.title,
-          type: item.job_type === '全职' ? 'fulltime' : item.job_type === '兼职' ? 'parttime' : 'intern',
-          department: '', // 接口中暂无此字段
-          location: item.location,
-          salaryMin: item.salary_min / 1000,
-          salaryMax: item.salary_max / 1000,
-          salaryUnit: item.salary_type === '月薪' ? 'month' : 'year',
-          description: item.description,
-          requirements: item.requirements,
-          benefits: item.benefits,
-          experienceRequired: item.experience_required,
-          educationRequired: item.education_required,
-          headcount: item.headcount,
-          status: item.status,
-          createTime: new Date(item.created_at).getTime()
+          type: item.job_type,
+          department: item.department || '',
+          location: item.location || '',
+          salaryMin: item.salaryMin || item.salary_min || 0,
+          salaryMax: item.salaryMax || item.salary_max || 0,
+          salaryUnit: (item.salaryType === '月薪' || item.salary_type === '月薪') ? 'month' : 'year',
+          description: item.description || '',
+          requirements: item.requirements || '',
+          benefits: item.benefits || [],
+          experienceRequired: item.experienceRequired || item.experience_required || '',
+          educationRequired: item.educationRequired || item.education_required || '',
+          headcount: item.headcount || 1,
+          status: item.status || 'draft',
+          createTime: item.createdAt || item.created_at || new Date().toISOString(),
+          tenant: {
+            id: item.tenant?.id,
+            name: item.tenant_name || '-',
+            code: item.tenant?.code,
+            status: item.tenant?.status
+          },
+          tenantName: item.tenant_name || '-'
         }))
-        this.total = data.total
+
+        this.total = meta ? meta.total : (data.total || this.list.length)
       } catch (error) {
         console.error('获取职位列表失败:', error)
+        this.$message.error('获取职位列表失败')
       }
       this.listLoading = false
     },
@@ -382,7 +603,7 @@ export default {
         title: '',
         type: '',
         department: '',
-        location: [],
+        location: '',
         salaryMin: '',
         salaryMax: '',
         salaryUnit: 'month',
@@ -391,7 +612,7 @@ export default {
         experienceRequired: '',
         educationRequired: '',
         headcount: 1,
-        benefits: ''
+        benefits: []
       }
       this.dialogVisible = true
     },
@@ -407,32 +628,29 @@ export default {
       try {
         await this.$refs.form.validate()
         const submitData = {
+          id: this.positionForm.id,
           title: this.positionForm.title,
-          job_type: this.positionForm.type === 'fulltime' ? '全职' : 
-                    this.positionForm.type === 'parttime' ? '兼职' : '实习',
+          jobType: this.positionForm.type,
+          department: this.positionForm.department,
           location: this.positionForm.location,
-          salary_min: this.positionForm.salaryMin * 1000,
-          salary_max: this.positionForm.salaryMax * 1000,
-          salary_type: this.positionForm.salaryUnit === 'month' ? '月薪' : '年薪',
+          salaryMin: this.positionForm.salaryMin,
+          salaryMax: this.positionForm.salaryMax,
+          salaryType: this.positionForm.salaryUnit === 'month' ? '月薪' : '年薪',
           description: this.positionForm.description,
           requirements: this.positionForm.requirements,
           benefits: this.positionForm.benefits,
-          experience_required: this.positionForm.experienceRequired,
-          education_required: this.positionForm.educationRequired,
+          experienceRequired: this.positionForm.experienceRequired,
+          educationRequired: this.positionForm.educationRequired,
           headcount: this.positionForm.headcount
         }
-        
-        if (this.positionForm.id) {
-          submitData.id = this.positionForm.id
-        }
-        
+
         await updatePosition(submitData)
         this.dialogVisible = false
-        this.$message.success('更新成功')
+        this.$message.success(this.positionForm.id ? '更新成功' : '创建成功')
         this.getList()
       } catch (error) {
-        console.error('更新职位失败:', error)
-        this.$message.error('更新失败，请重试')
+        console.error('保存职位失败:', error)
+        this.$message.error('保存失败，请重试')
       }
     },
     async handleUpdateStatus(row, status) {
@@ -474,7 +692,7 @@ export default {
 <style lang="scss" scoped>
 .app-container {
   padding: 20px;
-  
+
   .filter-container {
     margin-bottom: 20px;
     .filter-item {
@@ -492,7 +710,7 @@ export default {
 
   .position-form {
     padding: 20px;
-    
+
     .el-select {
       width: 100%;
     }
@@ -501,10 +719,24 @@ export default {
   .salary-text {
     color: #f56c6c;
     font-weight: 500;
+    background: #fef0f0;
+    padding: 2px 8px;
+    border-radius: 4px;
   }
 
   .el-tag {
     margin-right: 5px;
+    &.el-tag--mini {
+      height: 22px;
+      padding: 0 8px;
+      line-height: 20px;
+
+      &.el-tag--info {
+        background-color: #f4f4f5;
+        border-color: #e9e9eb;
+        color: #909399;
+      }
+    }
   }
 
   .dialog-footer {
@@ -512,5 +744,66 @@ export default {
     padding-top: 20px;
     border-top: 1px solid #dcdfe6;
   }
+
+  .el-table {
+    margin: 15px 0;
+
+    .el-table__header th {
+      background-color: #f5f7fa;
+      color: #606266;
+      font-weight: 500;
+    }
+
+    .el-table__row {
+      &:hover {
+        td {
+          background-color: #f5f7fa !important;
+        }
+      }
+    }
+  }
+
+  .box-card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+
+    .card-header {
+      display: flex;
+      align-items: center;
+
+      .text-muted {
+        margin-left: 10px;
+        font-size: 12px;
+        color: #909399;
+      }
+    }
+  }
+
+  .salary-range {
+    .salary-separator {
+      text-align: center;
+      line-height: 40px;
+    }
+
+    .el-input-number {
+      width: 100%;
+    }
+  }
+
+  .benefit-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  ::v-deep .el-card__header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #ebeef5;
+    background: #fafafa;
+  }
+
+  ::v-deep .el-card__body {
+    padding: 20px;
+  }
 }
-</style> 
+</style>

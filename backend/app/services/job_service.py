@@ -192,16 +192,19 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
     def create_job(
         self,
         db: Session,
-        job_in: schemas.JobCreate,
+        *,
+        job_in: JobCreate,
         tenant_id: int,
         publisher_id: int
     ) -> models.Job:
         """创建职位"""
-        # 检查 external_id 是否已存在
+        # 检查外部ID是否已存在
         if job_in.external_id:
             existing_job = self.get_job_by_external_id(db, job_in.external_id)
             if existing_job:
-                raise ValueError(f"Job with external_id {job_in.external_id} already exists")
+                raise ValueError(
+                    f"Job with external_id {job_in.external_id} already exists"
+                )
         
         # 准备职位基础数据
         job_data = job_in.model_dump(exclude={
@@ -266,13 +269,13 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
     def update_job(
         self,
         db: Session,
+        *,
         job_id: int,
-        job_in: schemas.JobUpdate,
-        skills: Optional[List[schemas.JobRequiredSkillCreate]] = None,
-        certifications: Optional[List[schemas.JobRequiredCertificationCreate]] = None
+        job_in: JobUpdate,
+        tenant_id: int
     ) -> models.Job:
         """更新职位信息"""
-        job = crud.job.get(db, id=job_id)
+        job = self.get_job(db=db, job_id=job_id)
         if not job:
             raise HTTPException(status_code=404, detail="职位不存在")
 
@@ -360,74 +363,97 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         tenant_id: Optional[int] = None,
         **filters
     ) -> tuple[List[Dict[str, Any]], int]:
-        """
-        获取职位列表及总数
+        """获取职位列表及总数"""
+        query = db.query(models.Job)
         
-        Args:
-            db: 数据库会话
-            skip: 跳过的记录数
-            limit: 返回的最大记录数
-            tenant_id: 租户ID
-            **filters: 其他过滤条件
-            
-        Returns:
-            Tuple[List[Dict[str, Any]], int]: 职位列表和总数
-        """
-        # 构建基础查询
-        query = db.query(crud.job.model)
+        # 添加租户关联查询
+        query = query.join(models.Tenant)
         
-        # 应用租户过滤
-        if tenant_id is not None:
-            query = query.filter(crud.job.model.tenant_id == tenant_id)
+        # 应用过滤条件
+        if tenant_id:
+            query = query.filter(models.Job.tenant_id == tenant_id)
         
-        # 应用其他过滤条件
-        for field, value in filters.items():
-            if field in filters and hasattr(crud.job.model, field):
-                if isinstance(value, dict) and "like" in value:
-                    query = query.filter(getattr(crud.job.model, field).like(value["like"]))
-                elif isinstance(value, dict) and "between" in value and len(value["between"]) == 2:
-                    start_date, end_date = value["between"]
-                    query = query.filter(
-                        getattr(crud.job.model, field) >= start_date,
-                        getattr(crud.job.model, field) <= end_date
-                    )
-                else:
-                    query = query.filter(getattr(crud.job.model, field) == value)
+        for key, value in filters.items():
+            if key == "title":
+                query = query.filter(models.Job.title.ilike(f"%{value}%"))
+            elif key == "department_id":
+                query = query.filter(models.Job.department_id == value)
+            elif key == "create_time":
+                query = query.filter(models.Job.created_at.between(value[0], value[1]))
+            elif key == "status":
+                query = query.filter(models.Job.status == value)
         
         # 获取总数
         total = query.count()
         
-        # 应用分页并获取结果
+        # 获取分页数据
         jobs = query.offset(skip).limit(limit).all()
         
-        # 将 SQLAlchemy 模型转换为字典
+        # 转换为字典列表
         job_list = []
         for job in jobs:
             job_dict = {
                 "id": job.id,
                 "external_id": job.external_id,
                 "tenant_id": job.tenant_id,
+                "tenant_name": job.tenant.tenant_name,  # 使用 tenant_name 替代 company_name
                 "publisher_id": job.publisher_id,
                 "title": job.title,
+                "department": job.department,
                 "job_type": job.job_type,
                 "headcount": job.headcount,
                 "salary_min": job.salary_min,
                 "salary_max": job.salary_max,
                 "salary_type": job.salary_type,
+                "salary_structure": job.salary_structure,
                 "location": job.location,
                 "experience_required": job.experience_required,
                 "education_required": job.education_required,
                 "description": job.description,
                 "requirements": job.requirements,
                 "benefits": job.benefits,
+                "preferences": job.preferences,
                 "status": job.status,
                 "created_at": job.created_at,
                 "published_at": job.published_at,
-                "closed_at": job.closed_at
+                "closed_at": job.closed_at,
+                "tenant": {  # 添加完整的租户信息
+                    "id": job.tenant.id,
+                    "name": job.tenant.tenant_name,  # 使用 tenant_name 替代 company_name
+                    "code": job.tenant.external_id,  # 使用 external_id 作为租户代码
+                    "status": job.tenant.status
+                }
             }
             job_list.append(job_dict)
         
         return job_list, total
+
+    def get_job_list(
+        self,
+        db: Session,
+        *,
+        tenant_id: int,
+        skip: int = 0,
+        limit: int = 100,
+        filters: Dict = None
+    ) -> Dict[str, Any]:
+        """获取职位列表"""
+        query = db.query(models.Job).filter(models.Job.tenant_id == tenant_id)
+        
+        # 应用过滤条件
+        if filters:
+            for field, value in filters.items():
+                if field == 'department' and value:
+                    query = query.filter(models.Job.department == value)
+                # ... 其他过滤条件 ...
+        
+        total = query.count()
+        jobs = query.offset(skip).limit(limit).all()
+        
+        return {
+            "total": total,
+            "items": jobs
+        }
 
 # 创建服务实例
 job_service = JobService()

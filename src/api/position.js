@@ -9,21 +9,46 @@ export function getPositionList(params) {
   })
 }
 
-// 发布职位
-export function publishPosition(data) {
+// 创建职位
+export function createPosition(data) {
   return request({
-    url: '/position/publish',
+    url: '/jobs',
     method: 'post',
     data
   })
 }
 
 // 更新职位
-export function updatePosition(data) {
+export function updatePosition(id, data) {
   return request({
-    url: `/position/${data.id}`,
+    url: `/jobs/${id}`,
     method: 'put',
     data
+  })
+}
+
+// 删除职位
+export function deletePosition(id) {
+  return request({
+    url: `/jobs/${id}`,
+    method: 'delete'
+  })
+}
+
+// 发布职位
+export function publishPosition(data) {
+  return request({
+    url: '/jobs',
+    method: 'post',
+    data
+  })
+}
+
+// 获取职位详情
+export function getPositionDetail(id) {
+  return request({
+    url: `/jobs/${id}`,
+    method: 'get'
   })
 }
 
@@ -35,11 +60,3 @@ export function updatePositionStatus(id, status) {
     data: { status }
   })
 }
-
-// 删除职位
-export function deletePosition(id) {
-  return request({
-    url: `/position/${id}`,
-    method: 'delete'
-  })
-} 
