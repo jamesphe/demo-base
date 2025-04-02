@@ -73,8 +73,17 @@ class TenantService(BaseService[models.Tenant, TenantCreate, TenantUpdate]):
         # 检查外部系统编号唯一性
         self.check_external_id_unique(db, tenant_in.external_id)
         
-        # 创建租户
-        return crud.tenant.create(db=db, obj_in=tenant_in)
+        # 将 camelCase 转换为 snake_case
+        tenant_data = {
+            "tenant_name": tenant_in.tenant_name,
+            "contact_person": tenant_in.contact_person,
+            "phone": tenant_in.phone,
+            "email": tenant_in.email,
+            "address": tenant_in.address,
+            "external_id": tenant_in.external_id,
+            "status": tenant_in.status
+        }
+        return crud.tenant.create(db=db, obj_in=tenant_data)
 
     async def create_default_configs(
         self,
@@ -232,11 +241,20 @@ class TenantService(BaseService[models.Tenant, TenantCreate, TenantUpdate]):
                 exclude_id=tenant.id
             )
         
-        # 更新租户
+        # 将 camelCase 转换为 snake_case
+        tenant_data = {
+            "tenant_name": update_data["tenant_name"],
+            "contact_person": update_data["contact_person"],
+            "phone": update_data["phone"],
+            "email": update_data["email"],
+            "address": update_data["address"],
+            "external_id": update_data["external_id"],
+            "status": update_data["status"]
+        }
         return crud.tenant.update(
             db=db,
             db_obj=tenant,
-            obj_in=tenant_in
+            obj_in=tenant_data
         )
 
 

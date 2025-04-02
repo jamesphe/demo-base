@@ -290,7 +290,7 @@
   }
 
   .el-form-item {
-    margin-bottom: 30px;
+    margin-bottom: 35px;
 
     &:last-child {
       margin-bottom: 10px;
@@ -300,6 +300,23 @@
       padding-right: 15px;
       font-weight: 500;
     }
+
+    ::v-deep .el-form-item__error {
+      padding-top: 4px;
+      font-size: 12px;
+    }
+  }
+
+  .el-row {
+    margin-bottom: 10px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .el-col {
+    padding-bottom: 5px;
   }
 
   .status-icon {
@@ -489,6 +506,18 @@ export default {
     },
     parseTime(time) {
       return parseTime(time, '{y}-{m}-{d} {h}:{i}')
+    },
+    resetTemp() {
+      this.temp = {
+        id: undefined,
+        tenantName: '',
+        contactPerson: '',
+        phone: '',
+        email: '',
+        address: '',
+        externalId: '',
+        status: 'active'
+      }
     }
   }
 }

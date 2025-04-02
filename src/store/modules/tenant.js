@@ -19,60 +19,34 @@ const mutations = {
 }
 
 const actions = {
-  getList({ commit }, params) {
-    commit('SET_LOADING', true)
-    return new Promise((resolve, reject) => {
-      getTenantList(params)
-        .then(response => {
-          commit('SET_LIST', response.data)
-          commit('SET_TOTAL', response.data.length)
-          commit('SET_LOADING', false)
-          resolve(response)
-        })
-        .catch(error => {
-          commit('SET_LOADING', false)
-          reject(error)
-        })
-    })
+  // 获取租户列表
+  async getList({ commit }, params) {
+    try {
+      commit('SET_LOADING', true)
+      const response = await getTenantList(params)
+      commit('SET_LIST', response.data)
+      commit('SET_TOTAL', response.meta.total)
+    } finally {
+      commit('SET_LOADING', false)
+    }
   },
 
-  createTenant({ dispatch }, data) {
-    return new Promise((resolve, reject) => {
-      createTenant(data)
-        .then(response => {
-          dispatch('getList')
-          resolve(response)
-        })
-        .catch(error => {
-          reject(error)
-        })
-    })
+  // 创建租户
+  async createTenant({ dispatch }, data) {
+    await createTenant(data)
+    return dispatch('getList', { page: 1, limit: 20 })
   },
 
-  updateTenant({ dispatch }, { id, data }) {
-    return new Promise((resolve, reject) => {
-      updateTenant(id, data)
-        .then(response => {
-          dispatch('getList')
-          resolve(response)
-        })
-        .catch(error => {
-          reject(error)
-        })
-    })
+  // 更新租户
+  async updateTenant({ dispatch }, { id, data }) {
+    await updateTenant(id, data)
+    return dispatch('getList', { page: 1, limit: 20 })
   },
 
-  deleteTenant({ dispatch }, id) {
-    return new Promise((resolve, reject) => {
-      deleteTenant(id)
-        .then(response => {
-          dispatch('getList')
-          resolve(response)
-        })
-        .catch(error => {
-          reject(error)
-        })
-    })
+  // 删除租户
+  async deleteTenant({ dispatch }, id) {
+    await deleteTenant(id)
+    return dispatch('getList', { page: 1, limit: 20 })
   }
 }
 
