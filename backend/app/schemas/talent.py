@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import date
 from typing import Optional
+from .common import ListResponse
 
 
 class TalentBase(BaseModel):
@@ -30,3 +31,8 @@ class TalentResponse(TalentBase):
     
     class Config:
         from_attributes = True 
+
+
+class TalentListResponse(ListResponse[TalentResponse]):
+    """人才列表响应模型"""
+    pass 

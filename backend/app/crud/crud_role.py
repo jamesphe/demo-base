@@ -23,5 +23,33 @@ class CRUDRole(CRUDBase[Role, RoleCreate, RoleUpdate]):
             .all()
         )
 
+    def get_multi_by_tenant(
+        self, 
+        db: Session, 
+        *, 
+        tenant_id: int,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Role]:
+        return (
+            db.query(Role)
+            .filter(Role.tenant_id == tenant_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
-role = CRUDRole(Role) 
+    def count(self, db: Session) -> int:
+        """获取角色总数"""
+        return db.query(Role).count()
+
+    def count_by_tenant(self, db: Session, tenant_id: int) -> int:
+        """获取指定租户的角色总数"""
+        return db.query(Role).filter(Role.tenant_id == tenant_id).count()
+
+
+role = CRUDRole(Role)
+
+
+# 只导出实例
+__all__ = ["role"] 

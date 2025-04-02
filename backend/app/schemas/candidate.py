@@ -2,6 +2,7 @@ from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
 from .interview import Interview
+from .common import ListResponse
 
 
 class CandidateBase(BaseModel):
@@ -36,4 +37,9 @@ class CandidateWithInterviews(Candidate):
     interviews: List[Interview] = []
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+
+class CandidateListResponse(ListResponse[CandidateWithInterviews]):
+    """候选人列表响应模型"""
+    pass 

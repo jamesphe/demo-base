@@ -10,21 +10,21 @@ from app.services.certification_service import certification_service
 router = APIRouter()
 
 
-@router.get("/", response_model=schemas.certification.CertificationList)
+@router.get("/", response_model=schemas.CertificationListResponse)
 def read_certifications(
     db: Session = Depends(deps.get_db),
+    page: int = Query(1, ge=1, description="页码"),
+    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
     tenant_id: Optional[int] = None,
-    skip: int = 0,
-    limit: int = 100,
     status: Optional[str] = None,
     category: Optional[str] = None,
     name: Optional[str] = None,
     issuing_organization: Optional[str] = None,
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
-    """
-    获取证书列表。
-    """
+    """获取证书列表"""
+    skip = (page - 1) * per_page
+    
     # 构建过滤条件
     filters = {}
     if status:
@@ -41,9 +41,28 @@ def read_certifications(
         tenant_id = current_user.tenant_id
     
     certifications = certification_service.get_certifications(
-        db=db, tenant_id=tenant_id, skip=skip, limit=limit, filters=filters
+        db=db, 
+        tenant_id=tenant_id, 
+        skip=skip, 
+        limit=per_page, 
+        filters=filters
     )
-    return certifications
+    total = certification_service.count_certifications(
+        db=db,
+        tenant_id=tenant_id,
+        filters=filters
+    )
+    total_pages = (total + per_page - 1) // per_page
+    
+    return {
+        "data": certifications,
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
+        }
+    }
 
 
 @router.post("/", response_model=schemas.certification.Certification)

@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException, Body
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
@@ -9,34 +9,42 @@ from app.services import repository_service
 router = APIRouter()
 
 
-@router.get(
-    "/",
-    response_model=List[schemas.ResumeRepository],
-    dependencies=[
-        Depends(
-            deps.get_current_user_with_tenant_permission(
-                required_permissions=["repository_read"]
-            )
-        )
-    ]
-)
+@router.get("/", response_model=schemas.ResumeRepositoryListResponse)
 def read_repositories(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="页码"),
+    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """获取简历库列表"""
+    skip = (page - 1) * per_page
+    
     if current_user.is_superuser:
-        repositories = crud.repository.get_multi(db, skip=skip, limit=limit)
+        repositories = crud.repository.get_multi(db, skip=skip, limit=per_page)
+        total = crud.repository.count(db)
     else:
         repositories = crud.repository.get_multi_by_tenant(
             db,
             tenant_id=current_user.tenant_id,
             skip=skip,
-            limit=limit
+            limit=per_page
         )
-    return repositories
+        total = crud.repository.count_by_tenant(
+            db, 
+            tenant_id=current_user.tenant_id
+        )
+    
+    total_pages = (total + per_page - 1) // per_page
+    
+    return {
+        "data": repositories,
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
+        }
+    }
 
 
 @router.post(

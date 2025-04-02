@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, validator
+from .common import ListResponse
 
 
 class InterviewBase(BaseModel):
@@ -35,4 +36,9 @@ class InterviewWithDetails(Interview):
     job_title: Optional[str] = None
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+
+class InterviewListResponse(ListResponse[InterviewWithDetails]):
+    """面试列表响应模型"""
+    pass 

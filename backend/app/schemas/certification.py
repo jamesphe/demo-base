@@ -1,6 +1,7 @@
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel
+from .common import ListResponse
 
 
 # 共享属性
@@ -43,3 +44,8 @@ class Certification(CertificationInDBBase):
 class CertificationList(BaseModel):
     total: int
     items: List[Certification]
+
+
+class CertificationListResponse(ListResponse[Certification]):
+    """证书列表响应模型"""
+    pass

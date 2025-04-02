@@ -1,6 +1,7 @@
 from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel
+from .common import ListResponse
 
 
 class ResumeRepositoryBase(BaseModel):
@@ -28,4 +29,9 @@ class ResumeRepository(ResumeRepositoryBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True 
+        from_attributes = True
+
+
+class ResumeRepositoryListResponse(ListResponse[ResumeRepository]):
+    """简历库列表响应模型"""
+    pass 

@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from typing import List
+from typing import List, Any
 from sqlalchemy.orm import Session
 from app.schemas.talent import TalentCreate, TalentUpdate, TalentResponse
 from app.services.talent_service import TalentService
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
+from app.schemas import TalentListResponse
 
 
 router = APIRouter()
@@ -50,16 +51,31 @@ def update_talent(
     return updated_talent
 
 
-@router.get("/", response_model=List[TalentResponse])
+@router.get("/", response_model=TalentListResponse)
 def list_talents(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),
+    page: int = Query(1, ge=1, description="页码"),
+    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
-):
+) -> Any:
     """获取人才列表"""
+    skip = (page - 1) * per_page
     service = TalentService(db)
-    return service.list_talents(skip=skip, limit=limit)
+    talents = service.list_talents(skip=skip, limit=per_page)
+    total = service.count_talents()
+    total_pages = (total + per_page - 1) // per_page
+    
+    return {
+        "data": talents,
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
+        }
+    }
 
 
 @router.delete("/{talent_id}")

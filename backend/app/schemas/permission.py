@@ -1,6 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
+from .common import ListResponse
 
 
 class PermissionBase(BaseModel):
@@ -28,4 +29,9 @@ class PermissionInDBBase(PermissionBase):
 
 
 class Permission(PermissionInDBBase):
+    pass
+
+
+class PermissionListResponse(ListResponse[Permission]):
+    """权限列表响应模型"""
     pass 

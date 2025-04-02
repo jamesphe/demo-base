@@ -34,9 +34,13 @@ CREATE TABLE users (
     introduction VARCHAR(255),
     is_active BOOLEAN DEFAULT true,
     is_superuser BOOLEAN DEFAULT false,
+    phone VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 添加手机号索引
+CREATE INDEX idx_users_phone ON users(phone);
 
 -- 3. 人才表 (依赖租户表)
 CREATE TABLE talent (

@@ -16,6 +16,11 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         logger.debug(f"Looking up user by email: {email}")
         return db.query(User).filter(User.email == email).first()
 
+    def get_by_phone(self, db: Session, *, phone: str) -> Optional[User]:
+        """根据手机号获取用户"""
+        logger.debug(f"Looking up user by phone: {phone}")
+        return db.query(User).filter(User.phone == phone).first()
+
     def create(self, db: Session, *, obj_in: UserCreate) -> User:
         db_obj = User(
             email=obj_in.email,
@@ -27,6 +32,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             is_superuser=obj_in.is_superuser,
             tenant_id=obj_in.tenant_id,
             is_active=obj_in.is_active,
+            phone=obj_in.phone,
         )
         db.add(db_obj)
         db.commit()
@@ -91,7 +97,6 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     def search(
         self,
         db: Session,
-        *,
         keyword: str,
         user_type: Optional[str] = None,
         tenant_id: Optional[int] = None,
@@ -99,40 +104,34 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         skip: int = 0,
         limit: int = 100,
     ) -> List[User]:
-        """搜索用户
-        
-        Args:
-            db: 数据库会话
-            keyword: 搜索关键词(用户名或邮箱)
-            user_type: 用户类型过滤
-            tenant_id: 租户ID过滤
-            is_active: 是否激活过滤
-            skip: 分页起始位置
-            limit: 分页大小
-        """
+        """搜索用户"""
         query = db.query(self.model)
         
-        # 构建搜索条件
-        filters = []
+        # 构建过滤条件
         if keyword:
-            filters.append(
+            query = query.filter(
                 or_(
                     self.model.username.ilike(f"%{keyword}%"),
-                    self.model.email.ilike(f"%{keyword}%")
+                    self.model.email.ilike(f"%{keyword}%"),
+                    self.model.phone.ilike(f"%{keyword}%")
                 )
             )
         if user_type:
-            filters.append(self.model.user_type == user_type)
+            query = query.filter(self.model.user_type == user_type)
         if tenant_id is not None:
-            filters.append(self.model.tenant_id == tenant_id)
+            query = query.filter(self.model.tenant_id == tenant_id)
         if is_active is not None:
-            filters.append(self.model.is_active == is_active)
-            
-        # 应用过滤条件
-        if filters:
-            query = query.filter(and_(*filters))
+            query = query.filter(self.model.is_active == is_active)
             
         return query.offset(skip).limit(limit).all()
+
+    def count(self, db: Session) -> int:
+        """获取用户总数"""
+        return db.query(User).count()
+
+    def count_by_tenant(self, db: Session, tenant_id: int) -> int:
+        """获取指定租户的用户总数"""
+        return db.query(User).filter(User.tenant_id == tenant_id).count()
 
 user = CRUDUser(User)
 

@@ -34,11 +34,13 @@ class ResumeParseResponse(BaseModel):
 T = TypeVar('T')
 
 class Meta(BaseModel):
-    total: int
-    page: int
-    per_page: int
-    total_pages: int
+    """分页元数据"""
+    total: int = Field(..., description="总记录数")
+    page: int = Field(..., description="当前页码")
+    per_page: int = Field(..., description="每页记录数")
+    total_pages: int = Field(..., description="总页数")
 
 class ListResponse(BaseModel, Generic[T]):
+    """通用列表响应格式"""
     data: List[T]
     meta: Meta

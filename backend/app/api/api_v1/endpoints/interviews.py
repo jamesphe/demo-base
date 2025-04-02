@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
@@ -8,34 +8,38 @@ from app.api import deps
 router = APIRouter()
 
 
-@router.get(
-    "/",
-    response_model=List[schemas.InterviewWithDetails],
-    dependencies=[
-        Depends(
-            deps.get_current_user_with_tenant_permission(
-                required_permissions=["interview_read"]
-            )
-        )
-    ]
-)
+@router.get("/", response_model=schemas.InterviewListResponse)
 def read_interviews(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="页码"),
+    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """获取面试列表"""
+    skip = (page - 1) * per_page
     if current_user.is_superuser:
-        interviews = crud.interview.get_multi(db, skip=skip, limit=limit)
+        interviews = crud.interview.get_multi(db, skip=skip, limit=per_page)
+        total = crud.interview.count(db)
     else:
         interviews = crud.interview.get_multi_by_tenant(
             db,
             tenant_id=current_user.tenant_id,
             skip=skip,
-            limit=limit
+            limit=per_page
         )
-    return interviews
+        total = crud.interview.count_by_tenant(db, tenant_id=current_user.tenant_id)
+    
+    total_pages = (total + per_page - 1) // per_page
+    
+    return {
+        "data": interviews,
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
+        }
+    }
 
 
 @router.post(

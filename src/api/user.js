@@ -30,7 +30,12 @@ export function register(data) {
   return request({
     url: '/user/register',
     method: 'post',
-    data
+    data: {
+      username: data.username,
+      email: data.email,
+      password: data.password,
+      phone: data.phone
+    }
   })
 }
 

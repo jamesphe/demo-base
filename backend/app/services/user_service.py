@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import datetime, timedelta
 from sqlalchemy.sql import expression
+from sqlalchemy import or_
 from jose import jwt
 
 from app import models, schemas
@@ -65,6 +66,13 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
                     detail="该邮箱已被注册"
                 )
             
+            # 检查手机号是否已注册
+            if user_in.phone and crud.user.get_by_phone(db, phone=user_in.phone):
+                raise HTTPException(
+                    status_code=400, 
+                    detail="该手机号已被注册"
+                )
+            
             # 处理租户关联
             user_in.tenant_id = tenant_service.process_tenant_id(db, user_in)
             
@@ -90,8 +98,10 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
     ) -> None:
         """检查创建用户权限"""
         if not current_user.is_superuser:
-            if (current_user.user_type != 'tenant' or 
-                user_in.user_type not in ['tenant', 'candidate']):
+            if (
+                current_user.user_type != 'tenant' or 
+                user_in.user_type not in ['tenant', 'candidate']
+            ):
                 raise HTTPException(
                     status_code=403,
                     detail="没有权限创建该类型用户"
@@ -192,15 +202,11 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
         user_type: Optional[UserType] = None,
         tenant_id: Optional[int] = None,
         is_active: Optional[bool] = None,
-        current_user: models.User = None,
         skip: int = 0,
         limit: int = 100,
     ) -> List[models.User]:
         """搜索用户"""
-        # 非管理员只能搜索本租户用户
-        if not current_user.is_superuser:
-            tenant_id = current_user.tenant_id
-            
+        # 直接使用 crud 层的 search 方法
         return crud.user.search(
             db,
             keyword=keyword,
@@ -276,16 +282,30 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
             )
         
         if current_user.is_superuser:
-            users = crud.user.get_multi(db, skip=skip, limit=limit)
+            users = crud.user.get_multi(
+                db, 
+                skip=skip, 
+                limit=limit
+            )
         else:
             users = crud.user.search(
                 db,
-                keyword="",  # 如果不需要关键词搜索，传空字符串
+                keyword="",  # 如果不需要关键词搜索,传空字符串
                 tenant_id=current_user.tenant_id,
                 skip=skip,
                 limit=limit
             )
         return users
+
+    def count_users(
+        self,
+        db: Session,
+        current_user: models.User
+    ) -> int:
+        """获取用户总数"""
+        if current_user.is_superuser:
+            return crud.user.count(db)
+        return crud.user.count_by_tenant(db, tenant_id=current_user.tenant_id)
 
     def update_user_roles(
         self,
@@ -361,7 +381,10 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
         
         # 添加角色关联
         db.execute(
-            "INSERT INTO user_role (user_id, role_id) VALUES (:user_id, :role_id)",
+            """
+            INSERT INTO user_role (user_id, role_id) 
+            VALUES (:user_id, :role_id)
+            """,
             {"user_id": user_id, "role_id": role_id}
         )
         
@@ -400,7 +423,10 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
         
         # 删除角色关联
         db.execute(
-            "DELETE FROM user_role WHERE user_id = :user_id AND role_id = :role_id",
+            """
+            DELETE FROM user_role 
+            WHERE user_id = :user_id AND role_id = :role_id
+            """,
             {"user_id": user_id, "role_id": role_id}
         )
         
@@ -408,6 +434,34 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
         db.refresh(user)
         
         return user
+
+    def count_search_users(
+        self,
+        db: Session,
+        keyword: str,
+        user_type: Optional[UserType] = None,
+        tenant_id: Optional[int] = None,
+        is_active: Optional[bool] = None,
+    ) -> int:
+        """统计搜索结果总数"""
+        query = db.query(models.User)
+        
+        # 构建过滤条件
+        if keyword:
+            query = query.filter(
+                or_(
+                    models.User.username.ilike(f"%{keyword}%"),
+                    models.User.email.ilike(f"%{keyword}%")
+                )
+            )
+        if user_type:
+            query = query.filter(models.User.user_type == user_type)
+        if tenant_id is not None:
+            query = query.filter(models.User.tenant_id == tenant_id)
+        if is_active is not None:
+            query = query.filter(models.User.is_active == is_active)
+        
+        return query.count()
 
 
 # 创建服务实例

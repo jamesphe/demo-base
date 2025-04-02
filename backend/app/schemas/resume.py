@@ -528,4 +528,5 @@ class ProcessingStatus(str, Enum):
 
 
 class ResumeListResponse(ListResponse[Resume]):
+    """简历列表响应模型"""
     pass 

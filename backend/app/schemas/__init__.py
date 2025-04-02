@@ -6,7 +6,8 @@ from .user import (  # noqa: F401
     UserType,
     UserInfo,
     UserInfoResponse,
-    UserRoleUpdate
+    UserRoleUpdate,
+    UserListResponse
 )
 from .token import Token, TokenPayload  # noqa: F401
 from .job import (  # 将长行拆分为多行
@@ -34,13 +35,15 @@ from .candidate import (  # noqa: F401
     Candidate,
     CandidateCreate,
     CandidateUpdate,
-    CandidateWithInterviews
+    CandidateWithInterviews,
+    CandidateListResponse
 )
 from .interview import (  # noqa: F401
     Interview,
     InterviewCreate,
     InterviewUpdate,
-    InterviewWithDetails
+    InterviewWithDetails,
+    InterviewListResponse
 )
 from .resume import (  # 将长行拆分为多行
     Resume,
@@ -52,12 +55,14 @@ from .resume import (  # 将长行拆分为多行
 from .role import (
     Role,
     RoleCreate,
-    RoleUpdate
+    RoleUpdate,
+    RoleListResponse
 )
 from .permission import (
     Permission,
     PermissionCreate,
-    PermissionUpdate
+    PermissionUpdate,
+    PermissionListResponse
 )
 from .tenant import (
     Tenant,
@@ -82,7 +87,7 @@ from .skill import (  # noqa: F401
     SkillCreate,
     SkillUpdate
 )
-from .common import ResponseMsg, ResumeParseResponse
+from .common import ResponseMsg, ResumeParseResponse, ListResponse
 from .trial_application import (
     TrialApplication,
     TrialApplicationCreate,
@@ -92,7 +97,20 @@ from .trial_application import (
 from .resume_repository import (
     ResumeRepository,
     ResumeRepositoryCreate,
-    ResumeRepositoryUpdate
+    ResumeRepositoryUpdate,
+    ResumeRepositoryListResponse
+)
+from .certification import (
+    Certification,
+    CertificationCreate,
+    CertificationUpdate,
+    CertificationListResponse
+)
+from .talent import (
+    TalentCreate,
+    TalentUpdate,
+    TalentResponse,
+    TalentListResponse
 )
 
 __all__ = [
@@ -137,6 +155,7 @@ __all__ = [
     "ResumeRepository",
     "ResumeRepositoryCreate",
     "ResumeRepositoryUpdate",
+    "ResumeRepositoryListResponse",
     "Role",
     "RoleCreate",
     "RoleUpdate",
@@ -161,5 +180,14 @@ __all__ = [
     "TrialApplication",
     "TrialApplicationCreate",
     "TrialApplicationUpdate",
-    "TrialStatus"
+    "TrialStatus",
+    "UserListResponse",
+    "RoleListResponse",
+    "PermissionListResponse",
+    "CandidateListResponse",
+    "InterviewListResponse",
+    "ResumeListResponse",
+    "JobListResponse",
+    "CertificationListResponse",
+    "TalentListResponse"
 ] 

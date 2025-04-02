@@ -17,6 +17,7 @@ class UserBase(BaseModel):
     is_active: Optional[bool] = True
     is_superuser: bool = False
     tenant_id: Optional[int] = None
+    phone: Optional[str] = None
 
 class UserCreate(UserBase):
     username: str
@@ -58,6 +59,7 @@ class UserInfo(BaseModel):
     is_active: bool
     is_superuser: bool
     tenant_id: Optional[int] = None
+    phone: Optional[str] = None
     
     model_config = {
         "from_attributes": True
@@ -70,3 +72,44 @@ class UserInfoResponse(BaseModel):
 class UserRoleUpdate(BaseModel):
     user_id: int
     role_ids: List[int] 
+
+class TenantInfo(BaseModel):
+    id: int
+    name: str
+    code: str
+
+class RoleInfo(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+
+class UserWithTenantAndRoles(BaseModel):
+    id: int
+    username: str
+    email: EmailStr
+    user_type: Optional[str] = None
+    avatar: Optional[str] = None
+    introduction: Optional[str] = None
+    is_active: bool = True
+    is_superuser: bool = False
+    tenant_id: Optional[int] = None
+    tenant_name: Optional[str] = None
+    role_names: List[str] = []
+    phone: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    roles: List[RoleInfo] = []
+    tenant: Optional[TenantInfo] = None
+
+    class Config:
+        from_attributes = True
+
+class Meta(BaseModel):
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+
+class UserListResponse(BaseModel):
+    data: List[UserWithTenantAndRoles]
+    meta: Meta 

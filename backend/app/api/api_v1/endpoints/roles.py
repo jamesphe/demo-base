@@ -1,5 +1,5 @@
 from typing import Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
@@ -8,25 +8,27 @@ from app.api import deps
 router = APIRouter()
 
 
-@router.get(
-    "/", 
-    response_model=List[schemas.Role],
-    dependencies=[
-        Depends(
-            deps.get_current_user_with_tenant_permission(
-                required_permissions=["role_read"]
-            )
-        )
-    ]
-)
+@router.get("/", response_model=schemas.RoleListResponse)
 def read_roles(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="页码"),
+    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
 ) -> Any:
     """获取角色列表"""
-    roles = crud.role.get_multi(db, skip=skip, limit=limit)
-    return roles
+    skip = (page - 1) * per_page
+    roles = crud.role.get_multi(db, skip=skip, limit=per_page)
+    total = crud.role.count(db)
+    total_pages = (total + per_page - 1) // per_page
+    
+    return {
+        "data": roles,
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
+        }
+    }
 
 
 @router.post(

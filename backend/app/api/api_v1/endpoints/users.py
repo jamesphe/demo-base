@@ -1,5 +1,5 @@
 from typing import Any, List, Optional
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
@@ -10,11 +10,11 @@ from app.services import user_service
 router = APIRouter()
 
 
-@router.get("/", response_model=List[schemas.User])
+@router.get("/", response_model=schemas.UserListResponse)
 def read_users(
     db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="页码"),
+    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
@@ -22,12 +22,25 @@ def read_users(
     超级管理员可以获取所有用户
     租户管理员只能获取其租户下的用户
     """
-    return user_service.get_users(
+    skip = (page - 1) * per_page
+    users = user_service.get_users(
         db, 
         current_user=current_user, 
         skip=skip, 
-        limit=limit
+        limit=per_page
     )
+    total = user_service.count_users(db, current_user=current_user)
+    total_pages = (total + per_page - 1) // per_page
+    
+    return {
+        "data": users,
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
+        }
+    }
 
 
 @router.post("/", response_model=schemas.User)
@@ -172,7 +185,7 @@ def update_user(
     return crud.user.update(db, db_obj=user, obj_in=user_update)
 
 
-@router.get("/search", response_model=List[schemas.User])
+@router.get("/search", response_model=schemas.UserListResponse)
 def search_users(
     *,
     db: Session = Depends(deps.get_db),
@@ -181,20 +194,102 @@ def search_users(
     tenant_id: Optional[int] = None,
     is_active: Optional[bool] = None,
     current_user: models.User = Depends(deps.get_current_active_user),
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="页码"),
+    per_page: int = Query(10, ge=1, le=100, description="每页数量"),
 ) -> Any:
     """搜索用户"""
-    return user_service.search_users(
+    # 检查是否为超级管理员
+    if not current_user.is_superuser and current_user.user_type != 'tenant':
+        raise HTTPException(
+            status_code=400,
+            detail="该操作需要超级管理员或租户管理员权限"
+        )
+    
+    skip = (page - 1) * per_page
+    
+    # 非管理员只能搜索本租户用户
+    if not current_user.is_superuser:
+        tenant_id = current_user.tenant_id
+        
+    users = user_service.search_users(
         db,
         keyword=keyword,
         user_type=user_type,
         tenant_id=tenant_id,
         is_active=is_active,
-        current_user=current_user,
         skip=skip,
-        limit=limit
+        limit=per_page
     )
+    
+    # 增加租户和角色信息
+    enhanced_users = []
+    for user in users:
+        # 获取用户角色信息
+        roles = [
+            {
+                "id": role.id,
+                "name": role.name,
+                "description": role.description
+            }
+            for role in user.roles
+        ]
+        
+        # 获取角色名称列表
+        role_names = [role["description"] for role in roles]
+        
+        # 获取租户信息
+        tenant = None
+        tenant_name = None
+        if user.tenant_id:
+            tenant = crud.tenant.get(db, id=user.tenant_id)
+            if tenant:
+                tenant_name = tenant.tenant_name
+                tenant = {
+                    "id": tenant.id,
+                    "name": tenant.tenant_name,
+                    "code": str(tenant.id)
+                }
+        
+        # 创建增强的用户信息
+        user_dict = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "user_type": user.user_type,
+            "avatar": user.avatar,
+            "introduction": user.introduction,
+            "is_active": user.is_active,
+            "is_superuser": user.is_superuser,
+            "tenant_id": user.tenant_id,
+            "tenant_name": tenant_name,
+            "role_names": role_names,
+            "phone": getattr(user, 'phone', None),
+            "created_at": user.created_at,
+            "updated_at": user.updated_at,
+            "roles": roles,
+            "tenant": tenant
+        }
+        enhanced_users.append(user_dict)
+    
+    total = user_service.count_search_users(
+        db,
+        keyword=keyword,
+        user_type=user_type,
+        tenant_id=tenant_id,
+        is_active=is_active
+    )
+    
+    total_pages = (total + per_page - 1) // per_page
+    
+    return {
+        "data": enhanced_users,
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages
+        }
+    }
 
 
 @router.delete("/{user_id}", response_model=schemas.User)
