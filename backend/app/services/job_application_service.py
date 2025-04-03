@@ -126,6 +126,29 @@ class JobApplicationService:
             limit=limit
         )
     
+    def get_applications_by_tenant_with_resume_info_and_count(
+        self,
+        db: Session,
+        *,
+        tenant_id: int,
+        skip: int = 0,
+        limit: int = 100
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """获取指定租户的所有职位申请（包含简历基本信息）及总数"""
+        applications = crud.job_application.get_by_tenant_with_resume_info(
+            db=db,
+            tenant_id=tenant_id,
+            skip=skip,
+            limit=limit
+        )
+        
+        # 获取总数
+        total = db.query(models.JobApplication).filter(
+            models.JobApplication.tenant_id == tenant_id
+        ).count()
+        
+        return applications, total
+    
     def get_applications_by_status(
         self,
         db: Session,
@@ -232,13 +255,38 @@ class JobApplicationService:
         )
         
         # 在方法内部导入以避免循环导入
-        from app.services.resume_job_matching_service import resume_job_matching_service
+        from app.services.resume_job_matching_service import (
+            resume_job_matching_service
+        )
         await resume_job_matching_service.analyze_and_update_match(
             db=db,
             application_id=application.id
         )
         
         return application
+
+    def get_applications_by_status_and_count(
+        self,
+        db: Session,
+        *,
+        status: str,
+        tenant_id: int,
+        skip: int = 0,
+        limit: int = 100
+    ) -> tuple[List[JobApplication], int]:
+        """获取指定状态和租户的所有职位申请及总数"""
+        applications = db.query(self.model).filter(
+            models.JobApplication.status == status,
+            models.JobApplication.tenant_id == tenant_id
+        ).offset(skip).limit(limit).all()
+        
+        # 获取总数
+        total = db.query(models.JobApplication).filter(
+            models.JobApplication.status == status,
+            models.JobApplication.tenant_id == tenant_id
+        ).count()
+        
+        return applications, total
 
 
 # 创建服务实例

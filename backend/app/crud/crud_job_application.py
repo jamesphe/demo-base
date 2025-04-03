@@ -139,7 +139,7 @@ class CRUDJobApplication(
             if resume:
                 # 使用文件名作为简历名称
                 app_dict["resume_name"] = resume.filename if hasattr(resume, "filename") else ""
-                app_dict["candidate_name"] = resume.name if hasattr(resume, "name") else ""  # 使用简历名称作为候选人名称
+                app_dict["candidate_name"] = resume.name if hasattr(resume, "name") else ""
                 app_dict["candidate_email"] = resume.email if hasattr(resume, "email") else None
                 app_dict["candidate_phone"] = resume.phone if hasattr(resume, "phone") else None
             else:
@@ -155,40 +155,92 @@ class CRUDJobApplication(
     def get_by_tenant_with_resume_info(
         self, db: Session, *, tenant_id: int, skip: int = 0, limit: int = 100
     ) -> List[Dict[str, Any]]:
-        """获取指定租户的所有职位申请，包含简历基本信息"""
-        # 首先获取所有申请
-        applications = db.query(self.model).filter(
-            self.model.tenant_id == tenant_id
-        ).offset(skip).limit(limit).all()
+        """
+        获取指定租户的所有职位申请，包含：
+        - 简历基本信息
+        - 职位信息（名称、部门等）
+        - 职位发布人信息
+        - 租户信息
         
-        result = []
-        for app in applications:
-            # 获取关联的简历
-            resume = db.query(Resume).filter(
-                Resume.id == app.resume_id
-            ).first()
-            
-            # 构建包含简历信息的字典
-            app_dict = app.__dict__.copy()
-            if "_sa_instance_state" in app_dict:
-                del app_dict["_sa_instance_state"]
-            
-            # 添加简历信息
-            if resume:
-                # 使用文件名作为简历名称
-                app_dict["resume_name"] = resume.filename if hasattr(resume, "filename") else ""
-                app_dict["candidate_name"] = resume.name if hasattr(resume, "name") else ""  # 使用简历名称作为候选人名称
-                app_dict["candidate_email"] = resume.email if hasattr(resume, "email") else None
-                app_dict["candidate_phone"] = resume.phone if hasattr(resume, "phone") else None
-            else:
-                app_dict["resume_name"] = ""
-                app_dict["candidate_name"] = ""
-                app_dict["candidate_email"] = None
-                app_dict["candidate_phone"] = None
-            
-            result.append(app_dict)
+        Args:
+            db: 数据库会话
+            tenant_id: 租户ID
+            skip: 分页起始位置
+            limit: 每页数量
         
-        return result
+        Returns:
+            包含详细信息的职位申请列表
+        """
+        applications = (
+            db.query(
+                models.JobApplication,
+                models.Resume,
+                models.Job,
+                models.User.username.label('publisher_name'),
+                models.Tenant.tenant_name.label('tenant_name')
+            )
+            .join(
+                models.Resume,
+                models.JobApplication.resume_id == models.Resume.id
+            )
+            .join(
+                models.Job,
+                models.JobApplication.job_id == models.Job.id
+            )
+            .join(
+                models.User,
+                models.Job.publisher_id == models.User.id
+            )
+            .join(
+                models.Tenant,
+                models.Job.tenant_id == models.Tenant.id
+            )
+            .filter(models.JobApplication.tenant_id == tenant_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        
+        return [
+            {
+                # 职位申请基本信息
+                "id": application.JobApplication.id,
+                "job_id": application.JobApplication.job_id,
+                "resume_id": application.JobApplication.resume_id,
+                "status": application.JobApplication.status,
+                "created_at": application.JobApplication.created_at,
+                "updated_at": application.JobApplication.updated_at,
+                "apply_time": application.JobApplication.apply_time,
+                # 简历信息
+                "resume_name": application.Resume.file_name,
+                "candidate_name": application.Resume.name,
+                "resume_phone": application.Resume.phone,
+                "resume_email": application.Resume.email,
+                "resume_highest_education": application.Resume.highest_education,
+                "resume_experience_years": application.Resume.experience_years,
+                "match_score": application.JobApplication.match_score,
+                "match_reason": application.JobApplication.match_reason,
+                "resume": {
+                    "id": application.Resume.id,
+                    "name": application.Resume.name,
+                    "phone": application.Resume.phone,
+                    "email": application.Resume.email,
+                    "file_name": application.Resume.file_name,
+                    "file_path": application.Resume.file_path,
+                    "file_type": application.Resume.file_type,
+                },
+                # 职位信息
+                "job": {
+                    "id": application.Job.id,
+                    "title": application.Job.title,
+                    "department_name": application.Job.department,
+                    "publisher_name": application.publisher_name,
+                },
+                # 租户信息
+                "tenant_name": application.tenant_name,
+            }
+            for application in applications
+        ]
 
 
 job_application = CRUDJobApplication(JobApplication) 

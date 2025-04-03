@@ -158,6 +158,15 @@ export const asyncRoutes = [
           title: '职位维护',
           roles: ['tenant_admin', 'tenant_hr']
         }
+      },
+      {
+        path: 'applications',
+        component: () => import('@/views/position/applications'),
+        name: 'PositionApplications',
+        meta: {
+          title: '职位申请',
+          roles: ['tenant_admin', 'tenant_hr']
+        }
       }
     ]
   },

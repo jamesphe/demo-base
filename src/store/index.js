@@ -8,6 +8,7 @@ import trial from './modules/trial'
 import tenant from './modules/tenant'
 import position from './modules/position'
 import resume from './modules/resume'
+import jobApplication from './modules/job-application'
 
 Vue.use(Vuex)
 
@@ -33,7 +34,8 @@ const store = new Vuex.Store({
     permission,
     tenant,
     position,
-    resume
+    resume,
+    jobApplication
   },
   getters
 })

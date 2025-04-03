@@ -25,11 +25,15 @@ from .job_requirement import (
 )
 from .job_application import (
     JobApplication,
+    JobApplicationBase,
     JobApplicationCreate,
+    JobApplicationInDBBase,
     JobApplicationUpdate,
+    JobApplicationWithDetails,
     JobApplicationWithResume,
     JobApplicationWithResumeInfo,
-    JobApplicationWithDetails
+    JobApplicationListResponse,
+    JobApplicationListMeta
 )
 from .candidate import (  # noqa: F401
     Candidate,

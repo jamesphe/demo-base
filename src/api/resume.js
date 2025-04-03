@@ -115,7 +115,7 @@ export function searchResumes(params) {
 // 获取简历详情
 export function getResumeDetail(id) {
   return request({
-    url: `/resume/detail/${id}`,
+    url: `/resumes/${id}`,
     method: 'get',
     params: { id }
   })

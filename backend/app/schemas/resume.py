@@ -24,7 +24,7 @@ class CertificateInfo(BaseModel):
 class WorkHistoryInfo(BaseModel):
     """工作经历信息模型"""
     company: str = Field(..., description="公司名称")
-    position: str = Field(..., description="职位")
+    position: Optional[str] = Field(None, description="职位")
     start_date: Optional[str] = Field(None, description="开始日期")
     end_date: Optional[str] = Field(None, description="结束日期")
     description: Optional[str] = Field(None, description="工作描述")

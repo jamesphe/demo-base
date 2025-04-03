@@ -1,0 +1,1055 @@
+<template>
+  <div class="app-container">
+    <el-card class="box-card">
+      <div slot="header" class="clearfix">
+        <span>职位申请管理</span>
+      </div>
+
+      <!-- 搜索栏 -->
+      <el-form :inline="true" :model="searchForm" class="demo-form-inline">
+        <el-form-item label="申请状态">
+          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+            <el-option label="待处理" value="pending" />
+            <el-option label="已审核" value="reviewed" />
+            <el-option label="已面试" value="interviewed" />
+            <el-option label="已录用" value="offered" />
+            <el-option label="已拒绝" value="rejected" />
+            <el-option label="已撤回" value="withdrawn" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">查询</el-button>
+        </el-form-item>
+      </el-form>
+
+      <!-- 申请列表 -->
+      <el-table
+        v-loading="loading"
+        :data="applicationList"
+        element-loading-text="加载中..."
+        border
+        fit
+        highlight-current-row
+        class="application-table"
+      >
+        <!-- 申请ID列 -->
+        <el-table-column
+          label="申请ID"
+          prop="id"
+          align="center"
+          width="80"
+          class-name="id-column"
+        />
+
+        <!-- 职位名称列 -->
+        <el-table-column
+          label="职位名称"
+          align="center"
+          min-width="180"
+          class-name="job-column"
+        >
+          <template slot-scope="scope">
+            <span class="job-title">{{ scope.row.job ? scope.row.job.title : '' }}</span>
+          </template>
+        </el-table-column>
+
+        <!-- 候选人列 -->
+        <el-table-column
+          label="候选人"
+          align="center"
+          min-width="120"
+          class-name="candidate-column"
+        >
+          <template slot-scope="scope">
+            <div class="candidate-info">
+              <span class="candidate-name">{{ scope.row.candidateName || '未知' }}</span>
+              <el-tag
+                v-if="scope.row.resumeHighestEducation"
+                size="mini"
+                type="info"
+              >{{ scope.row.resumeHighestEducation }}</el-tag>
+            </div>
+          </template>
+        </el-table-column>
+
+        <!-- 简历名称列 -->
+        <el-table-column
+          label="简历名称"
+          align="center"
+          min-width="180"
+          class-name="resume-column"
+          show-overflow-tooltip
+        >
+          <template slot-scope="scope">
+            <el-link
+              type="primary"
+              :underline="false"
+              class="resume-name"
+            >{{ scope.row.resumeName || '' }}</el-link>
+          </template>
+        </el-table-column>
+
+        <!-- 工作年限列 -->
+        <el-table-column
+          label="工作年限"
+          align="center"
+          width="100"
+          class-name="experience-column"
+        >
+          <template slot-scope="{row}">
+            <span class="experience-years">
+              {{ row.resumeExperienceYears ? row.resumeExperienceYears + '年' : '未知' }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <!-- 申请时间列 -->
+        <el-table-column
+          label="申请时间"
+          align="center"
+          width="160"
+          class-name="time-column"
+        >
+          <template slot-scope="scope">
+            <span class="apply-time">{{ formatDateTime(scope.row.applyTime) }}</span>
+          </template>
+        </el-table-column>
+
+        <!-- 状态列 -->
+        <el-table-column
+          label="状态"
+          align="center"
+          width="100"
+          class-name="status-column"
+        >
+          <template slot-scope="scope">
+            <el-tag
+              :type="getStatusType(scope.row.status)"
+              :class="['status-tag', scope.row.status]"
+              effect="light"
+            >
+              {{ getStatusText(scope.row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <!-- 匹配度列 -->
+        <el-table-column
+          label="匹配度"
+          align="center"
+          width="120"
+          class-name="match-column"
+        >
+          <template slot-scope="{row}">
+            <div class="match-score-wrapper">
+              <el-progress
+                :percentage="row.matchScore || 0"
+                :color="getMatchScoreColor(row.matchScore)"
+                :stroke-width="14"
+                class="match-progress"
+              />
+              <el-button
+                v-if="row.matchReason"
+                type="text"
+                class="match-reason-btn"
+                @click="showMatchReason(row)"
+              >
+                <i class="el-icon-info" />
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+
+        <!-- 操作列 -->
+        <el-table-column
+          label="操作"
+          align="center"
+          width="160"
+          fixed="right"
+          class-name="action-column"
+        >
+          <template slot-scope="scope">
+            <div class="action-buttons">
+              <el-button
+                size="mini"
+                type="primary"
+                plain
+                class="action-btn"
+                @click="handleView(scope.row)"
+              >
+                <i class="el-icon-view" />查看
+              </el-button>
+              <el-button
+                size="mini"
+                type="success"
+                plain
+                :disabled="scope.row.status === 'withdrawn'"
+                class="action-btn"
+                @click="handleUpdateStatus(scope.row)"
+              >
+                <i class="el-icon-edit" />更新
+              </el-button>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 分页 -->
+      <pagination
+        v-show="total>0"
+        :total="total"
+        :page.sync="listQuery.page"
+        :limit.sync="listQuery.limit"
+        @pagination="getList"
+      />
+    </el-card>
+
+    <!-- 状态更新对话框 -->
+    <el-dialog title="更新申请状态" :visible.sync="statusDialogVisible">
+      <el-form :model="statusForm" label-width="100px">
+        <el-form-item label="申请状态">
+          <el-select v-model="statusForm.status" placeholder="请选择状态">
+            <el-option label="待处理" value="pending" />
+            <el-option label="已审核" value="reviewed" />
+            <el-option label="已面试" value="interviewed" />
+            <el-option label="已录用" value="offered" />
+            <el-option label="已拒绝" value="rejected" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="审核备注">
+          <el-input
+            v-model="statusForm.reviewNotes"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入审核备注"
+          />
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="statusDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="submitStatusUpdate">确 定</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 匹配度分析对话框 -->
+    <el-dialog
+      title="匹配度分析"
+      :visible.sync="matchReasonDialogVisible"
+      width="900px"
+      class="match-reason-dialog"
+      :close-on-click-modal="false"
+    >
+      <div class="match-analysis">
+        <div class="match-score">
+          <el-progress
+            type="circle"
+            :percentage="currentMatchScore"
+            :color="getMatchScoreColor(currentMatchScore)"
+          />
+          <div class="score-text">匹配度评分</div>
+          <div class="score-level">
+            {{ getMatchLevel(currentMatchScore) }}
+          </div>
+        </div>
+        <div class="match-details">
+          <el-tabs type="border-card">
+            <el-tab-pane label="教育背景匹配">
+              <div class="match-section" v-html="getFormattedSection('教育背景与要求的匹配度')" />
+            </el-tab-pane>
+            <el-tab-pane label="工作经验匹配">
+              <div class="match-section" v-html="getFormattedSection('工作经验与要求的匹配度')" />
+            </el-tab-pane>
+            <el-tab-pane label="技能要求匹配">
+              <div class="match-section" v-html="getFormattedSection('技能与岗位要求的匹配度')" />
+            </el-tab-pane>
+            <el-tab-pane label="求职意向匹配">
+              <div class="match-section" v-html="getFormattedSection('求职意向与职位条件的匹配度')" />
+            </el-tab-pane>
+            <el-tab-pane label="薪资匹配">
+              <div class="match-section" v-html="getFormattedSection('薪资期望的匹配度')" />
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 简历详情弹窗 -->
+    <el-dialog
+      title="简历详情"
+      :visible.sync="resumeDetailVisible"
+      width="70%"
+      custom-class="resume-dialog"
+      @close="handleResumeDialogClose"
+    >
+      <div v-loading="resumeDetailLoading">
+        <!-- 基本信息卡片 -->
+        <el-card class="info-card" shadow="hover">
+          <div slot="header" class="card-header">
+            <span><i class="el-icon-user" /> 基本信息</span>
+          </div>
+          <div v-if="currentResume" class="resume-info">
+            <el-row :gutter="20">
+              <el-col :span="8">
+                <div class="info-item">
+                  <label>姓名：</label>
+                  {{ currentResume.name || '-' }}
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="info-item">
+                  <label>性别：</label>
+                  {{ currentResume.gender === 'F' ? '女' : '男' }}
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="info-item">
+                  <label>年龄：</label>
+                  {{ currentResume.age || '-' }} 岁
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="info-item">
+                  <label>电话：</label>
+                  {{ currentResume.phone || '-' }}
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="info-item">
+                  <label>邮箱：</label>
+                  {{ currentResume.email || '-' }}
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="info-item">
+                  <label>工作年限：</label>
+                  {{ currentResume.experienceYears ? `${currentResume.experienceYears}年` : '-' }}
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="info-item">
+                  <label>最高学历：</label>
+                  {{ currentResume.highestEducation || '-' }}
+                </div>
+              </el-col>
+              <el-col :span="8">
+                <div class="info-item">
+                  <label>专业：</label>
+                  {{ currentResume.major || '-' }}
+                </div>
+              </el-col>
+            </el-row>
+          </div>
+        </el-card>
+
+        <!-- 求职意向卡片 -->
+        <el-card v-if="currentResume" class="info-card" shadow="hover">
+          <div slot="header" class="card-header">
+            <span><i class="el-icon-aim" /> 求职意向</span>
+          </div>
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <div class="info-item">
+                <label>期望职位：</label>
+                {{ currentResume.expectedPosition || '-' }}
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="info-item">
+                <label>期望地点：</label>
+                {{ currentResume.expectedLocation || '-' }}
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="info-item">
+                <label>当前职位：</label>
+                {{ currentResume.currentPosition || '-' }}
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+
+        <!-- 技能特长 -->
+        <el-card
+          v-if="currentResume && currentResume.skills && currentResume.skills.length"
+          class="info-card skill-list"
+          shadow="hover"
+        >
+          <div slot="header" class="card-header">
+            <span><i class="el-icon-medal" /> 技能特长</span>
+          </div>
+          <el-row :gutter="20">
+            <el-col v-for="(skill, index) in currentResume.skills" :key="index" :span="24">
+              <div class="skill-item">
+                <h4>
+                  {{ skill.name || '-' }}
+                  <el-tag v-if="skill.level" size="small" :type="getSkillTagType(skill.level)">
+                    {{ skill.level }}
+                  </el-tag>
+                </h4>
+                <p>{{ skill.description || '-' }}</p>
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+
+        <!-- 工作经历 -->
+        <el-card
+          v-if="currentResume && currentResume.workHistory && currentResume.workHistory.length"
+          class="info-card"
+          shadow="hover"
+        >
+          <div slot="header" class="card-header">
+            <span><i class="el-icon-office-building" /> 工作经历</span>
+          </div>
+          <el-timeline>
+            <el-timeline-item
+              v-for="(work, index) in currentResume.workHistory"
+              :key="index"
+              :timestamp="formatWorkPeriod(work.startDate, work.endDate)"
+              placement="top"
+              type="primary"
+            >
+              <el-card shadow="never" class="timeline-card">
+                <h4>{{ work.company || '-' }} - {{ work.position || '-' }}</h4>
+                <p class="work-description">{{ work.description || '-' }}</p>
+              </el-card>
+            </el-timeline-item>
+          </el-timeline>
+        </el-card>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+import Pagination from '@/components/Pagination'
+import { mapGetters, mapActions } from 'vuex'
+
+export default {
+  name: 'PositionApplications',
+  components: { Pagination },
+  data() {
+    return {
+      listQuery: {
+        page: 1,
+        limit: 10
+      },
+      searchForm: {
+        status: ''
+      },
+      statusDialogVisible: false,
+      statusForm: {
+        id: null,
+        status: '',
+        reviewNotes: ''
+      },
+      matchReasonDialogVisible: false,
+      currentMatchReason: '',
+      currentMatchScore: 0,
+      resumeDetailVisible: false,
+      resumeDetailLoading: false,
+      currentResume: null
+    }
+  },
+  computed: {
+    ...mapGetters('jobApplication', [
+      'applicationList',
+      'total',
+      'loading'
+    ]),
+    compiledMatchReason() {
+      if (!this.currentMatchReason) return ''
+      // 简单的Markdown转HTML处理
+      return this.currentMatchReason
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/#{3,6}\s(.*?)$/gm, '<h3>$1</h3>')
+        .replace(/#{2}\s(.*?)$/gm, '<h2>$1</h2>')
+        .replace(/#{1}\s(.*?)$/gm, '<h1>$1</h1>')
+        .replace(/^\s*[-*+]\s(.*)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    }
+  },
+  created() {
+    this.getList()
+  },
+  methods: {
+    ...mapActions('jobApplication', [
+      'getApplicationList',
+      'updateStatus',
+      'getResumeDetail'
+    ]),
+    async getList() {
+      try {
+        console.log('Fetching applications with params:', {
+          ...this.listQuery,
+          status: this.searchForm.status
+        })
+        const result = await this.getApplicationList({
+          ...this.listQuery,
+          status: this.searchForm.status
+        })
+        console.log('API result:', result)
+        console.log('Current applicationList:', this.applicationList)
+
+        // 检查 Vuex store 中的状态
+        console.log('Vuex store state:', {
+          applications: this.$store.state.jobApplication.applications,
+          total: this.$store.state.jobApplication.total
+        })
+      } catch (error) {
+        console.error('获取申请列表失败:', error)
+        this.$message.error('获取申请列表失败')
+      }
+    },
+    handleSearch() {
+      this.listQuery.page = 1
+      this.getList()
+    },
+    getStatusType(status) {
+      const statusMap = {
+        pending: 'info',
+        reviewed: 'warning',
+        interviewed: 'warning',
+        offered: 'success',
+        rejected: 'danger',
+        withdrawn: ''
+      }
+      return statusMap[status]
+    },
+    getStatusText(status) {
+      const statusMap = {
+        pending: '待处理',
+        reviewed: '已审核',
+        interviewed: '已面试',
+        offered: '已录用',
+        rejected: '已拒绝',
+        withdrawn: '已撤回'
+      }
+      return statusMap[status]
+    },
+    getMatchScoreColor(score) {
+      if (score >= 80) return '#67C23A'
+      if (score >= 60) return '#E6A23C'
+      return '#F56C6C'
+    },
+    handleView(row) {
+      this.resumeDetailVisible = true
+      this.resumeDetailLoading = true
+      this.getResumeDetails(row.resumeId)
+    },
+    handleUpdateStatus(row) {
+      this.statusForm.id = row.id
+      this.statusForm.status = row.status
+      this.statusForm.reviewNotes = row.reviewNotes || ''
+      this.statusDialogVisible = true
+    },
+    async submitStatusUpdate() {
+      try {
+        await this.updateStatus({
+          id: this.statusForm.id,
+          data: {
+            status: this.statusForm.status,
+            reviewNotes: this.statusForm.reviewNotes
+          }
+        })
+        this.$message.success('状态更新成功')
+        this.statusDialogVisible = false
+      } catch (error) {
+        console.error('更新状态失败:', error)
+        this.$message.error('更新状态失败')
+      }
+    },
+    formatDateTime(timestamp) {
+      if (!timestamp) return '暂无数据'
+      try {
+        const date = new Date(timestamp)
+        if (isNaN(date.getTime())) return '数据格式错误'
+
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hours = String(date.getHours()).padStart(2, '0')
+        const minutes = String(date.getMinutes()).padStart(2, '0')
+
+        return `${year}-${month}-${day} ${hours}:${minutes}`
+      } catch (error) {
+        console.error('日期格式化错误:', error)
+        return '格式化错误'
+      }
+    },
+    showMatchReason(row) {
+      this.currentMatchReason = row.matchReason
+      this.currentMatchScore = row.matchScore || 0
+      this.matchReasonDialogVisible = true
+    },
+    getMatchLevel(score) {
+      if (score >= 80) return '匹配度优秀'
+      if (score >= 70) return '匹配度良好'
+      if (score >= 60) return '基本匹配'
+      return '匹配度较低'
+    },
+    getFormattedSection(sectionTitle) {
+      if (!this.currentMatchReason) return ''
+
+      // 将内容按数字序号分段
+      const sections = {}
+      const matches = this.currentMatchReason.match(/(\d+)\.\s+(.*?)(?=\d+\.|$)/gs)
+
+      if (!matches) return ''
+
+      matches.forEach(section => {
+        const [, num, content] = section.match(/(\d+)\.\s+(.*)$/s) || []
+        if (num && content) {
+          sections[content.split('：')[0]] = content.split('：')[1]?.trim()
+        }
+      })
+
+      // 获取对应章节的内容
+      const sectionKey = Object.keys(sections).find(key =>
+        key.includes(sectionTitle.replace(/[：:]\s*$/, '').replace(/与要求的匹配度$/, ''))
+      )
+
+      if (!sectionKey || !sections[sectionKey]) return ''
+
+      // 格式化内容
+      return sections[sectionKey]
+        .replace(/\n/g, '<br>')
+        .replace(/。/g, '。<br><br>') // 在句号后添加双换行
+        .replace(/；/g, '；<br>') // 在分号后添加换行
+        .replace(/，/g, '，<span class="text-space"></span>') // 在逗号后添加空格
+        .replace(/：/g, '：<span class="text-space"></span>') // 在冒号后添加空格
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/^\s*[-*+]\s(.*)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*?<\/li>)/gs, '<ul>$1</ul>')
+    },
+    async getResumeDetails(resumeId) {
+      try {
+        console.log('Fetching resume details for ID:', resumeId)
+        const result = await this.getResumeDetail(resumeId)
+        console.log('Resume details API response:', result)
+
+        this.currentResume = result
+        console.log('Current resume state after update:', this.currentResume)
+
+        // 检查关键数据是否存在
+        console.log('Resume data check:', {
+          hasBasicInfo: !!this.currentResume,
+          name: this.currentResume?.name,
+          skills: this.currentResume?.skills,
+          workHistory: this.currentResume?.workHistory,
+          education: this.currentResume?.highestEducation
+        })
+      } catch (error) {
+        console.error('获取简历详情失败:', error)
+        console.error('Error details:', error.response?.data || error.message)
+        this.$message.error('获取简历详情失败')
+      } finally {
+        this.resumeDetailLoading = false
+        console.log('Resume detail loading finished')
+      }
+    },
+    handleResumeDialogClose() {
+      this.currentResume = null
+    },
+    getSkillTagType(level) {
+      const typeMap = {
+        '熟练': 'success',
+        '良好': 'primary',
+        '熟悉': 'warning',
+        '懂技术': 'info'
+      }
+      return typeMap[level] || ''
+    },
+    formatWorkPeriod(startDate, endDate) {
+      if (!startDate) return '-'
+      const formatDate = date => {
+        return new Date(date).toLocaleDateString('zh-CN', {
+          year: 'numeric',
+          month: 'numeric'
+        })
+      }
+      const start = formatDate(startDate)
+      const end = endDate ? formatDate(endDate) : '至今'
+      return `${start} - ${end}`
+    }
+  }
+}
+</script>
+
+<style lang="scss" scoped>
+.application-table {
+  margin-top: 20px;
+  border-radius: 4px;
+
+  ::v-deep .el-table__header-wrapper {
+    th {
+      background-color: #f5f7fa;
+      color: #606266;
+      font-weight: 600;
+      height: 50px;
+    }
+  }
+
+  .candidate-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    .candidate-name {
+      font-weight: 500;
+    }
+
+    .el-tag {
+      transform: scale(0.9);
+    }
+  }
+
+  .job-title {
+    color: #409EFF;
+    font-weight: 500;
+  }
+
+  .resume-name {
+    font-size: 13px;
+  }
+
+  .experience-years {
+    color: #606266;
+  }
+
+  .apply-time {
+    color: #909399;
+    font-size: 13px;
+  }
+
+  .status-tag {
+    text-align: center;
+    min-width: 65px;
+
+    &.pending { background-color: #f4f4f5; }
+    &.reviewed { background-color: #fdf6ec; }
+    &.interviewed { background-color: #ecf5ff; }
+    &.offered { background-color: #f0f9eb; }
+    &.rejected { background-color: #fef0f0; }
+    &.withdrawn { background-color: #f4f4f5; color: #909399; }
+  }
+
+  .match-score-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+
+    .match-progress {
+      width: 85%;
+    }
+
+    .match-reason-btn {
+      padding: 2px;
+
+      .el-icon-info {
+        font-size: 16px;
+        color: #909399;
+        transition: color 0.2s;
+
+        &:hover {
+          color: #409EFF;
+        }
+      }
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+
+    .action-btn {
+      padding: 5px 8px;
+
+      i {
+        margin-right: 3px;
+        font-size: 14px;
+      }
+    }
+  }
+
+  ::v-deep .el-table__fixed-right {
+    height: 100% !important;
+    background-color: #fff;
+  }
+}
+
+.match-reason-dialog {
+  ::v-deep .el-dialog__body {
+    padding: 24px;
+  }
+
+  .match-analysis {
+    display: flex;
+    gap: 24px;
+
+    .match-score {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      width: 180px;
+
+      .el-progress {
+        width: 140px;
+        height: 140px;
+      }
+
+      .score-text {
+        margin-top: 16px;
+        font-size: 16px;
+        color: #606266;
+      }
+
+      .score-level {
+        margin-top: 8px;
+        font-size: 14px;
+        color: #909399;
+        padding: 4px 12px;
+        background: #ecf5ff;
+        border-radius: 12px;
+      }
+    }
+
+    .match-details {
+      flex-grow: 1;
+      min-width: 0;
+
+      ::v-deep .el-tabs {
+        box-shadow: none;
+
+        .el-tabs__header {
+          margin-bottom: 0;
+
+          .el-tabs__item {
+            height: 40px;
+            line-height: 40px;
+            font-size: 14px;
+
+            &.is-active {
+              font-weight: 600;
+            }
+          }
+        }
+
+        .el-tabs__content {
+          padding: 20px;
+          background: #fff;
+          border-radius: 0 0 4px 4px;
+
+          .match-section {
+            color: #606266;
+            line-height: 1.8;
+            font-size: 14px;
+            padding: 16px;
+            background: #fafafa;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+
+            br {
+              margin: 8px 0;
+
+              & + br {
+                margin-top: -4px;
+              }
+            }
+
+            .text-space {
+              width: 0.3em;
+            }
+
+            strong {
+              padding: 2px 6px;
+            }
+
+            em {
+              font-style: normal;
+              color: #409EFF;
+            }
+
+            code {
+              margin: 0 2px;
+              padding: 3px 8px;
+              background: #f5f7fa;
+              border-radius: 4px;
+              color: #476582;
+              font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+              font-size: 13px;
+            }
+
+            ul {
+              margin: 12px 0;
+              padding: 12px 12px 12px 24px;
+              background: #fff;
+              border-radius: 4px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+
+              li {
+                margin-bottom: 12px;
+                position: relative;
+                padding-left: 4px;
+
+                &::before {
+                  content: '';
+                  position: absolute;
+                  left: -16px;
+                  top: 10px;
+                  width: 6px;
+                  height: 6px;
+                  border-radius: 50%;
+                  background-color: #409EFF;
+                  opacity: 0.7;
+                }
+
+                &:last-child {
+                  margin-bottom: 0;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// 优化进度条颜色
+::v-deep .el-progress__text {
+  color: #303133;
+  font-weight: 600;
+}
+
+::v-deep .el-dialog {
+  border-radius: 8px;
+  overflow: hidden;
+
+  .el-dialog__header {
+    margin: 0;
+    padding: 20px 30px;
+    border-bottom: 1px solid #e4e7ed;
+    background: #fff;
+
+    .el-dialog__title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #303133;
+    }
+  }
+
+  .el-dialog__headerbtn {
+    top: 20px;
+    right: 20px;
+  }
+
+  @media screen and (max-width: 1200px) {
+    width: 95% !important;
+    margin: 0 auto;
+  }
+}
+
+.resume-dialog {
+  .el-dialog__body {
+    padding: 20px;
+  }
+}
+
+.info-card {
+  margin-bottom: 20px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+
+    i {
+      margin-right: 8px;
+      font-size: 18px;
+      color: #409EFF;
+    }
+
+    span {
+      font-size: 16px;
+      font-weight: 500;
+    }
+  }
+}
+
+.resume-info {
+  .info-item {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+
+    label {
+      min-width: 80px;
+      color: #606266;
+      font-weight: 500;
+      margin-right: 10px;
+    }
+  }
+}
+
+.skill-list {
+  .skill-item {
+    padding: 15px 0;
+    border-bottom: 1px solid #eee;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    h4 {
+      margin: 0 0 10px;
+      display: flex;
+      align-items: center;
+      font-size: 15px;
+
+      .el-tag {
+        margin-left: 10px;
+      }
+    }
+
+    p {
+      margin: 0;
+      color: #666;
+      line-height: 1.6;
+    }
+  }
+}
+
+.timeline-card {
+  background-color: #f9fafc;
+
+  h4 {
+    margin: 0 0 10px;
+    color: #303133;
+    font-size: 15px;
+    font-weight: 500;
+  }
+}
+
+.work-description {
+  white-space: pre-line;
+  line-height: 1.6;
+  color: #666;
+}
+</style>
