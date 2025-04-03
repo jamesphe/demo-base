@@ -1,11 +1,35 @@
 import request from '@/utils/request'
 
-// 简历上传
-export function uploadResume(data) {
+// 上传简历
+export function uploadResume(data, positionId) {
+  // 如果传入了 positionId，将其添加到 FormData 中
+  if (positionId) {
+    data.append('job_id', positionId)
+  }
+
   return request({
-    url: '/resume/upload',
+    url: '/resumes/upload',
     method: 'post',
-    data
+    data,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+// 获取简历预览URL
+export function getResumePreviewUrl(fileId) {
+  return request({
+    url: `/resume/${fileId}/preview`,
+    method: 'get'
+  })
+}
+
+// 删除已上传的简历
+export function deleteResume(fileId) {
+  return request({
+    url: `/resume/${fileId}`,
+    method: 'delete'
   })
 }
 
@@ -146,4 +170,4 @@ export function saveChat(chatData) {
     method: 'post',
     data: chatData
   })
-} 
+}

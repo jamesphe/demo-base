@@ -1,28 +1,48 @@
 <template>
   <basic-view title="简历上传">
     <div class="upload-container">
+      <!-- 职位选择 -->
+      <div class="position-select">
+        <el-form :model="form" label-width="80px">
+          <el-form-item label="选择职位">
+            <el-select
+              v-model="form.positionId"
+              placeholder="请选择职位(选填)"
+              clearable
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in positions"
+                :key="item.id"
+                :label="item.title"
+                :value="item.id"
+              />
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+
       <!-- 上传区域 -->
       <el-upload
         class="upload-area"
         drag
-        :action="uploadUrl"
+        action="#"
+        :http-request="handleUpload"
         :before-upload="beforeUpload"
-        :on-success="handleSuccess"
-        :on-error="handleError"
         :on-progress="handleProgress"
         multiple
         :file-list="fileList"
         :on-remove="handleRemove"
       >
-        <i class="el-icon-upload"></i>
+        <i class="el-icon-upload" />
         <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
-        <div class="el-upload__tip" slot="tip">
+        <div slot="tip" class="el-upload__tip">
           支持上传PDF、Word、JPG等格式文件，单个文件不超过10MB
         </div>
       </el-upload>
 
       <!-- 上传列表 -->
-      <div class="upload-list" v-if="fileList.length > 0">
+      <div v-if="fileList.length > 0" class="upload-list">
         <h3>已上传文件列表</h3>
         <el-table :data="fileList" style="width: 100%">
           <el-table-column prop="name" label="文件名" width="250">
@@ -46,9 +66,9 @@
           </el-table-column>
           <el-table-column label="上传进度" width="200">
             <template slot-scope="{row}">
-              <el-progress 
+              <el-progress
                 v-if="row.status !== 'success'"
-                :percentage="row.percentage" 
+                :percentage="row.percentage"
               />
               <span v-else>完成</span>
             </template>
@@ -82,8 +102,8 @@
       width="80%"
       :before-close="handlePreviewClose"
     >
-      <div class="preview-container" v-loading="previewLoading">
-        <iframe v-if="previewUrl" :src="previewUrl" frameborder="0"></iframe>
+      <div v-loading="previewLoading" class="preview-container">
+        <iframe v-if="previewUrl" :src="previewUrl" frameborder="0" />
         <div v-else class="no-preview">
           该文件类型暂不支持预览
         </div>
@@ -93,6 +113,7 @@
 </template>
 
 <script>
+import { mapState, mapActions } from 'vuex'
 import BasicView from '@/components/BasicView'
 
 export default {
@@ -100,15 +121,30 @@ export default {
   components: { BasicView },
   data() {
     return {
-      uploadUrl: process.env.VUE_APP_BASE_API + '/resume/upload',
       fileList: [],
       previewVisible: false,
+      previewLoading: false,
       previewUrl: '',
-      previewLoading: false
+      form: {
+        positionId: null
+      }
     }
   },
+  computed: {
+    ...mapState('resume', ['currentPreviewUrl']),
+    ...mapState('position', ['positions'])
+  },
+  created() {
+    this.fetchPositions()
+  },
   methods: {
-    // 上传前验证
+    ...mapActions('resume', [
+      'uploadResume',
+      'getPreviewUrl',
+      'deleteResume'
+    ]),
+    ...mapActions('position', ['fetchPositions']),
+
     beforeUpload(file) {
       const isValidType = this.validateFileType(file.type)
       const isLt10M = file.size / 1024 / 1024 < 10
@@ -124,7 +160,6 @@ export default {
       return true
     },
 
-    // 验证文件类型
     validateFileType(type) {
       const validTypes = [
         'application/pdf',
@@ -136,47 +171,76 @@ export default {
       return validTypes.includes(type)
     },
 
-    // 上传成功
-    handleSuccess(response, file, fileList) {
-      this.fileList = fileList
+    async handleUpload({ file, onProgress }) {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const response = await this.uploadResume({
+          file: formData,
+          positionId: this.form.positionId,
+          onProgress
+        })
+
+        if (response) {
+          this.handleSuccess(response, file)
+        }
+      } catch (error) {
+        this.handleError(error, file)
+      }
+    },
+
+    handleSuccess(response, file) {
       file.status = 'success'
+      this.fileList.push({
+        ...file,
+        id: response.id,
+        url: response.file_path
+      })
       this.$message.success('上传成功')
     },
 
-    // 上传失败
     handleError(err, file) {
-      this.$message.error('上传失败')
+      file.status = 'error'
+      console.error('上传失败:', err)
+      this.$message.error('上传失败：' + (err.message || '未知错误'))
     },
 
-    // 上传进度
     handleProgress(event, file) {
       file.percentage = Math.round(event.percent)
     },
 
-    // 移除文件
-    handleRemove(file) {
-      const index = this.fileList.indexOf(file)
-      if (index !== -1) {
-        this.fileList.splice(index, 1)
+    async handleRemove(file) {
+      try {
+        await this.deleteResume(file.id)
+        const index = this.fileList.indexOf(file)
+        if (index !== -1) {
+          this.fileList.splice(index, 1)
+        }
+        this.$message.success('删除成功')
+      } catch (error) {
+        this.$message.error('删除失败')
       }
     },
 
-    // 预览文件
-    previewFile(file) {
+    async previewFile(file) {
       this.previewLoading = true
       this.previewVisible = true
-      // 这里应该调用后端接口获取预览URL
-      this.previewUrl = file.url
-      this.previewLoading = false
+      try {
+        await this.getPreviewUrl(file.id)
+        this.previewUrl = this.currentPreviewUrl
+      } catch (error) {
+        this.$message.error('获取预览失败')
+      } finally {
+        this.previewLoading = false
+      }
     },
 
-    // 关闭预览
     handlePreviewClose() {
       this.previewVisible = false
       this.previewUrl = ''
     },
 
-    // 格式化文件大小
     formatFileSize(size) {
       if (size < 1024) {
         return size + ' B'
@@ -194,6 +258,14 @@ export default {
 .upload-container {
   padding: 20px;
 
+  .position-select {
+    margin-bottom: 20px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 4px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  }
+
   .upload-area {
     width: 100%;
     border: 1px dashed #d9d9d9;
@@ -202,7 +274,7 @@ export default {
     cursor: pointer;
     position: relative;
     overflow: hidden;
-    
+
     &:hover {
       border-color: #409EFF;
     }
@@ -210,7 +282,7 @@ export default {
 
   .upload-list {
     margin-top: 20px;
-    
+
     h3 {
       margin-bottom: 20px;
       font-weight: 500;
@@ -221,12 +293,12 @@ export default {
 
 .preview-container {
   height: 70vh;
-  
+
   iframe {
     width: 100%;
     height: 100%;
   }
-  
+
   .no-preview {
     height: 100%;
     display: flex;
@@ -245,4 +317,4 @@ export default {
   width: 100%;
   height: 200px;
 }
-</style> 
+</style>

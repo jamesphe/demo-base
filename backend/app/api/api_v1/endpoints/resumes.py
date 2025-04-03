@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.api import deps
 from app.core.config import settings
-from app.services import resume_service
-from app.services import job_service
+from app.services.resume_service import resume_service
+from app.services.job_service import job_service
 from app.services import job_application_service
 from app.schemas.common import ResponseMsg, ResumeParseResponse
 from app.schemas.resume import (
@@ -81,16 +81,29 @@ async def upload_files(
                 job.tenant_id != current_user.tenant_id):
             raise HTTPException(status_code=403, detail="无权访问该职位")
     
-    # 添加后台任务处理简历
-    background_tasks.add_task(
-        resume_service.process_resume_file,
-        db,
-        file,
-        repository_id,
-        current_user,
-        job_id,
-        background_tasks
-    )
+    # 调试模式：直接同步执行而不是添加到后台任务
+    DEBUG_MODE = True  # 可以通过环境变量控制
+    
+    if DEBUG_MODE:
+        # 直接同步调用，这样可以打断点调试
+        await resume_service.process_resume_file(
+            db,
+            file,
+            repository_id,
+            current_user,
+            job_id,
+            background_tasks
+        )
+    else:
+        background_tasks.add_task(
+            resume_service.process_resume_file,
+            db,
+            file,
+            repository_id,
+            current_user,
+            job_id,
+            background_tasks
+        )
     
     return {"message": "简历上传成功，正在处理中"}
 
@@ -177,21 +190,19 @@ def read_resumes(
     ]
 )
 def read_resume(
-    *,
+    resume_id: int,
     db: Session = Depends(deps.get_db),
-    resume_id: int = Path(..., description="简历ID"),
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
     """获取简历详情"""
-    resume = resume_service.get_resume(db=db, resume_id=resume_id)
-    if not resume:
-        raise HTTPException(status_code=404, detail="简历不存在")
+    # 获取简历
+    resume = resume_service.get_resume(resume_id=resume_id, db=db)
     
     # 检查租户权限
     if (not current_user.is_superuser and 
             resume.tenant_id != current_user.tenant_id):
         raise HTTPException(
-            status_code=403, 
+            status_code=403,
             detail="无权访问该简历"
         )
     

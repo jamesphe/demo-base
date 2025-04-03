@@ -8,15 +8,15 @@ import {
 } from '@/api/position'
 
 const state = {
-  list: [],
+  positions: [],
   total: 0,
   loading: false,
   currentPosition: null
 }
 
 const mutations = {
-  SET_LIST: (state, list) => {
-    state.list = list
+  SET_POSITIONS: (state, positions) => {
+    state.positions = positions
   },
   SET_TOTAL: (state, total) => {
     state.total = total
@@ -36,7 +36,7 @@ const actions = {
       commit('SET_LOADING', true)
       const response = await getPositionList(params)
       console.log(response)
-      commit('SET_LIST', response.data)
+      commit('SET_POSITIONS', response.data)
       commit('SET_TOTAL', response.meta.total)
       return response
     } finally {
@@ -76,6 +76,16 @@ const actions = {
     const response = await getPositionDetail(id)
     commit('SET_CURRENT_POSITION', response)
     return response
+  },
+
+  async fetchPositions({ commit }) {
+    try {
+      const response = await getPositionList()
+      commit('SET_POSITIONS', response.data)
+    } catch (error) {
+      console.error('获取职位列表失败:', error)
+      throw error
+    }
   }
 }
 

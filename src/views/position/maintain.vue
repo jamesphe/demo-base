@@ -336,16 +336,16 @@
 
           <el-form-item label="福利待遇" prop="benefits">
             <el-checkbox-group v-model="positionForm.benefits" class="benefit-group">
-              <el-checkbox label="五险一金">五险一金</el-checkbox>
-              <el-checkbox label="年终奖">年终奖</el-checkbox>
-              <el-checkbox label="加班补助">加班补助</el-checkbox>
-              <el-checkbox label="餐补">餐补</el-checkbox>
-              <el-checkbox label="交通补助">交通补助</el-checkbox>
-              <el-checkbox label="通讯补贴">通讯补贴</el-checkbox>
-              <el-checkbox label="节日福利">节日福利</el-checkbox>
-              <el-checkbox label="带薪年假">带薪年假</el-checkbox>
-              <el-checkbox label="定期体检">定期体检</el-checkbox>
-              <el-checkbox label="员工旅游">员工旅游</el-checkbox>
+              <el-checkbox label="insurance">五险一金</el-checkbox>
+              <el-checkbox label="annual_bonus">年终奖</el-checkbox>
+              <el-checkbox label="overtime_pay">加班补助</el-checkbox>
+              <el-checkbox label="meal">餐补</el-checkbox>
+              <el-checkbox label="transportation">交通补助</el-checkbox>
+              <el-checkbox label="communication">通讯补贴</el-checkbox>
+              <el-checkbox label="holiday_benefits">节日福利</el-checkbox>
+              <el-checkbox label="paid_leave">带薪年假</el-checkbox>
+              <el-checkbox label="health_check">定期体检</el-checkbox>
+              <el-checkbox label="travel">员工旅游</el-checkbox>
             </el-checkbox-group>
           </el-form-item>
         </el-card>
@@ -617,7 +617,12 @@ export default {
       this.dialogVisible = true
     },
     handleEdit(row) {
-      this.positionForm = Object.assign({}, row)
+      this.positionForm = {
+        ...row,
+        benefits: Array.isArray(row.benefits) ? row.benefits.map(benefit => {
+          return Object.entries(this.getBenefitMap()).find(([key, val]) => val === benefit)?.[0] || benefit
+        }) : []
+      }
       this.dialogTitle = '编辑职位'
       this.dialogVisible = true
     },
@@ -638,7 +643,7 @@ export default {
           salaryType: this.positionForm.salaryUnit === 'month' ? '月薪' : '年薪',
           description: this.positionForm.description,
           requirements: this.positionForm.requirements,
-          benefits: this.positionForm.benefits,
+          benefits: this.positionForm.benefits.map(benefit => this.getBenefitLabel(benefit)),
           experienceRequired: this.positionForm.experienceRequired,
           educationRequired: this.positionForm.educationRequired,
           headcount: this.positionForm.headcount
@@ -683,6 +688,35 @@ export default {
         this.getList()
       } catch (error) {
         console.error('删除职位失败:', error)
+      }
+    },
+    getBenefitLabel(value) {
+      const benefitMap = {
+        'insurance': '五险一金',
+        'annual_bonus': '年终奖',
+        'overtime_pay': '加班补助',
+        'meal': '餐补',
+        'transportation': '交通补助',
+        'communication': '通讯补贴',
+        'holiday_benefits': '节日福利',
+        'paid_leave': '带薪年假',
+        'health_check': '定期体检',
+        'travel': '员工旅游'
+      }
+      return benefitMap[value] || value
+    },
+    getBenefitMap() {
+      return {
+        'insurance': '五险一金',
+        'annual_bonus': '年终奖',
+        'overtime_pay': '加班补助',
+        'meal': '餐补',
+        'transportation': '交通补助',
+        'communication': '通讯补贴',
+        'holiday_benefits': '节日福利',
+        'paid_leave': '带薪年假',
+        'health_check': '定期体检',
+        'travel': '员工旅游'
       }
     }
   }

@@ -7,6 +7,7 @@ import permission from './modules/permission'
 import trial from './modules/trial'
 import tenant from './modules/tenant'
 import position from './modules/position'
+import resume from './modules/resume'
 
 Vue.use(Vuex)
 
@@ -31,7 +32,8 @@ const store = new Vuex.Store({
     ...modulesList,
     permission,
     tenant,
-    position
+    position,
+    resume
   },
   getters
 })

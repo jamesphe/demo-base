@@ -387,19 +387,15 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                             )
                         )
                     else:
-                        date_obj = datetime.strptime(
-                            standardized_data[field], 
-                            "%Y-%m-%d"
-                        )
-                        standardized_data[field] = (
-                            date_obj.strftime("%Y-%m-%dT%H:%M:%S")
-                        )
+                        standardized_data[field] = self._parse_date(standardized_data[field])
                 except (ValueError, TypeError):
                     standardized_data[field] = None
         
         # 处理工作经历中的日期
         if standardized_data.get("work_history"):
             for work in standardized_data["work_history"]:
+                # 处理公司名称
+                work["company"] = work.get("company") or "未提供"
                 for date_field in ["start_date", "end_date"]:
                     if work.get(date_field):
                         try:
@@ -408,13 +404,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                                     work[date_field].strftime("%Y-%m-%dT%H:%M:%S")
                                 )
                             else:
-                                date_obj = datetime.strptime(
-                                    work[date_field], 
-                                    "%Y-%m-%d"
-                                )
-                                work[date_field] = (
-                                    date_obj.strftime("%Y-%m-%dT%H:%M:%S")
-                                )
+                                work[date_field] = self._parse_date(work[date_field])
                         except (ValueError, TypeError):
                             work[date_field] = None
         
@@ -429,17 +419,33 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                                     edu[date_field].strftime("%Y-%m-%dT%H:%M:%S")
                                 )
                             else:
-                                date_obj = datetime.strptime(
-                                    edu[date_field], 
-                                    "%Y-%m-%d"
-                                )
-                                edu[date_field] = (
-                                    date_obj.strftime("%Y-%m-%dT%H:%M:%S")
-                                )
+                                edu[date_field] = self._parse_date(edu[date_field])
                         except (ValueError, TypeError):
                             edu[date_field] = None
         
         return standardized_data
+
+    def _parse_date(self, date_str: Optional[str]) -> Optional[str]:
+        """解析日期字符串"""
+        if not date_str:
+            return None
+        
+        try:
+            # 尝试直接解析标准格式的日期字符串
+            date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+            return date_obj.strftime("%Y-%m-%dT%H:%M:%S")
+        except ValueError:
+            try:
+                # 尝试解析带时间的日期字符串
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                return date_obj.strftime("%Y-%m-%dT%H:%M:%S")
+            except ValueError:
+                try:
+                    # 尝试解析ISO格式的日期字符串
+                    date_obj = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S")
+                    return date_obj.strftime("%Y-%m-%dT%H:%M:%S")
+                except ValueError:
+                    return None
 
     async def _analyze_resume_with_llm(
         self, 
@@ -566,10 +572,10 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                 date_str = date_str.split("T")[0]
             
             try:
-                # 转换为datetime对象再转回特定格式的字符串
-                dt = datetime.strptime(date_str, "%Y-%m-%d")
-                return dt.strftime("%Y-%m-%dT%H:%M:%S")
-            except (ValueError, TypeError):
+                # 尝试解析日期字符串
+                date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+                return date_obj.strftime("%Y-%m-%dT%H:%M:%S")
+            except:
                 return None
 
         # 处理birthdate格式
@@ -586,6 +592,8 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         work_history = parsed_data.get("work_history", [])
         if work_history:
             for work in work_history:
+                # 处理公司名称
+                work["company"] = work.get("company") or "未提供"
                 if work.get("start_date"):
                     work["start_date"] = convert_to_datetime(work["start_date"])
                 if work.get("end_date"):
@@ -595,10 +603,17 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         edu_experience = parsed_data.get("edu_experience", [])
         if edu_experience:
             for edu in edu_experience:
-                if edu.get("start_date"):
-                    edu["start_date"] = convert_to_datetime(edu["start_date"])
-                if edu.get("end_date"):
-                    edu["end_date"] = convert_to_datetime(edu["end_date"])
+                for date_field in ["start_date", "end_date"]:
+                    if edu.get(date_field):
+                        try:
+                            if isinstance(edu[date_field], datetime):
+                                edu[date_field] = (
+                                    edu[date_field].strftime("%Y-%m-%dT%H:%M:%S")
+                                )
+                            else:
+                                edu[date_field] = self._parse_date(edu[date_field])
+                        except (ValueError, TypeError):
+                            edu[date_field] = None
 
         fields = {
             # 个人基本信息
@@ -688,11 +703,26 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             return True
         return False
 
-    def get_resume(self, resume_id: int) -> Optional[models.Resume]:
-        """获取简历"""
-        return self.db.query(models.Resume).filter(
+    def get_resume(self, resume_id: int, db: Session) -> models.Resume:
+        """
+        获取简历详情
+        
+        Args:
+            resume_id: 简历ID
+            db: 数据库会话
+            
+        Returns:
+            models.Resume: 简历对象
+            
+        Raises:
+            HTTPException: 当简历不存在时抛出404错误
+        """
+        resume = db.query(models.Resume).filter(
             models.Resume.id == resume_id
         ).first()
+        if not resume:
+            raise HTTPException(status_code=404, detail="简历不存在")
+        return resume
 
     def update_resume(
         self, 
@@ -1936,7 +1966,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             logger.error(f"创建简历失败: {str(e)}", exc_info=True)
             raise ValueError(f"创建简历失败: {str(e)}")
 
-# 创建服务实例
+# 创建单例实例
 resume_service = ResumeService()
 
 # 只导出实例

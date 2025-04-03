@@ -103,7 +103,6 @@ export const asyncRoutes = [
   {
     path: '/tenant',
     component: Layout,
-    name: 'Tenant',
     meta: {
       title: '租户管理',
       icon: 'el-icon-s-home',
