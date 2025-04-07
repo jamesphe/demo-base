@@ -49,7 +49,17 @@
           class-name="job-column"
         >
           <template slot-scope="scope">
-            <span class="job-title">{{ scope.row.job ? scope.row.job.title : '' }}</span>
+            <el-link
+              type="primary"
+              :underline="false"
+              class="job-title"
+              @click="handleViewJob(scope.row.job)"
+            >
+              <span v-if="scope.row.job">
+                {{ scope.row.job.title }}
+              </span>
+              <span v-else>-</span>
+            </el-link>
           </template>
         </el-table-column>
 
@@ -446,19 +456,128 @@
         </div>
       </div>
       <div v-loading="previewLoading" class="preview-container">
-        <iframe
-          v-if="previewUrl"
-          :src="previewUrl"
-          class="preview-object"
-          frameborder="0"
-          style="width: 100%; height: calc(100vh - 200px); min-height: 500px;"
-          @load="handlePreviewLoad"
-          @error="handlePreviewError"
-        />
-        <div v-else class="no-preview">
-          <i class="el-icon-document-delete" style="font-size: 48px; color: #909399; margin-bottom: 16px;" />
-          <p>暂无可预览的文件</p>
-        </div>
+        <template v-if="isDocPreview">
+          <div class="doc-preview" v-html="previewContent" />
+        </template>
+        <template v-else>
+          <iframe
+            v-if="previewUrl"
+            :src="previewUrl"
+            class="preview-object"
+            frameborder="0"
+            style="width: 100%; height: calc(100vh - 200px); min-height: 500px;"
+            @load="handlePreviewLoad"
+            @error="handlePreviewError"
+          />
+          <div v-else class="no-preview">
+            <i class="el-icon-document-delete" style="font-size: 48px; color: #909399; margin-bottom: 16px;" />
+            <p>暂无可预览的文件</p>
+          </div>
+        </template>
+      </div>
+    </el-dialog>
+
+    <!-- 职位详情弹窗 -->
+    <el-dialog
+      title="职位详情"
+      :visible.sync="jobDetailVisible"
+      width="65%"
+      class="job-detail-dialog"
+    >
+      <div v-loading="jobDetailLoading">
+        <el-card class="box-card">
+          <div slot="header" class="card-header">
+            <span>基本信息</span>
+          </div>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <div class="info-item">
+                <label>职位名称：</label>
+                {{ currentJob.title || '-' }}
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="info-item">
+                <label>职位类型：</label>
+                <el-tag :type="currentJob.type === 'fulltime' ? 'primary' : currentJob.type === 'parttime' ? 'success' : 'warning'">
+                  {{ currentJob.type === 'fulltime' ? '全职' : currentJob.type === 'parttime' ? '兼职' : '实习' }}
+                </el-tag>
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="info-item">
+                <label>所属部门：</label>
+                {{ currentJob.department || '-' }}
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="info-item">
+                <label>工作地点：</label>
+                {{ currentJob.location || '-' }}
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="info-item">
+                <label>薪资范围：</label>
+                <span class="salary-text">{{ currentJob.salaryMin }}-{{ currentJob.salaryMax }}K/{{ currentJob.salaryUnit === 'month' ? '月' : '年' }}</span>
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="info-item">
+                <label>招聘人数：</label>
+                {{ currentJob.headcount || '-' }} 人
+              </div>
+            </el-col>
+          </el-row>
+        </el-card>
+
+        <el-card class="box-card">
+          <div slot="header" class="card-header">
+            <span>要求与职责</span>
+          </div>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <div class="info-item">
+                <label>学历要求：</label>
+                <el-tag size="mini" type="info">
+                  {{ getEducationText(currentJob.educationRequired) }}
+                </el-tag>
+              </div>
+            </el-col>
+            <el-col :span="12">
+              <div class="info-item">
+                <label>经验要求：</label>
+                {{ currentJob.experienceRequired || '-' }}
+              </div>
+            </el-col>
+          </el-row>
+          <div class="info-section">
+            <h4>职位描述</h4>
+            <p class="description-text">{{ currentJob.description || '-' }}</p>
+          </div>
+          <div class="info-section">
+            <h4>任职要求</h4>
+            <p class="description-text">{{ currentJob.requirements || '-' }}</p>
+          </div>
+        </el-card>
+
+        <el-card v-if="currentJob.benefits && currentJob.benefits.length" class="box-card">
+          <div slot="header" class="card-header">
+            <span>福利待遇</span>
+          </div>
+          <div class="benefits-list">
+            <el-tag
+              v-for="(benefit, index) in currentJob.benefits"
+              :key="index"
+              size="small"
+              type="success"
+              effect="plain"
+              class="benefit-tag"
+            >
+              {{ getBenefitLabel(benefit) }}
+            </el-tag>
+          </div>
+        </el-card>
       </div>
     </el-dialog>
   </div>
@@ -468,6 +587,7 @@
 import { mapGetters, mapActions } from 'vuex'
 import Pagination from '@/components/Pagination'
 import { getToken } from '@/utils/auth'
+import mammoth from 'mammoth'
 
 export default {
   name: 'PositionApplications',
@@ -497,7 +617,12 @@ export default {
       isFullscreen: false,
       previewUrl: '',
       downloadUrl: '',
-      previewLoading: false
+      previewLoading: false,
+      previewContent: '',
+      isDocPreview: false,
+      jobDetailVisible: false,
+      jobDetailLoading: false,
+      currentJob: {}
     }
   },
   computed: {
@@ -509,6 +634,10 @@ export default {
     ...mapGetters('resume', [
       'previewUrl',
       'previewLoading'
+    ]),
+    ...mapGetters('position', [
+      'currentPosition',
+      'loading'
     ]),
     baseApiUrl() {
       return process.env.VUE_APP_BASE_API || ''
@@ -529,6 +658,9 @@ export default {
     ...mapActions('resume', [
       'getPreviewUrl'
     ]),
+    ...mapActions('position', [
+      'getPositionDetail'
+    ]),
     async getList() {
       try {
         console.log('Fetching applications with params:', {
@@ -540,13 +672,8 @@ export default {
           status: this.searchForm.status
         })
         console.log('API result:', result)
-        console.log('Current applicationList:', this.applicationList)
-
-        // 检查 Vuex store 中的状态
-        console.log('Vuex store state:', {
-          applications: this.$store.state.jobApplication.applications,
-          total: this.$store.state.jobApplication.total
-        })
+        console.log('Application list sample:', this.applicationList?.slice(0, 2))
+        console.log('First application job data:', this.applicationList?.[0]?.job)
       } catch (error) {
         console.error('获取申请列表失败:', error)
         this.$message.error('获取申请列表失败')
@@ -731,28 +858,81 @@ export default {
         console.log('简历ID:', row.resumeId)
         this.resumePreviewVisible = true
         this.previewLoading = true
+        this.isDocPreview = false
+        this.previewContent = ''
 
-        // 获取预览URL
-        console.log('正在获取预览URL...')
-        const result = await this.getPreviewUrl(row.resumeId)
-        console.log('获取预览URL结果:', result)
+        // 获取文件类型
+        const fileType = this.getFileType(row.resumeName)
 
-        // 处理预览URL
-        const previewPath = typeof result === 'string' ? result : result.previewUrl
-        // 添加token到URL
-        const token = this.authToken
-        const tokenParam = token ? `?token=${token}` : ''
-        this.previewUrl = previewPath ? `${this.baseApiUrl}${previewPath}${tokenParam}` : ''
-        this.downloadUrl = `${this.baseApiUrl}/resume/download/${row.resumeId}${tokenParam}`
+        if (fileType === 'doc' || fileType === 'docx') {
+          // 处理doc/docx文件预览
+          this.isDocPreview = true
+          await this.previewWordDocument(row)
+        } else {
+          // 处理其他类型文件预览
+          console.log('正在获取预览URL...')
+          const result = await this.getPreviewUrl(row.resumeId)
+          console.log('获取预览URL结果:', result)
 
-        console.log('设置预览URL:', this.previewUrl)
-        console.log('设置下载URL:', this.downloadUrl)
+          const previewPath = typeof result === 'string' ? result : result.previewUrl
+          const token = this.authToken
+          const tokenParam = token ? `?token=${token}` : ''
+          this.previewUrl = previewPath ? `${this.baseApiUrl}${previewPath}${tokenParam}` : ''
+          this.downloadUrl = `${this.baseApiUrl}/resume/download/${row.resumeId}${tokenParam}`
+        }
+
+        console.log('预览设置完成')
       } catch (error) {
         console.error('获取简历预览失败:', error)
         console.error('错误详情:', error.response?.data || error.message)
         this.$message.error('获取简历预览失败')
       } finally {
         this.previewLoading = false
+      }
+    },
+    getFileType(fileName) {
+      if (!fileName) return ''
+      const extension = fileName.split('.').pop().toLowerCase()
+      return extension
+    },
+    async previewWordDocument(row) {
+      try {
+        // 修改API路径
+        const response = await fetch(`${this.baseApiUrl}/resumes/download/${row.resumeId}`, {
+          headers: {
+            'Authorization': `Bearer ${this.authToken}`
+          }
+        })
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        const blob = await response.blob()
+        // 检查文件类型
+        const fileType = this.getFileType(row.resumeName)
+        if (fileType !== 'doc' && fileType !== 'docx') {
+          throw new Error('不支持的文件格式')
+        }
+        // 读取文件内容
+        const arrayBuffer = await blob.arrayBuffer()
+        // 使用mammoth.js转换docx为HTML
+        const result = await mammoth.convertToHtml(
+          { arrayBuffer },
+          {
+            convertImage: mammoth.images.imgElement(function(image) {
+              return image.read('base64').then(function(imageBase64) {
+                return {
+                  src: `data:${image.contentType};base64,${imageBase64}`
+                }
+              })
+            })
+          }
+        )
+        this.previewContent = result.value
+        this.downloadUrl = `${this.baseApiUrl}/resumes/download/${row.resumeId}?token=${this.authToken}`
+      } catch (error) {
+        console.error('Word文档预览失败:', error)
+        this.$message.error('文档预览失败：' + error.message)
+        throw error
       }
     },
     handleDownload() {
@@ -782,6 +962,68 @@ export default {
     },
     toggleFullscreen() {
       this.isFullscreen = !this.isFullscreen
+    },
+    async handleViewJob(job) {
+      console.log('handleViewJob called with job:', job)
+      if (!job) {
+        console.warn('No job data provided')
+        return
+      }
+      this.jobDetailVisible = true
+      this.jobDetailLoading = true
+      try {
+        // 通过 store 获取职位详情
+        const jobDetail = await this.getPositionDetail(job.id)
+        console.log('Job detail from API:', jobDetail)
+        // 转换数据格式
+        this.currentJob = {
+          title: jobDetail.title,
+          type: jobDetail.jobType,
+          department: jobDetail.department,
+          location: jobDetail.location,
+          salaryMin: jobDetail.salaryMin,
+          salaryMax: jobDetail.salaryMax,
+          salaryUnit: jobDetail.salaryType === '月薪' ? 'month' : 'year',
+          description: jobDetail.description,
+          requirements: jobDetail.requirements,
+          benefits: jobDetail.benefits ? jobDetail.benefits.split(',') : [],
+          experienceRequired: jobDetail.experienceRequired,
+          educationRequired: jobDetail.educationRequired,
+          headcount: jobDetail.headcount || 1
+        }
+        console.log('Transformed job data:', this.currentJob)
+      } catch (error) {
+        console.error('Error fetching job detail:', error)
+        this.$message.error('获取职位详情失败')
+      } finally {
+        this.jobDetailLoading = false
+      }
+    },
+    getEducationText(education) {
+      const educationMap = {
+        'bachelor': '本科',
+        'master': '硕士',
+        'phd': '博士',
+        'college': '大专',
+        'highschool': '高中',
+        'other': '其他'
+      }
+      return educationMap[education?.toLowerCase()] || education || '-'
+    },
+    getBenefitLabel(value) {
+      const benefitMap = {
+        'insurance': '五险一金',
+        'annual_bonus': '年终奖',
+        'overtime_pay': '加班补助',
+        'meal': '餐补',
+        'transportation': '交通补助',
+        'communication': '通讯补贴',
+        'holiday_benefits': '节日福利',
+        'paid_leave': '带薪年假',
+        'health_check': '定期体检',
+        'travel': '员工旅游'
+      }
+      return benefitMap[value] || value
     }
   }
 }
@@ -1193,6 +1435,63 @@ export default {
       background: white;
     }
 
+    .doc-preview {
+      width: 100%;
+      height: calc(100vh - 200px);
+      min-height: 500px;
+      padding: 20px;
+      background: white;
+      overflow-y: auto;
+      box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+      border-radius: 4px;
+
+      ::v-deep {
+        h1, h2, h3, h4, h5, h6 {
+          margin: 1em 0 0.5em;
+          color: #303133;
+        }
+
+        p {
+          margin: 0.5em 0;
+          line-height: 1.6;
+          color: #606266;
+        }
+
+        img {
+          max-width: 100%;
+          height: auto;
+          margin: 1em 0;
+        }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 1em 0;
+
+          th, td {
+            border: 1px solid #dcdfe6;
+            padding: 8px;
+            text-align: left;
+          }
+
+          th {
+            background-color: #f5f7fa;
+            color: #606266;
+          }
+        }
+
+        ul, ol {
+          padding-left: 2em;
+          margin: 0.5em 0;
+        }
+
+        li {
+          line-height: 1.6;
+          color: #606266;
+        }
+      }
+    }
+
     .fallback-message {
       padding: 20px;
       text-align: center;
@@ -1212,6 +1511,69 @@ export default {
       color: #909399;
       font-size: 14px;
     }
+  }
+}
+
+.job-detail-dialog {
+  .box-card {
+    margin-bottom: 20px;
+    border-radius: 8px;
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 500;
+    }
+  }
+
+  .info-item {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+
+    label {
+      min-width: 80px;
+      color: #606266;
+      font-weight: 500;
+      margin-right: 10px;
+    }
+  }
+
+  .info-section {
+    margin-top: 20px;
+
+    h4 {
+      margin: 0 0 10px;
+      color: #303133;
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .description-text {
+      margin: 0;
+      color: #606266;
+      line-height: 1.8;
+      white-space: pre-line;
+    }
+  }
+
+  .benefits-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    .benefit-tag {
+      margin-right: 5px;
+    }
+  }
+
+  .salary-text {
+    color: #f56c6c;
+    font-weight: 500;
+    background: #fef0f0;
+    padding: 2px 8px;
+    border-radius: 4px;
   }
 }
 </style>

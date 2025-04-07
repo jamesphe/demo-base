@@ -73,9 +73,17 @@ const actions = {
 
   // 获取职位详情
   async getPositionDetail({ commit }, id) {
-    const response = await getPositionDetail(id)
-    commit('SET_CURRENT_POSITION', response)
-    return response
+    try {
+      commit('SET_LOADING', true)
+      const response = await getPositionDetail(id)
+      commit('SET_CURRENT_POSITION', response)
+      return response
+    } catch (error) {
+      console.error('获取职位详情失败:', error)
+      throw error
+    } finally {
+      commit('SET_LOADING', false)
+    }
   },
 
   async fetchPositions({ commit }) {
