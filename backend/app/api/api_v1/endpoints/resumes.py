@@ -1,15 +1,15 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 from fastapi import (
     APIRouter, Depends, HTTPException, UploadFile, 
     File, Form, BackgroundTasks, Query, Path
 )
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app import models
 from app.api import deps
 from app.core.config import settings
 from app.services.resume_service import resume_service
 from app.services.job_service import job_service
-from app.services import job_application_service
 from app.schemas.common import ResponseMsg, ResumeParseResponse
 from app.schemas.resume import (
     Resume,
@@ -17,8 +17,7 @@ from app.schemas.resume import (
     ResumeCreate,
     ResumeUpdate
 )
-import time
-import random
+import os
 
 
 router = APIRouter()
@@ -402,4 +401,128 @@ async def create_resume(
         )
         return resume
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) 
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get(
+    "/{resume_id}/preview",
+    response_model=Dict[str, str],
+    summary="获取简历预览URL",
+    description="获取简历文件的预览URL",
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["resume_read"]
+            )
+        )
+    ]
+)
+async def get_resume_preview_url(
+    resume_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_active_user)
+) -> Any:
+    """获取简历预览URL"""
+    # 获取简历
+    resume = resume_service.get_resume(resume_id=resume_id, db=db)
+    
+    # 检查租户权限
+    if (not current_user.is_superuser and 
+            resume.tenant_id != current_user.tenant_id):
+        raise HTTPException(
+            status_code=403,
+            detail="无权访问该简历"
+        )
+    
+    # 检查文件是否存在
+    if not resume.file_path or not os.path.exists(resume.file_path):
+        raise HTTPException(
+            status_code=404,
+            detail="简历文件不存在"
+        )
+    
+    # 获取文件类型
+    file_type = resume.file_type.lower() if resume.file_type else ""
+    if file_type not in settings.ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="不支持的文件类型"
+        )
+    
+    # 生成预览URL
+    preview_url = f"/resumes/{resume_id}/download"
+    
+    return {"preview_url": preview_url}
+
+
+@router.get(
+    "/{resume_id}/download",
+    summary="下载简历文件",
+    description="下载指定的简历文件",
+)
+async def download_resume(
+    resume_id: int,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(
+        deps.get_current_active_user_from_param
+    ),
+    tenant_id: Optional[int] = Depends(deps.get_current_tenant_id_from_param)
+) -> Any:
+    """下载简历文件"""
+    # 获取简历
+    resume = resume_service.get_resume(resume_id=resume_id, db=db)
+    
+    # 检查租户权限
+    if (not current_user.is_superuser and 
+            resume.tenant_id != current_user.tenant_id):
+        raise HTTPException(
+            status_code=403,
+            detail="无权访问该简历"
+        )
+    
+    # 检查文件是否存在
+    if not resume.file_path or not os.path.exists(resume.file_path):
+        raise HTTPException(
+            status_code=404,
+            detail="简历文件不存在"
+        )
+    
+    # 获取文件类型
+    file_type = resume.file_type.lower() if resume.file_type else ""
+    if file_type not in settings.ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="不支持的文件类型"
+        )
+    
+    # 设置正确的Content-Type
+    media_type_map = {
+        'pdf': 'application/pdf',
+        'doc': 'application/msword',
+        'docx': (
+            'application/vnd.openxmlformats-officedocument.'
+            'wordprocessingml.document'
+        ),
+        'txt': 'text/plain',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png'
+    }
+    
+    media_type = media_type_map.get(file_type, 'application/octet-stream')
+    
+    # 返回文件，设置为inline显示
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'X-Frame-Options': 'ALLOWALL'
+    }
+    
+    return FileResponse(
+        path=resume.file_path,
+        filename=resume.file_name,
+        media_type=media_type,
+        content_disposition_type="inline",
+        headers=headers
+    )

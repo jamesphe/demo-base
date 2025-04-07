@@ -1,8 +1,11 @@
 import { uploadResume, getResumePreviewUrl, deleteResume } from '@/api/resume'
+import { baseURL } from '@/utils/request'
+import { getToken } from '@/utils/auth'
 
 const state = {
   uploadedFiles: [],
-  currentPreviewUrl: ''
+  currentPreviewUrl: '',
+  previewLoading: false
 }
 
 const mutations = {
@@ -16,7 +19,14 @@ const mutations = {
     state.uploadedFiles = state.uploadedFiles.filter(file => file.id !== fileId)
   },
   SET_PREVIEW_URL: (state, url) => {
-    state.currentPreviewUrl = url
+    const token = getToken()
+    const separator = url.includes('?') ? '&' : '?'
+    state.currentPreviewUrl = url.startsWith('http')
+      ? `${url}${separator}token=${token}`
+      : `${baseURL}${url}${separator}token=${token}`
+  },
+  SET_PREVIEW_LOADING: (state, loading) => {
+    state.previewLoading = loading
   }
 }
 
@@ -24,7 +34,7 @@ const actions = {
   // 上传简历
   async uploadResume({ commit }, { file, positionId, onProgress }) {
     try {
-      const response = await uploadResume(file, positionId)
+      const response = await uploadResume(file, positionId, onProgress)
       if (response.data) {
         commit('ADD_UPLOADED_FILE', response.data)
       }
@@ -36,17 +46,23 @@ const actions = {
   },
 
   // 获取预览URL
-  async getPreviewUrl({ commit }, fileId) {
+  async getPreviewUrl({ commit }, resumeId) {
+    console.log('Store: 开始获取预览URL, resumeId:', resumeId)
+    commit('SET_PREVIEW_LOADING', true)
     try {
-      const response = await getResumePreviewUrl(fileId)
-      const url = response.data?.url
+      const response = await getResumePreviewUrl(resumeId)
+      console.log('Store: API响应:', response)
+      const url = response?.previewUrl
+      console.log('Store: 解析到的URL:', url)
       if (url) {
         commit('SET_PREVIEW_URL', url)
       }
       return url
     } catch (error) {
-      console.error('获取预览URL失败:', error)
+      console.error('Store: 获取预览URL失败:', error)
       throw error
+    } finally {
+      commit('SET_PREVIEW_LOADING', false)
     }
   },
 
@@ -62,9 +78,15 @@ const actions = {
   }
 }
 
+const getters = {
+  previewUrl: state => state.currentPreviewUrl,
+  previewLoading: state => state.previewLoading
+}
+
 export default {
   namespaced: true,
   state,
   mutations,
-  actions
+  actions,
+  getters
 }

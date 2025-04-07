@@ -1,23 +1,28 @@
 import axios from 'axios'
+import { Message } from 'element-ui'
 import store from '@/store'
 import { getToken } from '@/utils/auth'
 
 // create an axios instance
 const service = axios.create({
-  baseURL: process.env.VUE_APP_BASE_API, // url = base url + request url
+  baseURL: process.env.VUE_APP_BASE_API || 'http://localhost:8000',
   withCredentials: true, // 允许跨域请求携带cookie
-  timeout: 5000 // request timeout
+  timeout: 5000, // request timeout
+  headers: {
+    'Content-Type': 'application/json'
+  }
 })
+
+export const baseURL = service.defaults.baseURL
 
 // request interceptor
 service.interceptors.request.use(
   config => {
     // do something before request is sent
-
     if (store.getters.token) {
       const token = getToken()
       console.log('Current token in interceptor:', token)
-      config.headers['Authorization'] = 'Bearer ' + token
+      config.headers['Authorization'] = `Bearer ${token}`
     }
 
     console.log('Request headers:', config.headers)
@@ -64,7 +69,17 @@ service.interceptors.response.use(
     const convertedData = convertToCamelCase(response.data)
 
     console.log('收到响应:', response.config.url, response.status, convertedData)
-    return convertedData
+    const res = convertedData
+
+    if (res.code && res.code !== 20000) {
+      Message({
+        message: res.message || 'Error',
+        type: 'error',
+        duration: 5 * 1000
+      })
+      return Promise.reject(new Error(res.message || 'Error'))
+    }
+    return res
   },
   error => {
     console.error('响应错误:', error)
@@ -99,6 +114,11 @@ service.interceptors.response.use(
         error.message = errMsg
     }
 
+    Message({
+      message: error.message,
+      type: 'error',
+      duration: 5 * 1000
+    })
     return Promise.reject(error)
   }
 )

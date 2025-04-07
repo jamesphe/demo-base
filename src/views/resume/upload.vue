@@ -173,15 +173,11 @@ export default {
 
     async handleUpload({ file, onProgress }) {
       try {
-        const formData = new FormData()
-        formData.append('file', file)
-
         const response = await this.uploadResume({
-          file: formData,
+          file,
           positionId: this.form.positionId,
           onProgress
         })
-
         if (response) {
           this.handleSuccess(response, file)
         }

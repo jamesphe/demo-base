@@ -13,6 +13,8 @@ from pprint import pformat
 import json
 import time
 import random
+import subprocess
+from pathlib import Path
 
 from app import models, crud, schemas
 from app.core.config import settings
@@ -59,8 +61,8 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     def __init__(self):
         super().__init__(models.Resume)
         self._setup_logger()
-        # 设置JSON编码器
         self.json_encoder = DateTimeEncoder()
+        self._setup_conversion_dir()
 
     def _setup_logger(self) -> None:
         """配置日志"""
@@ -72,6 +74,11 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         )
         logger.addHandler(console_handler)
         logger.setLevel(logging.DEBUG)
+
+    def _setup_conversion_dir(self):
+        """设置文件转换目录"""
+        self.conversion_dir = os.path.join(settings.UPLOAD_DIR, 'conversions')
+        os.makedirs(self.conversion_dir, exist_ok=True)
 
     def validate_file_extension(self, filename: str) -> bool:
         """验证文件扩展名是否允许"""
@@ -1965,6 +1972,113 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         except Exception as e:
             logger.error(f"创建简历失败: {str(e)}", exc_info=True)
             raise ValueError(f"创建简历失败: {str(e)}")
+
+    async def convert_to_pdf(self, file_path: str) -> Optional[str]:
+        """将Word文档转换为PDF
+        
+        Args:
+            file_path: Word文档路径
+            
+        Returns:
+            转换后的PDF文件路径，如果转换失败则返回None
+        """
+        try:
+            # 检查文件是否存在
+            if not os.path.exists(file_path):
+                logger.error(f"文件不存在: {file_path}")
+                return None
+
+            # 获取文件扩展名
+            file_ext = Path(file_path).suffix.lower()
+            if file_ext not in ['.doc', '.docx']:
+                logger.error(f"不支持的文件类型: {file_ext}")
+                return None
+
+            # 生成输出PDF路径
+            pdf_filename = f"{uuid.uuid4()}.pdf"
+            pdf_path = os.path.join(self.conversion_dir, pdf_filename)
+
+            # 使用LibreOffice进行转换
+            process = subprocess.Popen(
+                ['soffice', '--headless', '--convert-to', 'pdf', 
+                 '--outdir', self.conversion_dir, file_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            # 等待转换完成
+            stdout, stderr = process.communicate()
+            
+            if process.returncode != 0:
+                logger.error(f"转换失败: {stderr.decode()}")
+                return None
+
+            if not os.path.exists(pdf_path):
+                logger.error("转换后的PDF文件不存在")
+                return None
+
+            return pdf_path
+
+        except Exception as e:
+            logger.error(f"文件转换异常: {str(e)}", exc_info=True)
+            return None
+
+    async def get_preview_url(
+        self,
+        db: Session,
+        resume_id: str
+    ) -> Dict[str, Any]:
+        """获取简历预览URL
+        
+        Args:
+            db: 数据库会话
+            resume_id: 简历ID
+            
+        Returns:
+            包含预览URL和文件类型的字典
+        """
+        resume = self.get_by_resume_id(db, resume_id=resume_id)
+        if not resume:
+            raise HTTPException(status_code=404, detail="简历不存在")
+
+        if not resume.file_path or not os.path.exists(resume.file_path):
+            raise HTTPException(status_code=404, detail="简历文件不存在")
+
+        file_ext = Path(resume.file_path).suffix.lower()
+        
+        # 如果是Word文档，转换为PDF
+        if file_ext in ['.doc', '.docx']:
+            pdf_path = await self.convert_to_pdf(resume.file_path)
+            if not pdf_path:
+                raise HTTPException(
+                    status_code=500,
+                    detail="文件转换失败"
+                )
+            preview_path = pdf_path
+        else:
+            preview_path = resume.file_path
+
+        # 生成预览URL
+        return {
+            "url": f"/api/resume/preview/{resume_id}",
+            "fileType": "pdf" if file_ext in ['.doc', '.docx'] else file_ext[1:]
+        }
+
+    def cleanup_conversion_files(self):
+        """清理转换的临时文件"""
+        try:
+            # 删除超过24小时的转换文件
+            current_time = time.time()
+            for file_name in os.listdir(self.conversion_dir):
+                file_path = os.path.join(self.conversion_dir, file_name)
+                if os.path.isfile(file_path):
+                    # 获取文件的最后修改时间
+                    file_time = os.path.getmtime(file_path)
+                    # 如果文件超过24小时
+                    if current_time - file_time > 24 * 3600:
+                        os.remove(file_path)
+        except Exception as e:
+            logger.error(f"清理转换文件失败: {str(e)}", exc_info=True)
 
 # 创建单例实例
 resume_service = ResumeService()

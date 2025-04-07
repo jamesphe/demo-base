@@ -91,6 +91,9 @@ const actions = {
       experienceYears: response.experienceYears,
       highestEducation: response.highestEducation,
       major: response.major,
+      expectedPosition: response.expectedPosition,
+      expectedLocation: response.expectedLocation,
+      currentPosition: response.currentPosition,
       skills: response.skills || [],
       workHistory: response.workHistory || []
     }

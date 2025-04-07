@@ -1,34 +1,74 @@
 import request from '@/utils/request'
+import { getToken } from '@/utils/auth'
 
 // 上传简历
-export function uploadResume(data, positionId) {
-  // 如果传入了 positionId，将其添加到 FormData 中
-  if (positionId) {
-    data.append('job_id', positionId)
-  }
-
-  return request({
-    url: '/resumes/upload',
-    method: 'post',
-    data,
-    headers: {
-      'Content-Type': 'multipart/form-data'
+export function uploadResume(file, positionId, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    const formData = new FormData()
+    formData.append('file', file)
+    if (positionId) {
+      formData.append('job_id', positionId)
     }
+
+    xhr.open('POST', `${process.env.VUE_APP_BASE_API || 'http://localhost:8000'}/resumes/upload`, true)
+
+    // 添加认证头
+    const token = getToken()
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    }
+
+    // 设置进度监听
+    if (xhr.upload && typeof xhr.upload.addEventListener === 'function') {
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable && onProgress) {
+          const percentCompleted = Math.round((event.loaded * 100) / event.total)
+          onProgress({ percent: percentCompleted })
+        }
+      })
+    }
+
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const response = JSON.parse(xhr.responseText)
+          resolve(response)
+        } catch (e) {
+          reject(new Error('解析响应失败'))
+        }
+      } else {
+        reject(new Error('上传失败: ' + xhr.status))
+      }
+    }
+
+    xhr.onerror = function() {
+      reject(new Error('网络错误'))
+    }
+
+    xhr.send(formData)
   })
 }
 
 // 获取简历预览URL
-export function getResumePreviewUrl(fileId) {
+export function getResumePreviewUrl(resumeId) {
+  console.log('API: 发起预览URL请求, resumeId:', resumeId)
   return request({
-    url: `/resume/${fileId}/preview`,
+    url: `/resumes/${resumeId}/preview`,
     method: 'get'
+  }).then(response => {
+    console.log('API: 预览URL请求成功:', response)
+    return response
+  }).catch(error => {
+    console.error('API: 预览URL请求失败:', error)
+    throw error
   })
 }
 
 // 删除已上传的简历
-export function deleteResume(fileId) {
+export function deleteResume(resumeId) {
   return request({
-    url: `/resume/${fileId}`,
+    url: `/resumes/${resumeId}`,
     method: 'delete'
   })
 }

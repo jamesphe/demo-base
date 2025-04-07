@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Any, Union
+from typing import Any, Union, Optional
 from jose import jwt
 from passlib.context import CryptContext
 from app.core.config import settings
@@ -12,20 +12,30 @@ logger = setup_logger(__name__)
 # 添加错误处理
 logging.getLogger("passlib").setLevel(logging.ERROR)
 
+# 密码加密上下文
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# JWT相关配置
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+
 def create_access_token(
-    subject: Union[str, Any], expires_delta: timedelta = None
+    subject: Union[str, Any],
+    expires_delta: Optional[timedelta] = None
 ) -> str:
+    """创建访问令牌"""
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
         )
+    
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(
-        to_encode, settings.SECRET_KEY, algorithm="HS256"
+        to_encode,
+        settings.SECRET_KEY,
+        algorithm=ALGORITHM
     )
     return encoded_jwt
 
@@ -45,36 +55,9 @@ def reset_admin_password() -> str:
     return new_hash
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """
-    验证密码
-    """
-    logger.debug(f"Verifying password - Plain: '{plain_password}'")
-    logger.debug(f"Against hash: '{hashed_password}'")
-    
-    # 验证密码
-    try:
-        result = pwd_context.verify(plain_password, hashed_password)
-        logger.debug(f"Verification result: {result}")
-        
-        if not result:
-            # 如果验证失败，检查密码格式
-            logger.debug(f"Password bytes: {plain_password.encode('utf-8').hex()}")
-            logger.debug(f"Hash format: {hashed_password.split('$')}")
-            
-        return result
-    except Exception as e:
-        logger.error(f"Password verification error: {str(e)}")
-        return False
+    """验证密码"""
+    return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    """
-    生成密码哈希
-    """
-    logger.debug(f"Generating hash for password: '{password}'")
-    hashed = pwd_context.hash(password)
-    logger.debug(f"Generated hash: '{hashed}'")
-    
-    # 立即验证新生成的哈希
-    verify_result = pwd_context.verify(password, hashed)
-    logger.debug(f"Immediate verification result: {verify_result}")
-    return hashed 
+    """获取密码哈希值"""
+    return pwd_context.hash(password) 

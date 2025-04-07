@@ -85,6 +85,7 @@
               type="primary"
               :underline="false"
               class="resume-name"
+              @click="handlePreviewResume(scope.row)"
             >{{ scope.row.resumeName || '' }}</el-link>
           </template>
         </el-table-column>
@@ -418,12 +419,55 @@
         </el-card>
       </div>
     </el-dialog>
+
+    <!-- 简历预览弹窗 -->
+    <el-dialog
+      :visible.sync="resumePreviewVisible"
+      :width="isFullscreen ? '100%' : '80%'"
+      :close-on-click-modal="false"
+      :fullscreen="isFullscreen"
+      class="resume-preview-dialog"
+      append-to-body
+      destroy-on-close
+    >
+      <div slot="title" class="dialog-custom-header">
+        <i class="el-icon-document" />
+        <span>简历预览</span>
+        <div class="header-actions">
+          <el-tooltip content="全屏" placement="bottom" :enterable="false">
+            <i
+              :class="['el-icon-full-screen', { 'is-fullscreen': isFullscreen }]"
+              @click="toggleFullscreen"
+            />
+          </el-tooltip>
+          <el-tooltip content="下载原文件" placement="bottom" :enterable="false">
+            <i class="el-icon-download" @click="handleDownload" />
+          </el-tooltip>
+        </div>
+      </div>
+      <div v-loading="previewLoading" class="preview-container">
+        <iframe
+          v-if="previewUrl"
+          :src="previewUrl"
+          class="preview-object"
+          frameborder="0"
+          style="width: 100%; height: calc(100vh - 200px); min-height: 500px;"
+          @load="handlePreviewLoad"
+          @error="handlePreviewError"
+        />
+        <div v-else class="no-preview">
+          <i class="el-icon-document-delete" style="font-size: 48px; color: #909399; margin-bottom: 16px;" />
+          <p>暂无可预览的文件</p>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import Pagination from '@/components/Pagination'
 import { mapGetters, mapActions } from 'vuex'
+import Pagination from '@/components/Pagination'
+import { getToken } from '@/utils/auth'
 
 export default {
   name: 'PositionApplications',
@@ -448,7 +492,12 @@ export default {
       currentMatchScore: 0,
       resumeDetailVisible: false,
       resumeDetailLoading: false,
-      currentResume: null
+      currentResume: null,
+      resumePreviewVisible: false,
+      isFullscreen: false,
+      previewUrl: '',
+      downloadUrl: '',
+      previewLoading: false
     }
   },
   computed: {
@@ -457,20 +506,15 @@ export default {
       'total',
       'loading'
     ]),
-    compiledMatchReason() {
-      if (!this.currentMatchReason) return ''
-      // 简单的Markdown转HTML处理
-      return this.currentMatchReason
-        .replace(/\n/g, '<br>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-        .replace(/`(.*?)`/g, '<code>$1</code>')
-        .replace(/#{3,6}\s(.*?)$/gm, '<h3>$1</h3>')
-        .replace(/#{2}\s(.*?)$/gm, '<h2>$1</h2>')
-        .replace(/#{1}\s(.*?)$/gm, '<h1>$1</h1>')
-        .replace(/^\s*[-*+]\s(.*)$/gm, '<li>$1</li>')
-        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    ...mapGetters('resume', [
+      'previewUrl',
+      'previewLoading'
+    ]),
+    baseApiUrl() {
+      return process.env.VUE_APP_BASE_API || ''
+    },
+    authToken() {
+      return getToken()
     }
   },
   created() {
@@ -481,6 +525,9 @@ export default {
       'getApplicationList',
       'updateStatus',
       'getResumeDetail'
+    ]),
+    ...mapActions('resume', [
+      'getPreviewUrl'
     ]),
     async getList() {
       try {
@@ -677,6 +724,64 @@ export default {
       const start = formatDate(startDate)
       const end = endDate ? formatDate(endDate) : '至今'
       return `${start} - ${end}`
+    },
+    async handlePreviewResume(row) {
+      try {
+        console.log('开始预览简历:', row)
+        console.log('简历ID:', row.resumeId)
+        this.resumePreviewVisible = true
+        this.previewLoading = true
+
+        // 获取预览URL
+        console.log('正在获取预览URL...')
+        const result = await this.getPreviewUrl(row.resumeId)
+        console.log('获取预览URL结果:', result)
+
+        // 处理预览URL
+        const previewPath = typeof result === 'string' ? result : result.previewUrl
+        // 添加token到URL
+        const token = this.authToken
+        const tokenParam = token ? `?token=${token}` : ''
+        this.previewUrl = previewPath ? `${this.baseApiUrl}${previewPath}${tokenParam}` : ''
+        this.downloadUrl = `${this.baseApiUrl}/resume/download/${row.resumeId}${tokenParam}`
+
+        console.log('设置预览URL:', this.previewUrl)
+        console.log('设置下载URL:', this.downloadUrl)
+      } catch (error) {
+        console.error('获取简历预览失败:', error)
+        console.error('错误详情:', error.response?.data || error.message)
+        this.$message.error('获取简历预览失败')
+      } finally {
+        this.previewLoading = false
+      }
+    },
+    handleDownload() {
+      if (this.downloadUrl) {
+        console.log('开始下载文件:', this.downloadUrl)
+        window.open(this.downloadUrl, '_blank')
+      } else {
+        console.warn('下载URL不存在')
+      }
+    },
+    handlePreviewLoad() {
+      console.log('预览加载成功')
+      console.log('当前预览URL:', this.previewUrl)
+      this.previewLoading = false
+    },
+    handlePreviewError(e) {
+      console.error('预览加载失败:', e)
+      console.error('预览URL:', this.previewUrl)
+      console.error('预览组件错误详情:', {
+        error: e,
+        type: e.type,
+        target: e.target,
+        currentSrc: e.target?.currentSrc
+      })
+      this.$message.error('预览加载失败，请尝试直接打开文件')
+      this.previewLoading = false
+    },
+    toggleFullscreen() {
+      this.isFullscreen = !this.isFullscreen
     }
   }
 }
@@ -1051,5 +1156,62 @@ export default {
   white-space: pre-line;
   line-height: 1.6;
   color: #666;
+}
+
+.resume-preview-dialog {
+  .dialog-custom-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    i {
+      font-size: 18px;
+      color: #606266;
+      cursor: pointer;
+      transition: all 0.3s;
+
+      &:hover {
+        color: #409EFF;
+        transform: scale(1.1);
+      }
+    }
+  }
+
+  .preview-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f5f7fa;
+    overflow: hidden;
+
+    .preview-object {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: white;
+    }
+
+    .fallback-message {
+      padding: 20px;
+      text-align: center;
+      color: #909399;
+
+      a {
+        color: #409EFF;
+        text-decoration: none;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+
+    .no-preview {
+      color: #909399;
+      font-size: 14px;
+    }
+  }
 }
 </style>
