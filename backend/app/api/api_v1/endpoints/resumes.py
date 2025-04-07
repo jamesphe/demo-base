@@ -52,12 +52,15 @@ async def upload_files(
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
     """上传简历文件进行解析"""
-    # 验证文件类型
+    # 1. 快速验证
     if not resume_service.validate_file_extension(file.filename):
         raise HTTPException(
             status_code=400,
             detail=f"不支持的文件类型: {file.filename}"
         )
+    
+    # 2. 快速保存文件
+    file_info = await resume_service.quick_save_file(file)
     
     repository_id = None
     # 只有当提供了repository_name时才创建或获取简历库
@@ -80,29 +83,21 @@ async def upload_files(
                 job.tenant_id != current_user.tenant_id):
             raise HTTPException(status_code=403, detail="无权访问该职位")
     
-    # 调试模式：直接同步执行而不是添加到后台任务
-    DEBUG_MODE = True  # 可以通过环境变量控制
+    # 3. 快速创建简历记录
+    resume = await resume_service.create_initial_resume(
+        db,
+        file_info,
+        repository_id,
+        current_user,
+        job_id
+    )
     
-    if DEBUG_MODE:
-        # 直接同步调用，这样可以打断点调试
-        await resume_service.process_resume_file(
-            db,
-            file,
-            repository_id,
-            current_user,
-            job_id,
-            background_tasks
-        )
-    else:
-        background_tasks.add_task(
-            resume_service.process_resume_file,
-            db,
-            file,
-            repository_id,
-            current_user,
-            job_id,
-            background_tasks
-        )
+    # 4. 将耗时操作放入真正的异步任务
+    background_tasks.add_task(
+        resume_service.async_process_resume,
+        resume.id,
+        file_info
+    )
     
     return {"message": "简历上传成功，正在处理中"}
 
@@ -391,9 +386,18 @@ async def create_resume(
 ) -> Any:
     """创建完整的简历信息"""
     try:
+        # 准备简历数据
+        resume_data = resume_in.model_dump()
+        resume_data.update({
+            "publisher_type": current_user.user_type or "admin",  # 设置默认发布者类型
+            "publisher_id": current_user.id,
+            "publisher_name": current_user.username,
+            "tenant_id": current_user.tenant_id
+        })
+        
         resume = resume_service.create_resume_with_job(
             db=db,
-            resume_data=resume_in.model_dump(),
+            resume_data=resume_data,
             current_user=current_user,
             job_id=job_id,
             job_external_id=job_external_id,

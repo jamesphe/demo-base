@@ -9,6 +9,7 @@ import subprocess
 from PIL import Image
 import pdfplumber
 from datetime import datetime
+import asyncio
 
 from app import models, schemas
 from app.core.config import settings
@@ -244,22 +245,200 @@ class ParserService(BaseService[models.Resume, schemas.ResumeCreate, schemas.Res
             return ""
 
     async def parse_resume(self, file_path: str) -> str:
-        """解析简历文件，提取文本内容"""
+        """异步解析简历文件，提取文本内容"""
         try:
             file_ext = os.path.splitext(file_path)[1].lower()
             
             if file_ext == '.pdf':
-                return await self._parse_pdf(file_path)
+                # 使用异步线程池执行同步的 PDF 解析
+                loop = asyncio.get_event_loop()
+                text = await loop.run_in_executor(None, self._parse_pdf_sync, file_path)
+                if not text:
+                    # 如果 PyMuPDF 解析失败，尝试使用 pdfplumber
+                    text = await loop.run_in_executor(None, self._parse_pdf_with_pdfplumber_sync, file_path)
+                return text
             elif file_ext in ['.doc', '.docx']:
-                return await self._parse_word(file_path)
+                # 使用异步线程池执行同步的 Word 解析
+                loop = asyncio.get_event_loop()
+                return await loop.run_in_executor(None, self._parse_word_sync, file_path)
             else:
                 raise ValueError(f"不支持的文件格式: {file_ext}")
                 
         except Exception as e:
+            logger.error(f"解析简历失败: {str(e)}")
             raise HTTPException(
                 status_code=500,
                 detail=f"简历解析失败: {str(e)}"
             )
+
+    def _parse_pdf_sync(self, file_path: str) -> str:
+        """同步解析 PDF 文件（供异步方法调用）"""
+        try:
+            print(f"DEBUG - Opening PDF file: {file_path}")
+            markdown_parts = []
+            
+            with fitz.open(file_path) as doc:
+                print(f"DEBUG - PDF pages: {len(doc)}")
+                
+                for page_num, page in enumerate(doc):
+                    try:
+                        print(f"DEBUG - Processing page {page_num + 1}")
+                        blocks = page.get_text("dict")["blocks"]
+                        
+                        for block in blocks:
+                            if "lines" in block:
+                                for line in block["lines"]:
+                                    spans_text = []
+                                    
+                                    for span in line["spans"]:
+                                        if span.get("text"):
+                                            spans_text.append(span["text"])
+                                            
+                                    if spans_text:
+                                        line_text = " ".join(spans_text)
+                                        line_text = line_text.replace('\u3000', ' ')
+                                        line_text = re.sub(r'\s+', ' ', line_text)
+                                        line_text = line_text.strip()
+                                        line_text = re.sub(r'([。，、；：？！""''（）【】《》])\1+', r'\1', line_text)
+                                        
+                                        font_size = max(span.get("size", 0) for span in line["spans"])
+                                        is_bold = any(span.get("flags", 0) & 2 for span in line["spans"])
+                                        
+                                        if font_size > 14 or is_bold:
+                                            line_text = f"## {line_text}"
+                                        
+                                        markdown_parts.append(line_text)
+                                        
+                    except Exception as page_error:
+                        print(f"DEBUG - Error processing page {page_num + 1}: {str(page_error)}")
+                        continue
+            
+            result = "\n".join(markdown_parts)
+            result = re.sub(r'- (.*?)\n- ', r'- \1\n- ', result)
+            result = re.sub(r'(## .*?)\n\s*## \1', r'\1', result, flags=re.MULTILINE)
+            result = re.sub(r'\n{2,}(## )', r'\n\n\n\1', result)
+            
+            print(f"DEBUG - Successfully extracted text, length: {len(result)}")
+            return result
+            
+        except Exception as e:
+            print(f"DEBUG - PDF parsing failed: {str(e)}")
+            return ""
+
+    def _parse_pdf_with_pdfplumber_sync(self, file_path: str) -> str:
+        """同步使用 pdfplumber 解析 PDF 文件（供异步方法调用）"""
+        text = []
+        try:
+            with pdfplumber.open(file_path) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text.append(page_text)
+            return "\n".join(text)
+        except Exception as e:
+            print(f"DEBUG - Error parsing PDF with pdfplumber: {str(e)}")
+            return ""
+
+    def _parse_word_sync(self, file_path: str) -> str:
+        """同步解析 Word 文件（供异步方法调用）"""
+        try:
+            print(f"DEBUG - Opening Word file: {file_path}")
+            file_ext = os.path.splitext(file_path)[1].lower()
+            
+            if file_ext == '.doc':
+                try:
+                    print("DEBUG - 使用 antiword 处理 .doc 文件")
+                    process = subprocess.run(
+                        ['antiword', file_path],
+                        capture_output=True,
+                        text=True
+                    )
+                    if process.returncode == 0:
+                        return process.stdout
+                    else:
+                        print(f"DEBUG - antiword failed: {process.stderr}")
+                        raise ValueError("DOC文件解析失败")
+                except Exception as e:
+                    print(f"DEBUG - antiword processing failed: {str(e)}")
+                    raise ValueError(f"DOC文件处理失败: {str(e)}")
+            
+            try:
+                from docx import Document
+                document = Document(file_path)
+                content = []
+                
+                for para in document.paragraphs:
+                    text = para.text.strip()
+                    if text:
+                        text = text.replace('\u3000', ' ')
+                        text = ' '.join(text.split())
+                        content.append(text)
+                
+                for table in document.tables:
+                    try:
+                        table_content = []
+                        for row_idx, row in enumerate(table.rows):
+                            cells = []
+                            for cell_idx, cell in enumerate(row.cells):
+                                try:
+                                    text = cell.text.strip()
+                                    if text:
+                                        text = text.replace('\u3000', ' ')
+                                        text = ' '.join(text.split())
+                                        cells.append(text)
+                                except Exception as cell_error:
+                                    print(f"DEBUG - Error processing cell ({row_idx + 1}, {cell_idx + 1}): {str(cell_error)}")
+                                    continue
+                            
+                            if cells:
+                                if len(cells) > 1:
+                                    cleaned_cells = []
+                                    seen = set()
+                                    for cell in cells:
+                                        cell_text = cell.strip()
+                                        if cell_text and cell_text not in seen:
+                                            cleaned_cells.append(cell_text)
+                                            seen.add(cell_text)
+                                    
+                                    if cleaned_cells:
+                                        table_content.append(" | ".join(cleaned_cells))
+                                else:
+                                    table_content.append(cells[0])
+                        
+                        if table_content:
+                            content.extend(table_content)
+                            
+                    except Exception as table_error:
+                        print(f"DEBUG - Error processing table: {str(table_error)}")
+                        continue
+                
+                result = "\n".join(content)
+                
+                if not result.strip():
+                    raise ValueError("未能从文档中提取到任何文本内容")
+                
+                return result
+                
+            except Exception as e:
+                print(f"DEBUG - python-docx parsing failed: {str(e)}")
+                print("DEBUG - 尝试使用 docx2txt 提取文本...")
+                try:
+                    result = docx2txt.process(file_path)
+                    result = result.replace('\u3000', ' ')
+                    result = '\n'.join(' '.join(line.split()) for line in result.splitlines() if line.strip())
+                    
+                    if not result.strip():
+                        raise ValueError("未能从文档中提取到任何文本内容")
+                        
+                    return result
+                    
+                except Exception as docx2txt_error:
+                    print(f"DEBUG - docx2txt parsing failed: {str(docx2txt_error)}")
+                    raise ValueError(f"Word文档解析失败: {str(docx2txt_error)}")
+                    
+        except Exception as e:
+            print(f"DEBUG - Document parsing completely failed: {str(e)}")
+            raise ValueError(f"文档解析失败: {str(e)}")
 
 # 创建服务实例
 parser_service = ParserService()
