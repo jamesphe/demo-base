@@ -96,178 +96,10 @@
         custom-class="resume-dialog"
         @close="handleDialogClose"
       >
-        <div v-loading="resultLoading">
-          <!-- 基本信息卡片 -->
-          <el-card class="info-card" shadow="hover">
-            <div slot="header" class="card-header">
-              <span><i class="el-icon-user" /> 基本信息</span>
-            </div>
-            <div v-if="currentResult && Object.keys(currentResult).length" class="resume-info">
-              <el-row :gutter="20">
-                <el-col :span="8">
-                  <div class="info-item">
-                    <label>姓名：</label>
-                    {{ currentResult.name || '-' }}
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="info-item">
-                    <label>性别：</label>
-                    {{ currentResult.gender === 'F' ? '女' : '男' }}
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="info-item">
-                    <label>年龄：</label>
-                    {{ currentResult.age || '28' }} 岁
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="info-item">
-                    <label>电话：</label>
-                    {{ currentResult.phone || '-' }}
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="info-item">
-                    <label>邮箱：</label>
-                    {{ currentResult.email || '-' }}
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="info-item">
-                    <label>工作年限：</label>
-                    {{ currentResult.experienceYears ? `${currentResult.experienceYears}年` : '-' }}
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="info-item">
-                    <label>最高学历：</label>
-                    {{ currentResult.highestEducation || '-' }}
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="info-item">
-                    <label>专业：</label>
-                    {{ currentResult.major || '-' }}
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <div class="info-item">
-                    <label>英语水平：</label>
-                    {{ currentResult.englishLevel || '-' }}
-                  </div>
-                </el-col>
-              </el-row>
-            </div>
-          </el-card>
-
-          <!-- 求职意向卡片 -->
-          <el-card class="info-card" shadow="hover">
-            <div slot="header" class="card-header">
-              <span><i class="el-icon-aim" /> 求职意向</span>
-            </div>
-            <el-row :gutter="20">
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>期望职位：</label>
-                  {{ currentResult.expectedPosition || '-' }}
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>期望地点：</label>
-                  {{ currentResult.expectedLocation || '-' }}
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>当前职位：</label>
-                  {{ currentResult.currentPosition || '-' }}
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>当前公司：</label>
-                  {{ currentResult.currentCompany || '-' }}
-                </div>
-              </el-col>
-            </el-row>
-          </el-card>
-
-          <!-- 技能特长 -->
-          <template v-if="currentResult && currentResult.skills && currentResult.skills.length">
-            <el-card class="info-card skill-list" shadow="hover">
-              <div slot="header" class="card-header">
-                <span><i class="el-icon-medal" /> 技能特长</span>
-              </div>
-              <el-row :gutter="20">
-                <el-col v-for="(skill, index) in currentResult.skills" :key="index" :span="24">
-                  <div class="skill-item">
-                    <h4>
-                      {{ skill.name || '-' }}
-                      <el-tag v-if="skill.level" size="small" :type="getSkillTagType(skill.level)">
-                        {{ skill.level }}
-                      </el-tag>
-                    </h4>
-                    <p>{{ skill.description || '-' }}</p>
-                  </div>
-                </el-col>
-              </el-row>
-            </el-card>
-          </template>
-
-          <!-- 工作经历 -->
-          <template v-if="currentResult && currentResult.workHistory && currentResult.workHistory.length">
-            <el-card class="info-card" shadow="hover">
-              <div slot="header" class="card-header">
-                <span><i class="el-icon-office-building" /> 工作经历</span>
-              </div>
-              <el-timeline>
-                <el-timeline-item
-                  v-for="(work, index) in currentResult.workHistory"
-                  :key="index"
-                  :timestamp="formatWorkPeriod(work.startDate, work.endDate)"
-                  placement="top"
-                  type="primary"
-                >
-                  <el-card shadow="never" class="timeline-card">
-                    <h4>{{ work.company || '-' }} - {{ work.position || '-' }}</h4>
-                    <p class="work-description">{{ work.description || '-' }}</p>
-                  </el-card>
-                </el-timeline-item>
-              </el-timeline>
-            </el-card>
-          </template>
-
-          <!-- 教育经历 -->
-          <template v-if="currentResult && currentResult.eduExperience && currentResult.eduExperience.length">
-            <el-card class="info-card" shadow="hover">
-              <div slot="header" class="card-header">
-                <span><i class="el-icon-reading" /> 教育经历</span>
-              </div>
-              <el-timeline>
-                <el-timeline-item
-                  v-for="(edu, index) in currentResult.eduExperience"
-                  :key="index"
-                  :timestamp="formatEduPeriod(edu.start_date, edu.end_date)"
-                  placement="top"
-                  type="primary"
-                >
-                  <el-card shadow="never" class="timeline-card">
-                    <h4>{{ edu.school || '-' }}</h4>
-                    <p class="edu-info">
-                      {{ edu.major || '-' }}
-                      <el-tag v-if="edu.degree" size="small" type="info" class="ml-5">
-                        {{ edu.degree }}
-                      </el-tag>
-                    </p>
-                  </el-card>
-                </el-timeline-item>
-              </el-timeline>
-            </el-card>
-          </template>
-        </div>
+        <resume-detail
+          :detail="currentDetail"
+          :loading="detailLoading"
+        />
       </el-dialog>
     </div>
   </basic-view>
@@ -275,12 +107,15 @@
 
 <script>
 import BasicView from '@/components/BasicView'
-import { getParseList, parseResume, getParseResult, deleteParseRecord } from '@/api/resume'
+import ResumeDetail from '@/components/ResumeDetail'
+import { getParseList, parseResume, deleteParseRecord } from '@/api/resume'
+import { mapGetters } from 'vuex'
 
 export default {
   name: 'ResumeParse',
   components: {
-    BasicView
+    BasicView,
+    ResumeDetail
   },
   data() {
     return {
@@ -303,6 +138,10 @@ export default {
     }
   },
   computed: {
+    ...mapGetters('resume', [
+      'currentDetail',
+      'detailLoading'
+    ]),
     getMatchingColor() {
       return (percentage) => {
         for (const item of this.matchingColors) {
@@ -414,24 +253,14 @@ export default {
 
     // 显示解析结果
     async showParseResult(row) {
+      console.log('显示简历解析结果:', row)
       this.resultVisible = true
-      this.resultLoading = true
       try {
-        const response = await getParseResult(row.id)
-        // 处理工作经历中的公司名称
-        if (response.work_history) {
-          response.work_history = response.work_history.map(work => ({
-            ...work,
-            company: work.company || '未提供'
-          }))
-        }
-        this.currentResult = response || {}
+        await this.$store.dispatch('resume/getResumeDetail', row.id)
+        console.log('简历详情获取成功')
       } catch (error) {
         console.error('获取解析结果失败:', error)
         this.$message.error('获取解析结果失败')
-        this.currentResult = {}
-      } finally {
-        this.resultLoading = false
       }
     },
 
@@ -500,7 +329,7 @@ export default {
 
     // 处理对话框关闭
     handleDialogClose() {
-      this.currentResult = {}
+      this.$store.commit('resume/SET_CURRENT_DETAIL', null)
     },
 
     // 获取技能标签类型

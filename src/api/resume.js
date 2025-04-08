@@ -145,10 +145,18 @@ export function deleteStorageFile(id) {
 
 // 搜索简历
 export function searchResumes(params) {
+  console.log('API: 准备发送搜索请求，参数:', params)
   return request({
-    url: '/resume/search',
+    url: '/resumes/search',
     method: 'get',
     params
+  }).then(response => {
+    console.log('API: 搜索请求成功，响应:', response)
+    return response
+  }).catch(error => {
+    console.error('API: 搜索请求失败:', error)
+    console.error('API: 错误详情:', error.response || error)
+    throw error
   })
 }
 

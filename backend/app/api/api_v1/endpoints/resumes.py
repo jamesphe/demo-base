@@ -5,6 +5,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import case, or_, String, text
 from app import models
 from app.api import deps
 from app.core.config import settings
@@ -27,6 +28,139 @@ router = APIRouter()
 def validate_file_extension(filename: str) -> bool:
     allowed_extensions = settings.ALLOWED_EXTENSIONS
     return filename.split(".")[-1].lower() in allowed_extensions
+
+
+@router.get(
+    "/search",
+    response_model=ResumeListResponse,
+    summary="搜索简历",
+    description="根据关键词和其他条件搜索简历",
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["resume_read"]
+            )
+        )
+    ]
+)
+def search_resumes(
+    db: Session = Depends(deps.get_db),
+    page: int = Query(1, ge=1, description="页码"),
+    limit: int = Query(12, ge=1, le=100, description="每页数量"),
+    keyword: Optional[str] = Query(None, description="搜索关键词"),
+    experience: Optional[str] = Query(None, description="工作经验"),
+    education: Optional[str] = Query(None, description="教育背景"),
+    skills: Optional[str] = Query(None, description="技能"),
+    source: Optional[str] = Query(None, description="简历来源"),
+    sort: Optional[str] = Query(None, description="排序方式"),
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """搜索简历"""
+    skip = (page - 1) * limit
+    
+    # 构建基础查询
+    query = db.query(models.Resume)
+    
+    # 添加租户过滤
+    if not current_user.is_superuser:
+        query = query.filter(models.Resume.tenant_id == current_user.tenant_id)
+    
+    # 关键词搜索
+    if keyword:
+        query = query.filter(
+            or_(
+                models.Resume.name.ilike(f"%{keyword}%"),
+                models.Resume.current_company.ilike(f"%{keyword}%"),
+                models.Resume.current_position.ilike(f"%{keyword}%")
+            )
+        )
+    
+    # 学历筛选
+    if education:
+        # 使用CASE语句将学历转换为数值进行比较
+        education_level = case(
+            (models.Resume.highest_education == '大专', 1),
+            (models.Resume.highest_education == '本科', 2),
+            (models.Resume.highest_education == '硕士', 3),
+            (models.Resume.highest_education == '博士', 4),
+            else_=0
+        )
+        
+        target_level = case(
+            (education == '大专', 1),
+            (education == '本科', 2),
+            (education == '硕士', 3),
+            (education == '博士', 4),
+            else_=0
+        )
+        
+        query = query.filter(education_level >= target_level)
+    
+    # 工作经验筛选
+    if experience:
+        if experience == '0':  # 应届生
+            query = query.filter(models.Resume.experience_years == 0)
+        elif experience == '1-3':
+            query = query.filter(models.Resume.experience_years.between(1, 3))
+        elif experience == '3-5':
+            query = query.filter(models.Resume.experience_years.between(3, 5))
+        elif experience == '5-10':
+            query = query.filter(models.Resume.experience_years.between(5, 10))
+        elif experience == '10+':
+            query = query.filter(models.Resume.experience_years >= 10)
+    
+    # 技能筛选
+    if skills:
+        skill_list = skills.split(',')
+        # 使用json_array_elements和类型转换来处理JSON数组
+        skill_conditions = []
+        for skill in skill_list:
+            # 使用json_array_elements和->操作符来匹配技能名称
+            skill_condition = text("""
+                EXISTS (
+                    SELECT 1
+                    FROM json_array_elements(skills::json) as skill
+                    WHERE skill->>'name' = :skill_name
+                )
+            """)
+            skill_conditions.append(skill_condition)
+        
+        # 将所有技能条件用AND连接
+        if skill_conditions:
+            query = query.filter(
+                *[condition.bindparams(skill_name=skill) 
+                  for condition, skill in zip(skill_conditions, skill_list)]
+            )
+    
+    # 来源筛选
+    if source:
+        query = query.filter(models.Resume.source == source)
+    
+    # 排序
+    if sort == 'updateTime':
+        query = query.order_by(models.Resume.updated_at.desc())
+    elif sort == 'experience':
+        query = query.order_by(models.Resume.experience_years.desc())
+    
+    # 获取总数
+    total = query.count()
+    
+    # 分页
+    resumes = query.offset(skip).limit(limit).all()
+    
+    # 计算总页数
+    total_pages = (total + limit - 1) // limit
+    
+    # 返回统一格式
+    return {
+        "data": resumes,
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": limit,
+            "total_pages": total_pages
+        }
+    }
 
 
 @router.post(
@@ -307,7 +441,9 @@ async def parse_resume(
     resume.updated_at = datetime.utcnow()
     
     # 更新基本字段
-    resume_fields = resume_service._extract_resume_fields(parsed_data["parsed_data"])
+    resume_fields = resume_service._extract_resume_fields(
+        parsed_data["parsed_data"]
+    )
     for field, value in resume_fields.items():
         if hasattr(resume, field):
             setattr(resume, field, value)

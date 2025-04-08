@@ -64,6 +64,14 @@ const educationMap = {
   'doctor': '博士'
 }
 
+// 添加学历层级映射
+const educationLevel = {
+  '大专': 1,
+  '本科': 2,
+  '硕士': 3,
+  '博士': 4
+}
+
 for (let i = 0; i < count; i++) {
   // 生成3-6个随机技能
   const skillCount = Mock.Random.integer(3, 6)
@@ -298,9 +306,10 @@ module.exports = [
 
       // 学历筛选
       if (education) {
+        const targetLevel = educationLevel[educationMap[education]]
         filteredList = filteredList.filter(item => {
-          // 直接比较中文值
-          return item.education === educationMap[education]
+          const itemLevel = educationLevel[item.education]
+          return itemLevel >= targetLevel
         })
       }
 

@@ -17,6 +17,7 @@ import time
 import random
 import subprocess
 from pathlib import Path
+from sqlalchemy import String
 
 from app import models, crud, schemas
 from app.core.config import settings
@@ -1038,15 +1039,22 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             
         # 关键词搜索
         if keyword:
-            keyword_filter = or_(
+            # 对于普通文本字段使用ILIKE
+            text_fields_filter = or_(
                 models.Resume.name.ilike(f"%{keyword}%"),
                 models.Resume.email.ilike(f"%{keyword}%"),
                 models.Resume.phone.ilike(f"%{keyword}%"),
                 models.Resume.content.ilike(f"%{keyword}%"),
-                models.Resume.skills.ilike(f"%{keyword}%"),
                 models.Resume.major.ilike(f"%{keyword}%"),
                 models.Resume.graduate_school.ilike(f"%{keyword}%")
             )
+            
+            # 对于JSON类型的skills字段，使用PostgreSQL的JSON操作符
+            # 使用::text将JSON转换为文本，然后使用ILIKE
+            skills_filter = models.Resume.skills.cast(String).ilike(f"%{keyword}%")
+            
+            # 合并所有过滤条件
+            keyword_filter = or_(text_fields_filter, skills_filter)
             filters.append(keyword_filter)
             
         if filters:

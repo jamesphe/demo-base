@@ -292,142 +292,10 @@
       custom-class="resume-dialog"
       @close="handleResumeDialogClose"
     >
-      <div v-loading="resumeDetailLoading">
-        <!-- 基本信息卡片 -->
-        <el-card class="info-card" shadow="hover">
-          <div slot="header" class="card-header">
-            <span><i class="el-icon-user" /> 基本信息</span>
-          </div>
-          <div v-if="currentResume" class="resume-info">
-            <el-row :gutter="20">
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>姓名：</label>
-                  {{ currentResume.name || '-' }}
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>性别：</label>
-                  {{ currentResume.gender === 'F' ? '女' : '男' }}
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>年龄：</label>
-                  {{ currentResume.age || '-' }} 岁
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>电话：</label>
-                  {{ currentResume.phone || '-' }}
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>邮箱：</label>
-                  {{ currentResume.email || '-' }}
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>工作年限：</label>
-                  {{ currentResume.experienceYears ? `${currentResume.experienceYears}年` : '-' }}
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>最高学历：</label>
-                  {{ currentResume.highestEducation || '-' }}
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="info-item">
-                  <label>专业：</label>
-                  {{ currentResume.major || '-' }}
-                </div>
-              </el-col>
-            </el-row>
-          </div>
-        </el-card>
-
-        <!-- 求职意向卡片 -->
-        <el-card v-if="currentResume" class="info-card" shadow="hover">
-          <div slot="header" class="card-header">
-            <span><i class="el-icon-aim" /> 求职意向</span>
-          </div>
-          <el-row :gutter="20">
-            <el-col :span="8">
-              <div class="info-item">
-                <label>期望职位：</label>
-                {{ currentResume.expectedPosition || '-' }}
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="info-item">
-                <label>期望地点：</label>
-                {{ currentResume.expectedLocation || '-' }}
-              </div>
-            </el-col>
-            <el-col :span="8">
-              <div class="info-item">
-                <label>当前职位：</label>
-                {{ currentResume.currentPosition || '-' }}
-              </div>
-            </el-col>
-          </el-row>
-        </el-card>
-
-        <!-- 技能特长 -->
-        <el-card
-          v-if="currentResume && currentResume.skills && currentResume.skills.length"
-          class="info-card skill-list"
-          shadow="hover"
-        >
-          <div slot="header" class="card-header">
-            <span><i class="el-icon-medal" /> 技能特长</span>
-          </div>
-          <el-row :gutter="20">
-            <el-col v-for="(skill, index) in currentResume.skills" :key="index" :span="24">
-              <div class="skill-item">
-                <h4>
-                  {{ skill.name || '-' }}
-                  <el-tag v-if="skill.level" size="small" :type="getSkillTagType(skill.level)">
-                    {{ skill.level }}
-                  </el-tag>
-                </h4>
-                <p>{{ skill.description || '-' }}</p>
-              </div>
-            </el-col>
-          </el-row>
-        </el-card>
-
-        <!-- 工作经历 -->
-        <el-card
-          v-if="currentResume && currentResume.workHistory && currentResume.workHistory.length"
-          class="info-card"
-          shadow="hover"
-        >
-          <div slot="header" class="card-header">
-            <span><i class="el-icon-office-building" /> 工作经历</span>
-          </div>
-          <el-timeline>
-            <el-timeline-item
-              v-for="(work, index) in currentResume.workHistory"
-              :key="index"
-              :timestamp="formatWorkPeriod(work.startDate, work.endDate)"
-              placement="top"
-              type="primary"
-            >
-              <el-card shadow="never" class="timeline-card">
-                <h4>{{ work.company || '-' }} - {{ work.position || '-' }}</h4>
-                <p class="work-description">{{ work.description || '-' }}</p>
-              </el-card>
-            </el-timeline-item>
-          </el-timeline>
-        </el-card>
-      </div>
+      <resume-detail
+        :detail="formatResumeDetail"
+        :loading="resumeDetailLoading"
+      />
     </el-dialog>
 
     <!-- 简历预览弹窗 -->
@@ -588,10 +456,14 @@ import { mapGetters, mapActions } from 'vuex'
 import Pagination from '@/components/Pagination'
 import { getToken } from '@/utils/auth'
 import mammoth from 'mammoth'
+import ResumeDetail from '@/components/ResumeDetail'
 
 export default {
   name: 'PositionApplications',
-  components: { Pagination },
+  components: {
+    Pagination,
+    ResumeDetail
+  },
   data() {
     return {
       listQuery: {
@@ -633,7 +505,8 @@ export default {
     ]),
     ...mapGetters('resume', [
       'previewUrl',
-      'previewLoading'
+      'previewLoading',
+      'currentDetail'
     ]),
     ...mapGetters('position', [
       'currentPosition',
@@ -644,6 +517,9 @@ export default {
     },
     authToken() {
       return getToken()
+    },
+    formatResumeDetail() {
+      return this.currentDetail || {}
     }
   },
   created() {
@@ -652,11 +528,11 @@ export default {
   methods: {
     ...mapActions('jobApplication', [
       'getApplicationList',
-      'updateStatus',
-      'getResumeDetail'
+      'updateStatus'
     ]),
     ...mapActions('resume', [
-      'getPreviewUrl'
+      'getPreviewUrl',
+      'getResumeDetail'
     ]),
     ...mapActions('position', [
       'getPositionDetail'
