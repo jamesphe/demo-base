@@ -48,7 +48,28 @@ const formatResumeData = (data) => {
       endDate: edu.endDate || edu.end_date,
       achievements: edu.achievements || []
     })),
-    projects: data.projects || [],
+    projectExperience: (data.projectExperience || []).map(project => ({
+      name: project.name,
+      role: project.role,
+      company: project.company,
+      startDate: project.startDate,
+      endDate: project.endDate,
+      description: project.description,
+      responsibilities: typeof project.responsibilities === 'string'
+        ? [project.responsibilities]
+        : Array.isArray(project.responsibilities)
+          ? project.responsibilities
+          : [],
+      achievements: Array.isArray(project.achievements) ? project.achievements : [],
+      technologies:
+        typeof project.technologies === 'string'
+          ? project.technologies
+          : Array.isArray(project.technologies)
+            ? project.technologies
+            : project.technologies
+              ? String(project.technologies)
+              : ''
+    })),
     status: data.reviewStatus || data.status || 'pending',
     currentCompany: data.currentCompany,
     currentCity: data.city || data.currentCity || data.currentAddress,

@@ -184,20 +184,35 @@
           <span>项目经历</span>
         </div>
         <div class="project-timeline">
-          <el-timeline v-if="detail.projects && detail.projects.length">
+          <el-timeline v-if="detail.projectExperience && detail.projectExperience.length">
             <el-timeline-item
-              v-for="(project, index) in detail.projects"
+              v-for="(project, index) in detail.projectExperience"
               :key="index"
-              :timestamp="project.period"
+              :timestamp="formatWorkPeriod(project.startDate, project.endDate)"
               placement="top"
             >
               <el-card class="timeline-card">
                 <div class="card-header">
-                  <h4>{{ project.name }}</h4>
-                  <span class="role highlight">{{ project.role }}</span>
+                  <div class="header-main">
+                    <h4>{{ project.name }}</h4>
+                    <span class="role highlight">{{ project.role || '未填写' }}</span>
+                  </div>
+                  <div class="project-meta">
+                    <span v-if="project.company" class="company">
+                      <i class="el-icon-office-building" />
+                      {{ project.company }}
+                    </span>
+                    <span v-if="project.technologies" class="technologies">
+                      <i class="el-icon-cpu" />
+                      {{ Array.isArray(project.technologies) ? project.technologies.join('、') : project.technologies }}
+                    </span>
+                  </div>
                 </div>
                 <div class="card-content">
-                  <p class="description">{{ project.description }}</p>
+                  <div v-if="project.description" class="description">
+                    <p class="section-title">项目描述：</p>
+                    <p>{{ project.description }}</p>
+                  </div>
                   <div v-if="project.responsibilities && project.responsibilities.length">
                     <p class="section-title">主要职责：</p>
                     <ul>
@@ -547,6 +562,33 @@ export default {
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .project-meta {
+    margin-top: 12px;
+    display: flex;
+    gap: 16px;
+    color: #606266;
+    font-size: 13px;
+
+    span {
+      display: flex;
+      align-items: center;
+
+      i {
+        margin-right: 4px;
+        font-size: 14px;
+        color: #409EFF;
+      }
+    }
+
+    .company {
+      color: #606266;
+    }
+
+    .technologies {
+      color: #67c23a;
+    }
   }
 }
 </style>

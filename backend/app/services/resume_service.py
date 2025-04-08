@@ -384,7 +384,10 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             "source_batch": None,
             
             # 质量评分
-            "completeness_score": None
+            "completeness_score": None,
+            
+            # 项目经历
+            "project_experience": analysis_result.get("project_experience", []),
         }
         
         # 确保日期字段格式正确
@@ -437,6 +440,21 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                                 edu[date_field] = self._parse_date(edu[date_field])
                         except (ValueError, TypeError):
                             edu[date_field] = None
+        
+        # 处理项目经历日期
+        if standardized_data.get("project_experience"):
+            for project in standardized_data["project_experience"]:
+                for date_field in ["start_date", "end_date"]:
+                    if project.get(date_field):
+                        try:
+                            if isinstance(project[date_field], datetime):
+                                project[date_field] = (
+                                    project[date_field].strftime("%Y-%m-%dT%H:%M:%S")
+                                )
+                            else:
+                                project[date_field] = self._parse_date(project[date_field])
+                        except (ValueError, TypeError):
+                            project[date_field] = None
         
         return standardized_data
 
@@ -630,6 +648,22 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                         except (ValueError, TypeError):
                             edu[date_field] = None
 
+        # 处理项目经历日期
+        project_experience = parsed_data.get("project_experience", [])
+        if project_experience:
+            for project in project_experience:
+                for date_field in ["start_date", "end_date"]:
+                    if project.get(date_field):
+                        try:
+                            if isinstance(project[date_field], datetime):
+                                project[date_field] = (
+                                    project[date_field].strftime("%Y-%m-%dT%H:%M:%S")
+                                )
+                            else:
+                                project[date_field] = self._parse_date(project[date_field])
+                        except (ValueError, TypeError):
+                            project[date_field] = None
+
         fields = {
             # 个人基本信息
             "name": parsed_data.get("name"),
@@ -684,6 +718,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             
             # 新增经历信息
             "edu_experience": edu_experience,
+            "project_experience": project_experience,
             "awards": parsed_data.get("awards"),
             
             # 新增其他信息
@@ -815,6 +850,20 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             "start_date": "开始时间(YYYY-MM-DD)",
             "end_date": "结束时间(YYYY-MM-DD)",
             "description": "工作描述"
+        }
+    ],
+    
+    "project_experience": [
+        {
+            "name": "项目名称",
+            "role": "担任角色",
+            "company": "所属公司",
+            "start_date": "开始时间(YYYY-MM-DD)",
+            "end_date": "结束时间(YYYY-MM-DD)",
+            "description": "项目描述",
+            "responsibilities": "主要职责",
+            "technologies": "使用技术",
+            "achievements": "项目成就"
         }
     ],
     

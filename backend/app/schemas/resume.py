@@ -49,6 +49,19 @@ class Award(BaseModel):
     description: Optional[str] = Field(None, description="奖项描述")
 
 
+class ProjectExperience(BaseModel):
+    """项目经历信息模型"""
+    name: str = Field(..., description="项目名称")
+    role: Optional[str] = Field(None, description="担任角色")
+    company: Optional[str] = Field(None, description="所属公司")
+    start_date: Optional[str] = Field(None, description="开始日期")
+    end_date: Optional[str] = Field(None, description="结束日期")
+    description: Optional[str] = Field(None, description="项目描述")
+    responsibilities: Optional[str] = Field(None, description="主要职责")
+    technologies: Optional[str] = Field(None, description="使用技术")
+    achievements: Optional[str] = Field(None, description="项目成就")
+
+
 # 简历相关模型
 class ResumeBase(BaseModel):
     """简历基础模型"""
@@ -116,6 +129,10 @@ class ResumeBase(BaseModel):
     edu_experience: Optional[List[EducationExperience]] = Field(
         None, 
         description="教育经历"
+    )
+    project_experience: Optional[List[ProjectExperience]] = Field(
+        None,
+        description="项目经历"
     )
     awards: Optional[List[Award]] = Field(None, description="获奖经历")
     
@@ -209,13 +226,30 @@ class ResumeBase(BaseModel):
                         "start_date": "2018-01",
                         "end_date": "2022-12",
                         "description": "负责核心系统开发"
+                    }
+                ],
+                "project_experience": [
+                    {
+                        "name": "企业人才管理系统",
+                        "role": "技术负责人",
+                        "company": "ABC科技有限公司",
+                        "start_date": "2021-06",
+                        "end_date": "2022-12",
+                        "description": "基于AI的企业人才管理系统",
+                        "responsibilities": "负责系统架构设计和团队管理",
+                        "technologies": "Python, FastAPI, Vue.js, PostgreSQL",
+                        "achievements": "系统上线后提升人才管理效率30%"
                     },
                     {
+                        "name": "简历解析系统",
+                        "role": "核心开发工程师",
                         "company": "XYZ信息技术有限公司",
-                        "position": "软件工程师",
-                        "start_date": "2015-07",
-                        "end_date": "2017-12",
-                        "description": "参与Web应用开发"
+                        "start_date": "2019-03",
+                        "end_date": "2020-12",
+                        "description": "基于机器学习的简历自动解析系统",
+                        "responsibilities": "负责简历解析算法开发和优化",
+                        "technologies": "Python, TensorFlow, NLP, MongoDB",
+                        "achievements": "解析准确率提升到95%"
                     }
                 ],
                 "edu_experience": [
@@ -294,6 +328,10 @@ class ResumeCreate(ResumeBase):
         None, 
         description="教育经历"
     )
+    project_experience: Optional[List[ProjectExperience]] = Field(
+        None,
+        description="项目经历"
+    )
     awards: Optional[List[Award]] = Field(
         None, 
         description="获奖经历"
@@ -354,13 +392,30 @@ class ResumeCreate(ResumeBase):
                         "start_date": "2018-01",
                         "end_date": "2022-12",
                         "description": "负责核心系统开发"
+                    }
+                ],
+                "project_experience": [
+                    {
+                        "name": "企业人才管理系统",
+                        "role": "技术负责人",
+                        "company": "ABC科技有限公司",
+                        "start_date": "2021-06",
+                        "end_date": "2022-12",
+                        "description": "基于AI的企业人才管理系统",
+                        "responsibilities": "负责系统架构设计和团队管理",
+                        "technologies": "Python, FastAPI, Vue.js, PostgreSQL",
+                        "achievements": "系统上线后提升人才管理效率30%"
                     },
                     {
+                        "name": "简历解析系统",
+                        "role": "核心开发工程师",
                         "company": "XYZ信息技术有限公司",
-                        "position": "软件工程师",
-                        "start_date": "2015-07",
-                        "end_date": "2017-12",
-                        "description": "参与Web应用开发"
+                        "start_date": "2019-03",
+                        "end_date": "2020-12",
+                        "description": "基于机器学习的简历自动解析系统",
+                        "responsibilities": "负责简历解析算法开发和优化",
+                        "technologies": "Python, TensorFlow, NLP, MongoDB",
+                        "achievements": "解析准确率提升到95%"
                     }
                 ],
                 "edu_experience": [

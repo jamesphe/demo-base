@@ -71,6 +71,9 @@ class Resume(Base):
     work_time = Column(String(50))
     work_history = Column(JSON)
     
+    # 项目经历
+    project_experience = Column(JSON, nullable=True, comment="项目经历，包含项目名称、角色、时间等信息")
+    
     # 求职意向
     expected_position = Column(String(100))
     expected_salary = Column(String(50))

@@ -257,6 +257,9 @@ CREATE TABLE resumes (
     work_time VARCHAR(50),
     work_history JSON,
     
+    -- 项目经历
+    project_experience JSON,
+    
     -- 求职意向
     expected_position VARCHAR(100),
     expected_salary VARCHAR(50),
