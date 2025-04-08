@@ -17,10 +17,6 @@ export const menuItems = [
         title: '简历解析'
       },
       {
-        path: '/resume/storage',
-        title: '简历存储'
-      },
-      {
         path: '/resume/search',
         title: '简历检索'
       },
@@ -108,4 +104,4 @@ export const menuItems = [
       }
     ]
   }
-] 
+]

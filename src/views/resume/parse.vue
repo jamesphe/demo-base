@@ -3,11 +3,11 @@
     <div class="parse-container">
       <!-- 解析列表 -->
       <el-table v-loading="loading" :data="parseList" style="width: 100%">
-        <el-table-column prop="fileName" label="文件名" width="200" />
-        <el-table-column label="关联职位" width="180">
+        <el-table-column prop="fileName" label="文件名" min-width="250">
           <template slot-scope="{row}">
-            <el-tag v-if="row.jobTitle" size="small">{{ row.jobTitle }}</el-tag>
-            <span v-else>-</span>
+            <div class="file-name-cell">
+              {{ row.fileName }}
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="候选人信息" width="200">
@@ -16,6 +16,9 @@
               <span>{{ row.name }}</span>
               <el-tag size="mini" type="info" class="ml-5">
                 {{ row.phone || row.email || '-' }}
+              </el-tag>
+              <el-tag v-if="row.expectedPosition" size="mini" type="success" class="ml-5">
+                {{ row.expectedPosition }}
               </el-tag>
             </div>
             <span v-else>-</span>
@@ -33,16 +36,6 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="匹配度" width="100">
-          <template slot-scope="{row}">
-            <el-progress
-              v-if="row.matchingScore"
-              :percentage="row.matchingScore"
-              :color="getMatchingColor"
-            />
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
         <el-table-column label="解析结果">
           <template slot-scope="{row}">
             <el-button
@@ -57,11 +50,18 @@
         <el-table-column label="操作" width="150">
           <template slot-scope="{row}">
             <el-button
+              v-if="row.parseStatus === 'failed' || row.parseStatus === 'pending'"
               type="text"
-              :disabled="row.parseStatus === 'parsing'"
               @click="handleParse(row)"
             >
-              {{ row.parseStatus === 'failed' ? '重新解析' : '解析' }}
+              解析
+            </el-button>
+            <el-button
+              v-if="row.parseStatus === 'parsing'"
+              type="text"
+              disabled
+            >
+              解析中
             </el-button>
             <el-button
               type="text"
@@ -239,6 +239,34 @@
               </el-timeline>
             </el-card>
           </template>
+
+          <!-- 教育经历 -->
+          <template v-if="currentResult && currentResult.eduExperience && currentResult.eduExperience.length">
+            <el-card class="info-card" shadow="hover">
+              <div slot="header" class="card-header">
+                <span><i class="el-icon-reading" /> 教育经历</span>
+              </div>
+              <el-timeline>
+                <el-timeline-item
+                  v-for="(edu, index) in currentResult.eduExperience"
+                  :key="index"
+                  :timestamp="formatEduPeriod(edu.start_date, edu.end_date)"
+                  placement="top"
+                  type="primary"
+                >
+                  <el-card shadow="never" class="timeline-card">
+                    <h4>{{ edu.school || '-' }}</h4>
+                    <p class="edu-info">
+                      {{ edu.major || '-' }}
+                      <el-tag v-if="edu.degree" size="small" type="info" class="ml-5">
+                        {{ edu.degree }}
+                      </el-tag>
+                    </p>
+                  </el-card>
+                </el-timeline-item>
+              </el-timeline>
+            </el-card>
+          </template>
         </div>
       </el-dialog>
     </div>
@@ -313,11 +341,22 @@ export default {
             uploadTime: item.uploadTime || item.createdAt || item.created_at,
             parseStatus: this.normalizeStatus(item.processingStatus || item.processing_status),
             parsedData: item.parsedData || item.parsed_data,
-            jobTitle: item.jobTitle || item.job_title,
-            candidateName: item.candidateName || item.candidate_name,
-            candidatePhone: item.candidatePhone || item.candidate_phone,
-            candidateEmail: item.candidateEmail || item.candidate_email,
-            matchingScore: item.matchingScore || item.matching_score
+            jobTitle: item.expected_position,
+            name: item.name,
+            phone: item.phone,
+            email: item.email,
+            matchingScore: item.matching_score,
+            expectedPosition: item.expected_position,
+            expectedLocation: item.expected_location,
+            currentPosition: item.current_position,
+            currentCompany: item.current_company,
+            highestEducation: item.highest_education,
+            major: item.major,
+            experienceYears: item.experience_years,
+            englishLevel: item.english_level,
+            skills: item.skills,
+            workHistory: item.work_history,
+            eduExperience: item.edu_experience
           }))
 
           // 更新总数
@@ -410,7 +449,7 @@ export default {
         updatedRow.parseStatus = 'parsing'
         Object.assign(row, updatedRow)
 
-        await parseResume(row.fileUrl)
+        await parseResume(row.id)
 
         updatedRow.parseStatus = 'success'
         Object.assign(row, updatedRow)
@@ -479,6 +518,25 @@ export default {
 
     // 格式化工作时间段
     formatWorkPeriod(startDate, endDate) {
+      if (!startDate) return '-'
+      const formatDate = date => {
+        try {
+          return new Date(date).toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: 'numeric'
+          })
+        } catch (error) {
+          console.error('日期格式化错误:', error)
+          return date
+        }
+      }
+      const start = formatDate(startDate)
+      const end = endDate ? formatDate(endDate) : '至今'
+      return `${start} - ${end}`
+    },
+
+    // 格式化教育时间段
+    formatEduPeriod(startDate, endDate) {
       if (!startDate) return '-'
       const formatDate = date => {
         try {
@@ -643,5 +701,11 @@ export default {
 
 .el-progress {
   margin: 8px 0;
+}
+
+.file-name-cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

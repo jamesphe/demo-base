@@ -83,12 +83,12 @@ export function getParseList(params) {
 }
 
 // 解析简历
-export function parseResume(fileUrl) {
+export function parseResume(resumeId) {
   return request({
     url: '/resumes/parse',
     method: 'post',
-    data: {
-      file_url: fileUrl
+    params: {
+      resume_id: resumeId
     }
   })
 }

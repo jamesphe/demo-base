@@ -18,6 +18,7 @@ from app.schemas.resume import (
     ResumeUpdate
 )
 import os
+from datetime import datetime
 
 
 router = APIRouter()
@@ -252,7 +253,7 @@ def get_candidate_resumes(
     "/parse",
     response_model=ResumeParseResponse,
     summary="解析简历",
-    description="解析指定URL的简历文件内容",
+    description="根据简历ID重新解析简历文件内容",
     dependencies=[
         Depends(
             deps.get_current_user_with_tenant_permission(
@@ -263,22 +264,57 @@ def get_candidate_resumes(
 )
 async def parse_resume(
     *,
-    file_url: str = Query(..., description="文件URL"),
+    resume_id: int = Query(..., description="简历ID"),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
-    """解析简历内容"""
-    # 验证文件权限
-    resume = resume_service.get_resume_by_file_url(db, file_url=file_url)
-    if (resume and not current_user.is_superuser and 
+    """重新解析简历内容"""
+    # 获取简历
+    resume = resume_service.get_resume(resume_id=resume_id, db=db)
+    if not resume:
+        raise HTTPException(status_code=404, detail="简历不存在")
+    
+    # 检查租户权限
+    if (not current_user.is_superuser and 
             resume.tenant_id != current_user.tenant_id):
         raise HTTPException(
             status_code=403, 
             detail="无权解析该简历"
         )
     
-    parsed_data = await resume_service.parse_resume(file_url)
-    return {"parsed_data": parsed_data}
+    # 检查文件是否存在
+    if not resume.file_path or not os.path.exists(resume.file_path):
+        raise HTTPException(
+            status_code=404,
+            detail="简历文件不存在"
+        )
+    
+    # 解析简历内容
+    parsed_data = await resume_service._parse_and_analyze_resume(
+        db,
+        {
+            "file_path": resume.file_path,
+            "file_name": resume.file_name,
+            "file_type": resume.file_type
+        }
+    )
+    
+    # 更新简历记录
+    resume.content = parsed_data["content"]
+    resume.parsed_data = parsed_data["parsed_data"]
+    resume.processing_status = "completed"
+    resume.processing_error = None
+    resume.updated_at = datetime.utcnow()
+    
+    # 更新基本字段
+    resume_fields = resume_service._extract_resume_fields(parsed_data["parsed_data"])
+    for field, value in resume_fields.items():
+        if hasattr(resume, field):
+            setattr(resume, field, value)
+    
+    db.commit()
+    
+    return {"parsed_data": parsed_data["parsed_data"]}
 
 
 @router.put(

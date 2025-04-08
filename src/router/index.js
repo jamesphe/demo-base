@@ -199,15 +199,6 @@ export const asyncRoutes = [
         }
       },
       {
-        path: 'storage',
-        component: () => import('@/views/resume/storage'),
-        name: 'ResumeStorage',
-        meta: {
-          title: '简历存储',
-          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer']
-        }
-      },
-      {
         path: 'search',
         component: () => import('@/views/resume/search'),
         name: 'ResumeSearch',
