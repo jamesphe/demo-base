@@ -1,7 +1,63 @@
 <template>
   <basic-view title="简历检索">
     <div class="search-container">
-      <!-- 搜索条件面板 -->
+      <!-- 快速筛选区 -->
+      <div class="quick-search">
+        <el-form :inline="true" :model="searchForm" size="small">
+          <el-form-item label="关键词">
+            <el-input
+              v-model="searchForm.keyword"
+              placeholder="姓名/技能/公司/职位"
+              style="width: 200px;"
+            />
+          </el-form-item>
+          <el-form-item label="工作年限">
+            <el-select v-model="searchForm.experience" placeholder="不限" style="width: 120px;">
+              <el-option label="不限" value="" />
+              <el-option label="应届生" value="0" />
+              <el-option label="1-3年" value="1-3" />
+              <el-option label="3-5年" value="3-5" />
+              <el-option label="5-10年" value="5-10" />
+              <el-option label="10年以上" value="10+" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="学历">
+            <el-select v-model="searchForm.education" placeholder="不限" style="width: 120px;">
+              <el-option label="不限" value="" />
+              <el-option label="大专" value="college" />
+              <el-option label="本科" value="bachelor" />
+              <el-option label="硕士" value="master" />
+              <el-option label="博士" value="doctor" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="期望城市">
+            <el-select
+              v-model="searchForm.expectedLocation"
+              filterable
+              allow-create
+              placeholder="请选择或输入"
+              style="width: 160px;"
+            >
+              <el-option label="不限" value="" />
+              <el-option label="北京" value="北京" />
+              <el-option label="上海" value="上海" />
+              <el-option label="广州" value="广州" />
+              <el-option label="深圳" value="深圳" />
+              <el-option label="杭州" value="杭州" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="handleSearch">
+              <i class="el-icon-search" />搜索
+            </el-button>
+            <el-button @click="resetForm">
+              <i class="el-icon-refresh" />重置
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- 高级筛选面板 -->
       <div class="search-panel">
         <el-collapse v-model="activeCollapse">
           <el-collapse-item name="advanced">
@@ -9,12 +65,12 @@
               <div class="collapse-header">
                 <div class="header-left">
                   <i class="el-icon-arrow-right" />
-                  <span class="title">精准筛查条件</span>
+                  <span class="title">高级筛选</span>
                   <el-tag size="small" type="info" class="condition-count">已选 {{ selectedConditionCount }} 项</el-tag>
                 </div>
                 <div class="header-right">
-                  <el-button type="text" class="reset-btn" @click.stop="resetForm">
-                    <i class="el-icon-refresh" />重置条件
+                  <el-button type="text" class="reset-btn" @click.stop="resetAdvancedForm">
+                    <i class="el-icon-refresh" />重置高级条件
                   </el-button>
                 </div>
               </div>
@@ -72,17 +128,6 @@
                 <div class="section-content">
                   <el-row :gutter="20">
                     <el-col :span="8">
-                      <el-form-item label="学历">
-                        <el-select v-model="searchForm.education" placeholder="不限" clearable>
-                          <el-option label="不限" value="" />
-                          <el-option label="大专" value="college" />
-                          <el-option label="本科" value="bachelor" />
-                          <el-option label="硕士" value="master" />
-                          <el-option label="博士" value="doctor" />
-                        </el-select>
-                      </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
                       <el-form-item label="毕业院校">
                         <el-input v-model="searchForm.school" placeholder="输入学校名称" />
                       </el-form-item>
@@ -106,11 +151,6 @@
                 </div>
                 <div class="section-content">
                   <el-row :gutter="20">
-                    <el-col :span="8">
-                      <el-form-item label="工作年限">
-                        <el-input v-model="searchForm.experience" placeholder="最少年限" />
-                      </el-form-item>
-                    </el-col>
                     <el-col :span="8">
                       <el-form-item label="当前职位">
                         <el-input v-model="searchForm.currentPosition" placeholder="输入职位" />
@@ -145,11 +185,6 @@
                         <el-input v-model="searchForm.expectedIndustry" placeholder="输入行业" />
                       </el-form-item>
                     </el-col>
-                    <el-col :span="8">
-                      <el-form-item label="期望地点">
-                        <el-input v-model="searchForm.expectedLocation" placeholder="输入地点" />
-                      </el-form-item>
-                    </el-col>
                   </el-row>
                   <el-row :gutter="20">
                     <el-col :span="8">
@@ -168,11 +203,6 @@
                           <el-option label="离职待业" value="available" />
                           <el-option label="暂不找工作" value="unavailable" />
                         </el-select>
-                      </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                      <el-form-item label="目前地点">
-                        <el-input v-model="searchForm.currentLocation" placeholder="输入地点" />
                       </el-form-item>
                     </el-col>
                   </el-row>
@@ -265,16 +295,19 @@
                   </el-form-item>
                 </div>
               </div>
+
+              <!-- 高级筛选按钮区 -->
+              <div class="advanced-actions">
+                <el-button type="text" @click="resetAdvancedForm">
+                  <i class="el-icon-refresh" />重置高级条件
+                </el-button>
+                <el-button type="primary" @click="handleSearch">
+                  <i class="el-icon-search" />开始筛查
+                </el-button>
+              </div>
             </el-form>
           </el-collapse-item>
         </el-collapse>
-
-        <!-- 搜索按钮区 -->
-        <div class="search-actions">
-          <el-button type="primary" size="medium" :loading="loading" class="search-btn" @click="handleSearch">
-            <i class="el-icon-search" />开始筛查
-          </el-button>
-        </div>
       </div>
 
       <!-- 搜索结果 -->
@@ -584,7 +617,7 @@ export default {
   },
   data() {
     return {
-      activeCollapse: ['advanced'],
+      activeCollapse: [],
       searchForm: {
         minAge: null,
         maxAge: null,
@@ -685,13 +718,14 @@ export default {
       try {
         const params = {
           page: this.page.current,
-          limit: this.page.size,
+          pageSize: this.page.size,
           keyword: this.searchForm.keyword,
           experience: this.searchForm.experience,
           education: this.searchForm.education,
           skills: this.searchForm.skills.join(','),
           source: this.searchForm.source,
-          sort: this.sortBy
+          sort: this.sortBy,
+          expectedLocation: this.searchForm.expectedLocation
         }
         // 处理日期范围
         if (this.searchForm.updateTime && this.searchForm.updateTime.length === 2) {
@@ -712,6 +746,21 @@ export default {
     resetForm() {
       this.$refs.searchForm.resetFields()
       this.handleSearch()
+    },
+
+    // 重置高级筛选条件
+    resetAdvancedForm() {
+      // 保留快速筛选区的值
+      const quickSearchValues = {
+        keyword: this.searchForm.keyword,
+        experience: this.searchForm.experience,
+        education: this.searchForm.education,
+        expectedLocation: this.searchForm.expectedLocation
+      }
+      // 重置整个表单
+      this.$refs.searchForm.resetFields()
+      // 恢复快速筛选区的值
+      Object.assign(this.searchForm, quickSearchValues)
     },
 
     // 导出结果
@@ -905,6 +954,29 @@ export default {
   padding: 20px;
   background-color: #f5f7fa;
 
+  .quick-search {
+    background-color: #fff;
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+    :deep(.el-form--inline) {
+      .el-form-item {
+        margin-right: 16px;
+        margin-bottom: 0;
+
+        &:last-child {
+          margin-right: 0;
+        }
+
+        .el-form-item__label {
+          color: #606266;
+        }
+      }
+    }
+  }
+
   .search-panel {
     background-color: #fff;
     border-radius: 12px;
@@ -984,46 +1056,39 @@ export default {
       .search-section {
         background-color: #f9fafb;
         border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 24px;
+        padding: 12px;
+        margin-bottom: 16px;
 
-        &:last-child {
+        &:last-of-type {
           margin-bottom: 0;
         }
 
         .section-header {
           display: flex;
           align-items: center;
-          margin-bottom: 20px;
-          padding-bottom: 12px;
+          margin-bottom: 12px;
+          padding-bottom: 8px;
           border-bottom: 1px dashed #e5e7eb;
 
           .header-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background-color: #ecf5ff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 12px;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            margin-right: 8px;
 
             i {
-              font-size: 18px;
-              color: #409EFF;
+              font-size: 16px;
             }
           }
 
           .header-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #374151;
+            font-size: 14px;
           }
         }
 
         .section-content {
           .el-row {
-            margin-bottom: 16px;
+            margin-bottom: 12px;
 
             &:last-child {
               margin-bottom: 0;
@@ -1034,78 +1099,40 @@ export default {
             margin-bottom: 0;
 
             :deep(.el-form-item__label) {
-              font-weight: 500;
-              color: #4b5563;
+              padding-right: 8px;
+              line-height: 32px;
             }
 
             :deep(.el-input__inner),
-            :deep(.el-select .el-input__inner),
-            :deep(.el-input-number__decrease),
-            :deep(.el-input-number__increase) {
-              border-color: #d1d5db;
-              border-radius: 6px;
-              transition: all 0.3s;
-
-              &:hover, &:focus {
-                border-color: #409EFF;
-              }
+            :deep(.el-select .el-input__inner) {
+              height: 32px;
+              line-height: 32px;
             }
 
-            :deep(.el-radio) {
-              margin-right: 16px;
-              margin-bottom: 0;
-
-              &:last-child {
-                margin-right: 0;
-              }
-
-              .el-radio__label {
-                color: #4b5563;
-              }
-            }
-
-            :deep(.el-select) {
-              width: 100%;
-
-              .el-tag {
-                background-color: #ecf5ff;
-                border-color: #d9ecff;
-                color: #409EFF;
-                border-radius: 4px;
-                padding: 0 8px;
-                margin: 2px;
-              }
+            :deep(.el-input-number) {
+              line-height: 30px;
             }
           }
         }
       }
-    }
 
-    .search-actions {
-      padding: 24px;
-      text-align: center;
-      background-color: #f9fafb;
-      border-top: 1px solid #e5e7eb;
+      .advanced-actions {
+        padding: 16px;
+        text-align: right;
+        border-top: 1px solid #e5e7eb;
+        margin-top: 16px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
 
-      .search-btn {
-        min-width: 140px;
-        height: 40px;
-        font-size: 15px;
-        font-weight: 500;
-        border-radius: 8px;
-        transition: all 0.3s;
-        background: linear-gradient(135deg, #409EFF 0%, #3b82f6 100%);
-        border: none;
-        box-shadow: 0 2px 6px rgba(64, 158, 255, 0.2);
+        .el-button {
+          &[type="text"] {
+            margin-right: auto;
+          }
 
-        &:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
-        }
-
-        i {
-          margin-right: 6px;
-          font-size: 16px;
+          &[type="primary"] {
+            min-width: 120px;
+          }
         }
       }
     }

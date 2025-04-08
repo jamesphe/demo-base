@@ -5,7 +5,7 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import case, or_, String, text
+from sqlalchemy import case, or_, text
 from app import models
 from app.api import deps
 from app.core.config import settings
@@ -20,6 +20,7 @@ from app.schemas.resume import (
 )
 import os
 from datetime import datetime
+from app.services.job_application_service import job_application_service
 
 
 router = APIRouter()
@@ -46,17 +47,18 @@ def validate_file_extension(filename: str) -> bool:
 def search_resumes(
     db: Session = Depends(deps.get_db),
     page: int = Query(1, ge=1, description="页码"),
-    limit: int = Query(12, ge=1, le=100, description="每页数量"),
+    pageSize: int = Query(12, ge=1, le=100, description="每页数量"),
     keyword: Optional[str] = Query(None, description="搜索关键词"),
     experience: Optional[str] = Query(None, description="工作经验"),
     education: Optional[str] = Query(None, description="教育背景"),
     skills: Optional[str] = Query(None, description="技能"),
     source: Optional[str] = Query(None, description="简历来源"),
     sort: Optional[str] = Query(None, description="排序方式"),
+    expectedLocation: Optional[str] = Query(None, description="期望城市"),
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """搜索简历"""
-    skip = (page - 1) * limit
+    skip = (page - 1) * pageSize
     
     # 构建基础查询
     query = db.query(models.Resume)
@@ -136,6 +138,12 @@ def search_resumes(
     if source:
         query = query.filter(models.Resume.source == source)
     
+    # 期望城市筛选
+    if expectedLocation:
+        query = query.filter(
+            models.Resume.expected_location.ilike(f"%{expectedLocation}%")
+        )
+    
     # 排序
     if sort == 'updateTime':
         query = query.order_by(models.Resume.updated_at.desc())
@@ -146,10 +154,10 @@ def search_resumes(
     total = query.count()
     
     # 分页
-    resumes = query.offset(skip).limit(limit).all()
+    resumes = query.offset(skip).limit(pageSize).all()
     
     # 计算总页数
-    total_pages = (total + limit - 1) // limit
+    total_pages = (total + pageSize - 1) // pageSize
     
     # 返回统一格式
     return {
@@ -157,7 +165,7 @@ def search_resumes(
         "meta": {
             "total": total,
             "page": page,
-            "per_page": limit,
+            "per_page": pageSize,
             "total_pages": total_pages
         }
     }
@@ -532,10 +540,21 @@ def delete_resume(
             detail="无权删除该简历"
         )
     
+    # 删除关联的职位申请记录
+    applications = job_application_service.get_applications_by_resume(
+        db=db, resume_id=resume_id
+    )
+    for application in applications:
+        job_application_service.delete_application(
+            db=db, application_id=application.id
+        )
+    
     # 删除关联的文件
     resume_service.delete_resume_file(resume.file_path)
     
-    resume = resume_service.delete_resume(db=db, resume_id=resume_id)
+    # 使用 remove 方法删除简历记录
+    resume = resume_service.remove(db=db, id=resume_id)
+    
     return resume
 
 

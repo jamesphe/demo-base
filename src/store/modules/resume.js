@@ -176,19 +176,19 @@ const actions = {
       if (params.education) {
         params.education = educationMap[params.education] || params.education
       }
-      const { data } = await searchResumes(params)
-      console.log('收到API响应:', data)
+      const response = await searchResumes(params)
+      console.log('收到API响应:', response)
 
-      if (Array.isArray(data)) {
-        console.log('解析到的简历数量:', data.length)
-        const formattedItems = data.map(item => formatResumeData(item))
+      if (response.data && response.meta) {
+        console.log('解析到的简历数量:', response.data.length)
+        const formattedItems = response.data.map(item => formatResumeData(item))
         console.log('格式化后的简历数据:', formattedItems)
         commit('SET_SEARCH_RESULT', {
           items: formattedItems,
-          total: data.length
+          total: response.meta.total
         })
       } else {
-        console.warn('API响应格式不正确:', data)
+        console.warn('API响应格式不正确:', response)
         commit('SET_SEARCH_RESULT', { items: [], total: 0 })
       }
     } catch (error) {
