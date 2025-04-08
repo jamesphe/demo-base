@@ -1,6 +1,8 @@
 from typing import List, Dict, Any, Optional, Union
 from sqlalchemy.orm import Session
-from fastapi import UploadFile, HTTPException, BackgroundTasks
+from fastapi import (
+    UploadFile, HTTPException, BackgroundTasks
+)
 from datetime import datetime
 import uuid
 import os
@@ -18,7 +20,9 @@ from pathlib import Path
 
 from app import models, crud, schemas
 from app.core.config import settings
-from app.schemas.resume import ResumeCreate, ResumeUpdate, SkillInfo, CertificateInfo
+from app.schemas.resume import (
+    ResumeCreate, ResumeUpdate, SkillInfo, CertificateInfo
+)
 from .base import BaseService
 from app.services import (
     repository_service,
@@ -2185,7 +2189,11 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     async def async_process_resume(
         self,
         resume_id: int,
-        file_info: Dict[str, str]
+        file_info: Dict[str, str],
+        current_user: models.User,
+        background_tasks: BackgroundTasks,
+        job_id: Optional[int] = None,
+        job_external_id: Optional[str] = None
     ) -> None:
         """异步处理简历内容"""
         # 创建新的数据库会话
@@ -2223,6 +2231,39 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                     if hasattr(resume, field):
                         setattr(resume, field, value)
                 
+                # 处理职位申请
+                if job_id or job_external_id:
+                    job = None
+                    if job_id:
+                        job = job_service.get_job(db=db, job_id=job_id)
+                    elif job_external_id:
+                        job = db.query(models.Job).filter(
+                            models.Job.external_id == job_external_id
+                        ).first()
+                
+                if job:
+                    if (job.tenant_id != current_user.tenant_id and 
+                            not current_user.is_superuser):
+                        raise ValueError("无权访问该职位")
+                        
+                    job_application = schemas.JobApplicationCreate(
+                        job_id=job.id,
+                        resume_id=resume.id,
+                        status="pending",
+                        tenant_id=current_user.tenant_id,
+                        created_by=current_user.id
+                    )
+                    
+                    if background_tasks:
+                        from app.services.job_application_service import job_application_service
+                        background_tasks.add_task(
+                            job_application_service.create_application_with_validation,
+                            db=db,
+                            application_in=job_application,
+                            tenant_id=current_user.tenant_id,
+                            created_by=current_user.id
+                        )
+                
                 # 7. 提交更改
                 db.commit()
                 
@@ -2237,10 +2278,8 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                 
         except Exception as e:
             logger.error(f"数据库操作失败: {str(e)}")
-            # 回滚事务
             db.rollback()
         finally:
-            # 关闭数据库会话
             db.close()
 
     async def _parse_resume(self, file_path: str) -> str:

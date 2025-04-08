@@ -48,6 +48,7 @@ async def upload_files(
     resume_type: Optional[str] = Form("general"),  # 默认为通用简历
     description: Optional[str] = Form(None),
     job_id: Optional[int] = Form(None),
+    job_external_id: Optional[str] = Form(None),
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(deps.get_current_active_user)
 ) -> Any:
@@ -96,7 +97,11 @@ async def upload_files(
     background_tasks.add_task(
         resume_service.async_process_resume,
         resume.id,
-        file_info
+        file_info,
+        current_user,
+        background_tasks,
+        job_id,
+        job_external_id
     )
     
     return {"message": "简历上传成功，正在处理中"}
