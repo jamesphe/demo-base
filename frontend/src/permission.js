@@ -25,6 +25,12 @@ router.beforeEach(async(to, from, next) => {
   try {
     const hasToken = getToken()
 
+    // 如果路由不需要认证，直接放行
+    if (!to.meta.requiresAuth) {
+      next()
+      return
+    }
+
     if (hasToken) {
       if (to.path === '/login') {
         next({ path: '/dashboard' })

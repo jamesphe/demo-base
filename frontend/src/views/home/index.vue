@@ -358,11 +358,7 @@ export default {
     }
   },
   created() {
-    const token = localStorage.getItem('token')
-    if (token) {
-      this.isLoggedIn = true
-      this.getUserInfo()
-    }
+    // 移除不必要的用户信息获取
     window.addEventListener('scroll', this.handleScroll)
   },
   destroyed() {
@@ -401,14 +397,6 @@ export default {
     },
     startTrial() {
       this.$router.push('/trial-application')
-    },
-    async getUserInfo() {
-      try {
-        const res = await this.$store.dispatch('user/getInfo')
-        this.userInfo = res
-      } catch (error) {
-        console.error('获取用户信息失败:', error)
-      }
     },
     handleCommand(command) {
       if (command === 'logout') {

@@ -19,10 +19,11 @@ export const baseURL = service.defaults.baseURL
 service.interceptors.request.use(
   config => {
     // do something before request is sent
-    if (store.getters.token) {
-      const token = getToken()
+    const token = getToken()
+    if (token) {
       console.log('Current token in interceptor:', token)
-      config.headers['Authorization'] = `Bearer ${token}`
+      // 确保 token 格式正确
+      config.headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`
     }
 
     console.log('Request headers:', config.headers)

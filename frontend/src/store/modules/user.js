@@ -52,10 +52,12 @@ const actions = {
           return
         }
 
-        // 同时使用两种方式存储 token 以确保兼容性
-        commit('SET_TOKEN', token)
-        setToken(token)
-        localStorage.setItem('token', token)
+        // 确保 token 格式正确
+        const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+
+        // 存储 token
+        commit('SET_TOKEN', formattedToken)
+        setToken(formattedToken)
 
         setTimeout(() => {
           console.log('开始获取用户信息')
