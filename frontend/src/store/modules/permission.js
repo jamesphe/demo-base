@@ -53,16 +53,28 @@ const mutations = {
 const actions = {
   generateRoutes({ commit }, roles) {
     return new Promise(resolve => {
-      console.log('generateRoutes action called with roles:', roles)
       let accessedRoutes
       if (roles.includes('admin')) {
-        console.log('User is admin, getting all routes')
         accessedRoutes = asyncRoutes || []
       } else {
-        console.log('Filtering routes for roles:', roles)
         accessedRoutes = filterAsyncRoutes(asyncRoutes, roles)
       }
-      console.log('Final accessed routes:', accessedRoutes)
+
+      // 确保路由配置正确
+      accessedRoutes = accessedRoutes.map(route => {
+        const tmp = { ...route }
+        if (tmp.children) {
+          tmp.children = tmp.children.map(child => ({
+            ...child,
+            meta: {
+              ...child.meta,
+              roles: child.meta?.roles || tmp.meta?.roles || []
+            }
+          }))
+        }
+        return tmp
+      })
+
       commit('SET_ROUTES', accessedRoutes)
       resolve(accessedRoutes)
     })

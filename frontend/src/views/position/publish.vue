@@ -272,14 +272,6 @@ export default {
       }
     }
   },
-  // 添加页面加载时的提示
-  mounted() {
-    this.$message({
-      message: '提示：可点击"加载示例"按钮查看示例数据',
-      type: 'info',
-      duration: 3000
-    })
-  },
   methods: {
     resetForm() {
       this.$confirm('确定要重置表单吗？', '提示', {

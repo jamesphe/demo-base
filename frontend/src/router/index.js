@@ -407,7 +407,7 @@ router.beforeEach((to, from, next) => {
     }
   }
 
-  console.log('路由守卫 - 放行')
+  // 直接放行，让permission.js中的守卫处理权限验证
   next()
 })
 

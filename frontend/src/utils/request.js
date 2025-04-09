@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { Message } from 'element-ui'
 import store from '@/store'
-import { getToken } from '@/utils/auth'
+import { getToken, formatToken } from '@/utils/auth'
 
 // create an axios instance
 const service = axios.create({
@@ -22,8 +22,8 @@ service.interceptors.request.use(
     const token = getToken()
     if (token) {
       console.log('Current token in interceptor:', token)
-      // 确保 token 格式正确
-      config.headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+      // 使用formatToken函数来确保令牌格式正确
+      config.headers['Authorization'] = formatToken(token)
     }
 
     console.log('Request headers:', config.headers)

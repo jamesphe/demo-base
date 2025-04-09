@@ -752,9 +752,13 @@ export default {
 
           const previewPath = typeof result === 'string' ? result : result.previewUrl
           const token = this.authToken
-          const tokenParam = token ? `?token=${token}` : ''
+          // 确保令牌不包含Bearer前缀
+          const cleanToken = token && token.startsWith('Bearer ') ? token.substring(7) : token
+          const tokenParam = cleanToken ? `?token=${cleanToken}` : ''
           this.previewUrl = previewPath ? `${this.baseApiUrl}${previewPath}${tokenParam}` : ''
           this.downloadUrl = `${this.baseApiUrl}/resume/download/${row.resumeId}${tokenParam}`
+          console.log('预览URL:', this.previewUrl)
+          console.log('下载URL:', this.downloadUrl)
         }
 
         console.log('预览设置完成')
@@ -776,7 +780,7 @@ export default {
         // 修改API路径
         const response = await fetch(`${this.baseApiUrl}/resumes/download/${row.resumeId}`, {
           headers: {
-            'Authorization': `Bearer ${this.authToken}`
+            'Authorization': `${this.authToken}`
           }
         })
         if (!response.ok) {
@@ -804,7 +808,9 @@ export default {
           }
         )
         this.previewContent = result.value
-        this.downloadUrl = `${this.baseApiUrl}/resumes/download/${row.resumeId}?token=${this.authToken}`
+        // 确保令牌不包含Bearer前缀
+        const cleanToken = this.authToken && this.authToken.startsWith('Bearer ') ? this.authToken.substring(7) : this.authToken
+        this.downloadUrl = `${this.baseApiUrl}/resumes/download/${row.resumeId}?token=${cleanToken}`
       } catch (error) {
         console.error('Word文档预览失败:', error)
         this.$message.error('文档预览失败：' + error.message)

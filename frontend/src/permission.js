@@ -22,58 +22,58 @@ router.beforeEach(async(to, from, next) => {
   console.log('全局路由守卫 - 来源路由:', from)
   console.log('全局路由守卫 - 当前路由匹配:', to.matched)
 
-  try {
-    const hasToken = getToken()
+  // 添加更多调试日志
+  console.log('当前路由配置:', router.options.routes)
+  console.log('动态添加的路由:', store.state.permission.addRoutes)
+  console.log('用户角色:', store.getters.roles)
 
-    // 如果路由不需要认证，直接放行
-    if (!to.meta.requiresAuth) {
-      next()
-      return
-    }
+  const hasToken = getToken()
 
-    if (hasToken) {
-      if (to.path === '/login') {
-        next({ path: '/dashboard' })
-        NProgress.done()
-      } else {
-        // 检查是否已经加载了权限路由
-        const hasRoles = store.getters.roles && store.getters.roles.length > 0
-        if (hasRoles) {
-          next()
-        } else {
+  if (hasToken) {
+    if (to.path === '/login') {
+      next({ path: '/dashboard' })
+      NProgress.done()
+    } else {
+      const hasRoles = store.getters.roles && store.getters.roles.length > 0
+      if (hasRoles) {
+        // 检查路由是否存在
+        if (to.matched.length === 0) {
+          // 如果路由不存在，尝试重新加载动态路由
           try {
-            // 获取用户信息
             const { roles } = await store.dispatch('user/getInfo')
-
-            // 根据角色生成可访问的路由表
             const accessRoutes = await store.dispatch('permission/generateRoutes', roles)
-
-            // 使用 router.addRoutes 替代 router.addRoute
             router.addRoutes(accessRoutes)
-
-            // 重新导航到目标路由
             next({ ...to, replace: true })
           } catch (error) {
-            // 处理错误
             await store.dispatch('user/resetToken')
             Message.error(error?.message || '获取用户信息失败')
             next(`/login?redirect=${to.path}`)
             NProgress.done()
           }
+        } else {
+          next()
+        }
+      } else {
+        try {
+          const { roles } = await store.dispatch('user/getInfo')
+          const accessRoutes = await store.dispatch('permission/generateRoutes', roles)
+          router.addRoutes(accessRoutes)
+          next({ ...to, replace: true })
+        } catch (error) {
+          await store.dispatch('user/resetToken')
+          Message.error(error?.message || '获取用户信息失败')
+          next(`/login?redirect=${to.path}`)
+          NProgress.done()
         }
       }
-    } else {
-      if (whiteList.indexOf(to.path) !== -1) {
-        next()
-      } else {
-        next(`/login?redirect=${to.path}`)
-      }
     }
-  } catch (error) {
-    console.error('Navigation guard error:', error)
-    next('/login')
-  } finally {
-    NProgress.done()
+  } else {
+    if (whiteList.indexOf(to.path) !== -1) {
+      next()
+    } else {
+      next(`/login?redirect=${to.path}`)
+      NProgress.done()
+    }
   }
 })
 

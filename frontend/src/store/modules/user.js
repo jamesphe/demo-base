@@ -52,12 +52,9 @@ const actions = {
           return
         }
 
-        // 确保 token 格式正确
-        const formattedToken = token.startsWith('Bearer ') ? token : `Bearer ${token}`
-
-        // 存储 token
-        commit('SET_TOKEN', formattedToken)
-        setToken(formattedToken)
+        // 存储原始令牌，不添加Bearer前缀
+        commit('SET_TOKEN', token)
+        setToken(token)
 
         setTimeout(() => {
           console.log('开始获取用户信息')
