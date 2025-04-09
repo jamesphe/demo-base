@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 
@@ -6,9 +6,9 @@ from datetime import datetime
 class TenantBase(BaseModel):
     tenant_name: str = Field(..., alias="tenantName")
     contact_person: str = Field(None, alias="contactPerson")
-    phone: str = Field(None)
+    phone: Optional[str] = Field(None)
     email: EmailStr = Field(None)
-    address: str = Field(None)
+    address: Optional[str] = Field(None)
     external_id: str | None = Field(None, alias="externalId")
     status: str = Field("active")
 

@@ -99,10 +99,15 @@ def create_job(
     *,
     db: Session = Depends(deps.get_db),
     job_in: schemas.JobCreate,
-    current_tenant_id: int = Depends(deps.get_current_tenant_id),
+    current_tenant_id: Optional[int] = Depends(deps.get_current_tenant_id),
     current_user_id: int = Depends(deps.get_current_user_id)
 ) -> Any:
     """创建新职位"""
+    if not current_tenant_id:
+        raise HTTPException(
+            status_code=400,
+            detail="当前用户未关联租户，无法创建职位"
+        )
     return job_service.create_job(
         db=db,
         job_in=job_in,

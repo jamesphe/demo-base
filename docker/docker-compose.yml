@@ -1,0 +1,42 @@
+version: '3.8'
+
+name: resume-system
+services:
+  resume-backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - resume-db
+    volumes:
+      - ./backend/.env:/app/.env
+      - ./backend/uploads:/app/uploads
+
+  resume-frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - resume-backend
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+
+  resume-db:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=demo
+    ports:
+      - "5420:5432"
+    volumes:
+      - resume_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  resume_postgres_data:

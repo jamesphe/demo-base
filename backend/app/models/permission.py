@@ -8,7 +8,7 @@ class Permission(Base):
     
     __tablename__ = "permission"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String(100), unique=True, nullable=False)
     description = Column(String(255))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -23,4 +23,4 @@ class Permission(Base):
         "Role",
         secondary="role_permission",
         back_populates="permissions"
-    ) 
+    )

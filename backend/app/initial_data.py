@@ -49,6 +49,25 @@ def init_permissions(db: Session) -> None:
         {"name": "interview_create", "description": "创建面试"},
         {"name": "interview_update", "description": "更新面试"},
         {"name": "interview_delete", "description": "删除面试"},
+        {"name": "job_application_read", "description": "查看职位申请"},
+        {"name": "job_application_create", "description": "创建职位申请"},
+        {"name": "job_application_update", "description": "更新职位申请"},
+        {"name": "job_application_delete", "description": "删除职位申请"},
+        {"name": "resume_read", "description": "查看简历"},
+        {"name": "resume_create", "description": "创建简历"},
+        {"name": "resume_update", "description": "更新简历"},
+        {"name": "resume_delete", "description": "删除简历"},
+        {"name": "resume_parse", "description": "解析简历"},
+        {"name": "resume_review_read", "description": "查看简历评审"},
+        {"name": "resume_review_update", "description": "更新简历评审"},
+        {"name": "repository_read", "description": "查看仓库"},
+        {"name": "repository_create", "description": "创建仓库"},
+        {"name": "repository_delete", "description": "删除仓库"},
+        {"name": "llm_config_read", "description": "查看LLM配置"},
+        {"name": "llm_config_create", "description": "创建LLM配置"},
+        {"name": "llm_config_update", "description": "更新LLM配置"},
+        {"name": "llm_config_delete", "description": "删除LLM配置"},
+        {"name": "llm_config_validate", "description": "验证LLM配置"}
     ]
     
     roles = [
@@ -65,7 +84,12 @@ def init_permissions(db: Session) -> None:
                 "candidate_create",
                 "candidate_update",
                 "job_read",
-                "job_create"
+                "job_create",
+                "job_application_read",
+                "job_application_update",
+                "resume_read",
+                "resume_review_read",
+                "resume_review_update"
             ]
         },
         {
@@ -74,7 +98,10 @@ def init_permissions(db: Session) -> None:
             "permissions": [
                 "candidate_read",
                 "interview_read",
-                "interview_create"
+                "interview_create",
+                "interview_update",
+                "resume_read",
+                "job_application_read"
             ]
         },
         {
@@ -84,6 +111,7 @@ def init_permissions(db: Session) -> None:
                 "candidate_read",
                 "candidate_create",
                 "candidate_update",
+                "candidate_delete",
                 "job_read",
                 "job_create",
                 "job_update",
@@ -103,7 +131,26 @@ def init_permissions(db: Session) -> None:
                 "tenant_read",
                 "tenant_create",
                 "tenant_update",
-                "tenant_delete"
+                "tenant_delete",
+                "job_application_read",
+                "job_application_create",
+                "job_application_update",
+                "job_application_delete",
+                "resume_read",
+                "resume_create",
+                "resume_update",
+                "resume_delete",
+                "resume_parse",
+                "resume_review_read",
+                "resume_review_update",
+                "repository_read",
+                "repository_create",
+                "repository_delete",
+                "llm_config_read",
+                "llm_config_create",
+                "llm_config_update",
+                "llm_config_delete",
+                "llm_config_validate"
             ]
         },
         {
@@ -115,7 +162,12 @@ def init_permissions(db: Session) -> None:
                 "interview_read",
                 "user_read",
                 "role_read",
-                "tenant_read"
+                "tenant_read",
+                "job_application_read",
+                "resume_read",
+                "resume_review_read",
+                "repository_read",
+                "llm_config_read"
             ]
         }
     ]
@@ -166,8 +218,7 @@ def init_tenants(db: Session) -> None:
             tenant_name=tenant["tenant_name"]
         )
         if not db_tenant:
-            tenant_in = TenantCreate(**tenant)
-            crud["tenant"].create(db, obj_in=tenant_in)
+            crud["tenant"].create(db, obj_in=tenant)
 
     # 检查默认租户是否存在
     db_tenant = crud["tenant"].get_by_name(
@@ -175,13 +226,13 @@ def init_tenants(db: Session) -> None:
         tenant_name="Default Tenant"
     )
     if not db_tenant:
-        tenant_in = TenantCreate(
-            tenant_name="Default Tenant",
-            contact_person="Admin",
-            email="admin@admin.com",
-            status="active"
-        )
-        db_tenant = crud["tenant"].create(db=db, obj_in=tenant_in)
+        default_tenant = {
+            "tenant_name": "Default Tenant",
+            "contact_person": "Admin",
+            "email": "admin@admin.com",
+            "status": "active"
+        }
+        db_tenant = crud["tenant"].create(db=db, obj_in=default_tenant)
         logger.info("Default tenant created")
 
 

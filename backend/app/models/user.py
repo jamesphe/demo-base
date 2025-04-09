@@ -12,6 +12,7 @@ class User(Base):
     tenant_id = Column(Integer, ForeignKey("tenant.id"), nullable=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     username = Column(String(255), unique=True, index=True, nullable=False)
+    phone = Column(String(20), unique=True, index=True, nullable=True)
     user_type = Column(
         Enum('candidate', 'tenant', 'admin', name='user_type'), 
         nullable=False, 

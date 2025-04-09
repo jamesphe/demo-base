@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import Router from 'vue-router'
+import VueCompositionAPI from '@vue/composition-api'
 
 import Cookies from 'js-cookie'
 
@@ -46,6 +47,8 @@ Object.keys(filters).forEach(key => {
 
 // 正确注册 Vue Router
 Vue.use(Router)
+
+Vue.use(VueCompositionAPI)
 
 Vue.config.productionTip = false
 

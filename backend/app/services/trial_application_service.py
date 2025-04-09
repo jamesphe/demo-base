@@ -123,14 +123,14 @@ class TrialApplicationService:
         
         # 创建租户
         tenant_data = approval_data["tenant"]
-        tenant_in = schemas.TenantCreate(
-            tenant_name=tenant_data["name"],
-            contact_person=tenant_data["contact_person"],
-            phone=tenant_data["phone"],
-            email=tenant_data["email"],
-            address=tenant_data["address"],
-            status="active"
-        )
+        tenant_in = {
+            "tenant_name": tenant_data["name"],
+            "contact_person": tenant_data["contact_person"],
+            "phone": tenant_data["phone"],
+            "email": tenant_data["email"],
+            "address": tenant_data["address"],
+            "status": "active"
+        }
         tenant = crud.tenant.create(db, obj_in=tenant_in)
         
         # 创建管理员账号

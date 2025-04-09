@@ -1,65 +1,119 @@
 <template>
-  <div class="dashboard-tenant-admin">
-    <el-row :gutter="20">
-      <el-col v-for="(item, index) in statItems" :key="index" :span="6">
-        <el-card class="count-panel" shadow="hover">
-          <div class="count-panel-content">
-            <div class="count-panel-icon">
+  <div class="tenant-dashboard">
+    <!-- 顶部数据卡片 -->
+    <el-row :gutter="20" class="data-cards">
+      <el-col v-for="(item, index) in cardData" :key="index" :span="6">
+        <el-card shadow="hover">
+          <div class="data-item">
+            <div class="data-icon">
               <i :class="item.icon" />
             </div>
-            <div class="count-panel-info">
-              <div class="count-panel-title">{{ item.title }}</div>
-              <div class="count-panel-value">{{ item.value }}</div>
+            <div class="data-content">
+              <div class="data-title">{{ item.title }}</div>
+              <div class="data-value">{{ item.value }}</div>
+              <div class="data-trend" :class="{ 'up': item.trend > 0, 'down': item.trend < 0 }">
+                <span>较上月</span>
+                <span>{{ item.trend > 0 ? '+' : '' }}{{ item.trend }}%</span>
+                <i :class="item.trend > 0 ? 'el-icon-top' : 'el-icon-bottom'" />
+              </div>
             </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="20">
-      <el-col :xs="24" :sm="24" :lg="12">
-        <div class="chart-wrapper">
-          <line-chart :chart-data="lineChartData" />
-        </div>
-      </el-col>
-      <el-col :xs="24" :sm="24" :lg="12">
-        <div class="chart-wrapper">
-          <pie-chart />
-        </div>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="20">
+    <!-- 图表区域 -->
+    <el-row :gutter="20" class="charts-container">
+      <!-- 左侧：招聘漏斗 -->
       <el-col :span="12">
-        <el-card class="box-card">
-          <div slot="header" class="clearfix">
-            <span>最近活动</span>
+        <el-card class="chart-card" shadow="hover">
+          <div slot="header">
+            <span>招聘漏斗分析</span>
+            <el-select v-model="funnelTimeRange" size="small" style="float: right; width: 120px">
+              <el-option label="最近7天" value="week" />
+              <el-option label="最近30天" value="month" />
+              <el-option label="最近90天" value="quarter" />
+            </el-select>
           </div>
-          <div v-if="activities.length === 0" class="empty-data">
-            <i class="el-icon-chat-dot-square" />
-            <p>暂无活动记录</p>
-          </div>
-          <div v-else class="activity-list">
-            <div v-for="(activity, index) in activities" :key="index" class="activity-item">
-              <span class="activity-time">{{ activity.time }}</span>
-              <span class="activity-content">{{ activity.content }}</span>
-            </div>
+          <div class="chart-container">
+            <v-chart :options="recruitmentFunnelChart" autoresize />
           </div>
         </el-card>
       </el-col>
+
+      <!-- 右侧：职位状态分布 -->
       <el-col :span="12">
-        <el-card class="box-card">
-          <div slot="header" class="clearfix">
+        <el-card class="chart-card" shadow="hover">
+          <div slot="header">
+            <span>职位状态分布</span>
+            <el-radio-group v-model="jobStatusType" size="small" style="float: right">
+              <el-radio-button label="all">全部</el-radio-button>
+              <el-radio-button label="active">进行中</el-radio-button>
+            </el-radio-group>
+          </div>
+          <div class="chart-container">
+            <v-chart :options="jobStatusChart" autoresize />
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 下方区域 -->
+    <el-row :gutter="20" class="bottom-container">
+      <!-- 左侧：简历处理进度 -->
+      <el-col :span="14">
+        <el-card class="chart-card" shadow="hover">
+          <div slot="header">
+            <span>简历处理进度</span>
+            <el-tooltip content="展示各职位的简历处理情况" placement="top">
+              <i class="el-icon-info" style="margin-left: 8px" />
+            </el-tooltip>
+          </div>
+          <el-table :data="resumeProgressData" style="width: 100%" :max-height="350">
+            <el-table-column prop="jobTitle" label="职位名称" width="180" />
+            <el-table-column prop="totalResumes" label="收到简历" width="100" align="center" />
+            <el-table-column prop="reviewed" label="已筛选" width="100" align="center" />
+            <el-table-column prop="interviewed" label="已面试" width="100" align="center" />
+            <el-table-column prop="progress" label="处理进度" align="center">
+              <template slot-scope="scope">
+                <el-progress
+                  :percentage="scope.row.progress"
+                  :color="getProgressColor(scope.row.progress)"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="100" align="center">
+              <template slot-scope="scope">
+                <el-tag :type="getJobStatusType(scope.row.status)">{{ scope.row.status }}</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-col>
+
+      <!-- 右侧：待办事项 -->
+      <el-col :span="10">
+        <el-card shadow="hover">
+          <div slot="header">
             <span>待办事项</span>
+            <el-button style="float: right" type="text" @click="refreshTodoList">
+              <i class="el-icon-refresh" /> 刷新
+            </el-button>
           </div>
-          <div v-if="todos.length === 0" class="empty-data">
-            <i class="el-icon-check" />
-            <p>暂无待办事项</p>
-          </div>
-          <div v-else class="todo-list">
-            <div v-for="(todo, index) in todos" :key="index" class="todo-item">
-              <el-checkbox v-model="todo.done">{{ todo.content }}</el-checkbox>
-              <span class="todo-deadline">{{ todo.deadline }}</span>
+          <div class="todo-list">
+            <div v-for="(item, index) in todoList" :key="index" class="todo-item">
+              <div class="todo-icon">
+                <el-badge :value="item.count" :type="item.type">
+                  <i :class="item.icon" />
+                </el-badge>
+              </div>
+              <div class="todo-content">
+                <div class="todo-title">{{ item.title }}</div>
+                <div class="todo-desc">{{ item.description }}</div>
+              </div>
+              <div class="todo-action">
+                <el-button type="text" @click="handleTodoAction(item)">处理</el-button>
+              </div>
             </div>
           </div>
         </el-card>
@@ -69,259 +123,342 @@
 </template>
 
 <script>
-import LineChart from '../admin/components/LineChart'
-import PieChart from '../admin/components/PieChart'
+import { mapGetters } from 'vuex'
+import ECharts from 'vue-echarts'
+import 'echarts/lib/chart/funnel'
+import 'echarts/lib/chart/pie'
+import 'echarts/lib/component/tooltip'
+import 'echarts/lib/component/title'
+import 'echarts/lib/component/legend'
 
 export default {
-  name: 'TenantAdminDashboard',
+  name: 'TenantDashboard',
   components: {
-    LineChart,
-    PieChart
+    'v-chart': ECharts
   },
   data() {
     return {
-      stats: {
-        totalResumes: 256,
-        monthlyNewResumes: 42,
-        activePositions: 15,
-        monthlyInterviews: 28
-      },
-      lineChartData: {
-        expectedData: [100, 120, 161, 134, 105, 160, 165],
-        actualData: [120, 82, 91, 154, 162, 140, 145]
-      },
-      activities: [
-        { time: '2023-05-18 10:30', content: '张三上传了5份新简历' },
-        { time: '2023-05-17 14:20', content: '李四安排了3场面试' },
-        { time: '2023-05-16 09:15', content: '王五发布了2个新职位' }
+      funnelTimeRange: 'week',
+      jobStatusType: 'all',
+      loading: false,
+      cardData: [
+        {
+          title: '在招职位',
+          value: '42',
+          trend: 8,
+          icon: 'el-icon-suitcase'
+        },
+        {
+          title: '本月简历',
+          value: '256',
+          trend: 15,
+          icon: 'el-icon-document'
+        },
+        {
+          title: '待处理',
+          value: '15',
+          trend: -5,
+          icon: 'el-icon-time'
+        },
+        {
+          title: '本月入职',
+          value: '28',
+          trend: 12,
+          icon: 'el-icon-user'
+        }
       ],
-      todos: [
-        { content: '审核高级前端开发简历', deadline: '今天 14:00', done: false },
-        { content: '安排产品经理候选人面试', deadline: '明天 10:30', done: false },
-        { content: '更新招聘计划文档', deadline: '后天', done: false }
-      ]
+      resumeProgressData: [],
+      todoList: []
     }
   },
   computed: {
-    statItems() {
-      return [
-        { title: '总简历数', value: this.stats.totalResumes, icon: 'el-icon-document' },
-        { title: '本月新增', value: this.stats.monthlyNewResumes, icon: 'el-icon-plus' },
-        { title: '进行中职位', value: this.stats.activePositions, icon: 'el-icon-suitcase' },
-        { title: '本月面试', value: this.stats.monthlyInterviews, icon: 'el-icon-date' }
-      ]
+    ...mapGetters(['name']),
+    recruitmentFunnelChart() {
+      return {
+        tooltip: {
+          trigger: 'item',
+          formatter: '{b}: {c}'
+        },
+        legend: {
+          data: ['投递简历', '初筛通过', '面试通过', '发放offer', '成功入职']
+        },
+        series: [
+          {
+            name: '招聘漏斗',
+            type: 'funnel',
+            left: '10%',
+            top: 60,
+            bottom: 60,
+            width: '80%',
+            min: 0,
+            max: 100,
+            minSize: '0%',
+            maxSize: '100%',
+            sort: 'descending',
+            gap: 2,
+            label: {
+              show: true,
+              position: 'inside'
+            },
+            labelLine: {
+              length: 10,
+              lineStyle: {
+                width: 1,
+                type: 'solid'
+              }
+            },
+            itemStyle: {
+              borderColor: '#fff',
+              borderWidth: 1
+            },
+            emphasis: {
+              label: {
+                fontSize: 20
+              }
+            },
+            data: [
+              { value: 256, name: '投递简历', itemStyle: { color: '#409EFF' }},
+              { value: 180, name: '初筛通过', itemStyle: { color: '#67C23A' }},
+              { value: 90, name: '面试通过', itemStyle: { color: '#E6A23C' }},
+              { value: 45, name: '发放offer', itemStyle: { color: '#F56C6C' }},
+              { value: 28, name: '成功入职', itemStyle: { color: '#909399' }}
+            ]
+          }
+        ]
+      }
+    },
+    jobStatusChart() {
+      return {
+        tooltip: {
+          trigger: 'item',
+          formatter: '{a} <br/>{b}: {c} ({d}%)'
+        },
+        legend: {
+          orient: 'vertical',
+          left: 10,
+          data: ['招聘中', '已暂停', '已结束', '待开始']
+        },
+        series: [
+          {
+            name: '职位状态',
+            type: 'pie',
+            radius: ['50%', '70%'],
+            avoidLabelOverlap: false,
+            label: {
+              show: false,
+              position: 'center'
+            },
+            emphasis: {
+              label: {
+                show: true,
+                fontSize: '30',
+                fontWeight: 'bold'
+              }
+            },
+            labelLine: {
+              show: false
+            },
+            data: [
+              { value: 25, name: '招聘中', itemStyle: { color: '#67C23A' }},
+              { value: 8, name: '已暂停', itemStyle: { color: '#E6A23C' }},
+              { value: 12, name: '已结束', itemStyle: { color: '#909399' }},
+              { value: 5, name: '待开始', itemStyle: { color: '#409EFF' }}
+            ]
+          }
+        ]
+      }
+    }
+  },
+  created() {
+    this.fetchDashboardData()
+  },
+  methods: {
+    async fetchDashboardData() {
+      this.loading = true
+      try {
+        // 模拟数据
+        this.resumeProgressData = [
+          {
+            jobTitle: '高级焊工',
+            totalResumes: 68,
+            reviewed: 45,
+            interviewed: 20,
+            progress: 85,
+            status: '进行中'
+          },
+          {
+            jobTitle: '电工组长',
+            totalResumes: 42,
+            reviewed: 30,
+            interviewed: 15,
+            progress: 65,
+            status: '进行中'
+          },
+          {
+            jobTitle: '钳工',
+            totalResumes: 35,
+            reviewed: 15,
+            interviewed: 8,
+            progress: 45,
+            status: '待处理'
+          }
+        ]
+
+        this.todoList = [
+          {
+            title: '待筛选简历',
+            description: '您有15份新简历待筛选',
+            count: 15,
+            type: 'warning',
+            icon: 'el-icon-document'
+          },
+          {
+            title: '待安排面试',
+            description: '8位候选人等待面试安排',
+            count: 8,
+            type: 'danger',
+            icon: 'el-icon-date'
+          },
+          {
+            title: '待发送offer',
+            description: '3位候选人待发送offer',
+            count: 3,
+            type: 'success',
+            icon: 'el-icon-message'
+          }
+        ]
+      } catch (error) {
+        console.error('获取驾驶舱数据失败:', error)
+        this.$message.error('获取数据失败，请稍后重试')
+      } finally {
+        this.loading = false
+      }
+    },
+    refreshTodoList() {
+      this.fetchDashboardData()
+    },
+    getJobStatusType(status) {
+      const statusMap = {
+        '进行中': 'success',
+        '待处理': 'warning',
+        '已暂停': 'info',
+        '已结束': 'danger'
+      }
+      return statusMap[status] || 'info'
+    },
+    getProgressColor(progress) {
+      if (progress >= 80) return '#67C23A'
+      if (progress >= 50) return '#E6A23C'
+      return '#F56C6C'
+    },
+    handleTodoAction(item) {
+      // 处理待办事项的点击
+      console.log('处理待办事项:', item)
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
-.dashboard-tenant-admin {
+.tenant-dashboard {
   padding: 20px;
-  background-color: #f5f7fa;
-  min-height: calc(100vh - 84px);
 
-  .chart-wrapper {
-    background: #fff;
-    padding: 16px;
+  .data-cards {
     margin-bottom: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
 
-    &:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    }
-  }
-
-  .count-panel {
-    margin-bottom: 20px;
-    border-radius: 8px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-
-    &:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    .count-panel-content {
+    .data-item {
       display: flex;
       align-items: center;
-      padding: 20px;
-    }
 
-    .count-panel-icon {
-      font-size: 48px;
-      margin-right: 20px;
-      color: #409EFF;
-      background-color: rgba(64, 158, 255, 0.1);
-      width: 70px;
-      height: 70px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s ease;
-    }
-
-    &:hover .count-panel-icon {
-      transform: scale(1.1);
-    }
-
-    .count-panel-info {
-      flex: 1;
-    }
-
-    .count-panel-title {
-      font-size: 14px;
-      color: #909399;
-      margin-bottom: 10px;
-    }
-
-    .count-panel-value {
-      font-size: 28px;
-      font-weight: bold;
-      color: #303133;
-      line-height: 1;
-    }
-  }
-
-  .box-card {
-    margin-bottom: 20px;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-
-    &:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-    }
-
-    .el-card__header {
-      padding: 15px 20px;
-      font-weight: bold;
-      border-bottom: 1px solid #ebeef5;
-      background-color: #fafafa;
-    }
-  }
-
-  .empty-data {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 0;
-    color: #909399;
-
-    i {
-      font-size: 60px;
-      margin-bottom: 20px;
-      color: #dcdfe6;
-    }
-
-    p {
-      font-size: 16px;
-      margin: 0;
-    }
-  }
-
-  .activity-list {
-    .activity-item {
-      padding: 15px 0;
-      border-bottom: 1px solid #EBEEF5;
-      display: flex;
-
-      &:last-child {
-        border-bottom: none;
+      .data-icon {
+        font-size: 48px;
+        color: #409EFF;
+        margin-right: 20px;
       }
 
-      .activity-time {
-        color: #909399;
-        font-size: 13px;
-        width: 140px;
-        flex-shrink: 0;
-        position: relative;
-        padding-left: 15px;
+      .data-content {
+        flex: 1;
 
-        &:before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background-color: #409EFF;
+        .data-title {
+          font-size: 14px;
+          color: #909399;
+        }
+
+        .data-value {
+          font-size: 24px;
+          font-weight: bold;
+          margin: 8px 0;
+        }
+
+        .data-trend {
+          font-size: 12px;
+          color: #909399;
+
+          &.up {
+            color: #67C23A;
+          }
+
+          &.down {
+            color: #F56C6C;
+          }
+
+          span:last-child {
+            margin-left: 5px;
+          }
         }
       }
+    }
+  }
 
-      .activity-content {
-        flex: 1;
-        font-size: 14px;
-      }
+  .charts-container {
+    margin-bottom: 20px;
+  }
+
+  .bottom-container {
+    margin-bottom: 20px;
+  }
+
+  .chart-card {
+    .chart-container {
+      height: 350px;
     }
   }
 
   .todo-list {
     .todo-item {
+      display: flex;
+      align-items: center;
       padding: 15px 0;
       border-bottom: 1px solid #EBEEF5;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
 
       &:last-child {
         border-bottom: none;
       }
 
-      .el-checkbox {
-        font-size: 14px;
+      .todo-icon {
+        margin-right: 20px;
+        font-size: 24px;
+        color: #409EFF;
       }
 
-      .todo-deadline {
-        color: #909399;
-        font-size: 13px;
-        background-color: #f5f7fa;
-        padding: 4px 8px;
-        border-radius: 4px;
-        display: inline-flex;
-        align-items: center;
+      .todo-content {
+        flex: 1;
 
-        &:before {
-          content: '\e78f'; /* 使用 Element UI 的时钟图标 */
-          font-family: 'element-icons';
-          margin-right: 4px;
-          font-size: 12px;
+        .todo-title {
+          font-size: 16px;
+          color: #303133;
+          margin-bottom: 5px;
+        }
+
+        .todo-desc {
+          font-size: 13px;
+          color: #909399;
         }
       }
-    }
-  }
 
-  /* 响应式调整 */
-  @media (max-width: 768px) {
-    padding: 10px;
-
-    .count-panel {
-      .count-panel-content {
-        padding: 15px;
+      .todo-action {
+        margin-left: 20px;
       }
-
-      .count-panel-icon {
-        font-size: 36px;
-        width: 50px;
-        height: 50px;
-        margin-right: 15px;
-      }
-
-      .count-panel-value {
-        font-size: 22px;
-      }
-    }
-
-    .activity-time {
-      width: 120px !important;
     }
   }
 }
