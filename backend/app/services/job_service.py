@@ -283,14 +283,14 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         job = crud.job.update(db, db_obj=job, obj_in=job_in)
 
         # 更新技能要求
-        if skills is not None:  # 允许清空技能要求
+        if hasattr(job_in, 'skills') and job_in.skills is not None:  # 允许清空技能要求
             requirement_service = JobRequirementService(db)
-            requirement_service.update_job_skills(job.id, skills)
+            requirement_service.update_job_skills(job.id, job_in.skills)
 
         # 更新证书要求
-        if certifications is not None:  # 允许清空证书要求
+        if hasattr(job_in, 'certifications') and job_in.certifications is not None:  # 允许清空证书要求
             requirement_service = JobRequirementService(db)
-            requirement_service.update_job_certifications(job.id, certifications)
+            requirement_service.update_job_certifications(job.id, job_in.certifications)
 
         return job
 

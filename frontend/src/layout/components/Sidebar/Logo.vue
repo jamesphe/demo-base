@@ -3,11 +3,12 @@
     <transition name="sidebarLogoFade">
       <router-link v-if="collapse" key="collapse" class="sidebar-logo-link" to="/">
         <img v-if="logo" :src="logo" class="sidebar-logo">
-        <h1 v-else class="sidebar-title">{{ title }} </h1>
       </router-link>
       <router-link v-else key="expand" class="sidebar-logo-link" to="/">
-        <img v-if="logo" :src="logo" class="sidebar-logo">
-        <h1 class="sidebar-title">{{ title }} </h1>
+        <div class="logo-wrapper">
+          <img v-if="logo" :src="logo" class="sidebar-logo">
+          <span class="sidebar-title">{{ title }}</span>
+        </div>
       </router-link>
     </transition>
   </div>
@@ -35,65 +36,57 @@ export default {
 .sidebar-logo-container {
   position: relative;
   width: 100%;
-  height: 60px;
-  line-height: 60px;
-  background: #2b2f3a;
-  text-align: center;
+  height: 50px;
+  background: #304156;
+  text-align: left;
   overflow: hidden;
-  transition: background 0.3s;
 
-  & .sidebar-logo-link {
+  .sidebar-logo-link {
     height: 100%;
     width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 15px;
+    display: block;
+    overflow: hidden;
+    padding: 0 12px;
 
-    & .sidebar-logo {
-      width: 32px;
-      height: 32px;
-      vertical-align: middle;
-      margin-right: 12px;
-      transition: transform 0.3s;
+    .logo-wrapper {
+      height: 100%;
+      display: flex;
+      align-items: center;
 
-      &:hover {
-        transform: scale(1.1);
+      .sidebar-logo {
+        width: 28px;
+        height: 28px;
+        margin-right: 8px;
+        vertical-align: middle;
       }
-    }
 
-    & .sidebar-title {
-      display: inline-block;
-      margin: 0;
-      color: #fff;
-      font-weight: 600;
-      line-height: 60px;
-      font-size: 16px;
-      font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
-      white-space: nowrap;
-      transition: color 0.3s;
+      .sidebar-title {
+        display: inline-block;
+        color: #fff;
+        font-weight: 600;
+        font-size: 14px;
+        font-family: "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+        white-space: nowrap;
+        opacity: 0.95;
+      }
     }
   }
 
   &.collapse {
-    .sidebar-logo {
-      margin-right: 0;
-    }
-    .sidebar-title {
-      display: none;
-    }
-  }
-
-  &:hover {
-    background: #263445;
-    .sidebar-title {
-      color: #409EFF;
+    .sidebar-logo-link {
+      padding: 0;
+      .sidebar-logo {
+        margin: 11px auto;
+        width: 28px;
+        height: 28px;
+      }
     }
   }
 }
 
-.sidebarLogoFade-enter-active {
-  transition: opacity 0.3s;
+.sidebarLogoFade-enter-active,
+.sidebarLogoFade-leave-active {
+  transition: opacity 0.2s;
 }
 
 .sidebarLogoFade-enter,

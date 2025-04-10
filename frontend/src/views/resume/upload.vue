@@ -414,7 +414,6 @@ export default {
         // 使用Vue的响应式系统确保状态更新的原子性
         this.$set(file, 'processingStatus', 'processing')
 
-        // 实际应用中，这里应该调用API重新处理文件
         await this.retryResumeProcessing(file.id)
 
         // 模拟处理过程
@@ -442,48 +441,6 @@ export default {
         return (size / 1024).toFixed(2) + ' KB'
       } else {
         return (size / 1024 / 1024).toFixed(2) + ' MB'
-      }
-    },
-
-    async handleRetry(file) {
-      try {
-        // 使用Vue的响应式系统确保状态更新的原子性
-        this.$set(file, 'processingStatus', 'processing')
-
-        const formData = new FormData()
-        formData.append('file', file.raw)
-        if (this.repositoryId) {
-          formData.append('repository_id', this.repositoryId)
-        }
-        if (this.jobId) {
-          formData.append('job_id', this.jobId)
-        }
-
-        const response = await this.$http.post('/api/resumes/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        })
-
-        if (response.data) {
-          // 使用Vue的响应式系统更新状态
-          this.$set(file, 'processingStatus', 'success')
-          this.$message.success('重新处理成功')
-
-          // 延迟3秒后刷新列表
-          setTimeout(() => {
-            this.$message({
-              message: '正在刷新列表...',
-              type: 'success',
-              duration: 3000
-            })
-            this.fetchResumes()
-          }, 3000)
-        }
-      } catch (error) {
-        // 使用Vue的响应式系统更新状态
-        this.$set(file, 'processingStatus', 'failed')
-        this.$message.error('重新处理失败：' + (error.message || '未知错误'))
       }
     }
   }

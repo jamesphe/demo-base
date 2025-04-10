@@ -36,7 +36,7 @@
             </el-radio-group>
           </div>
           <div class="chart-container">
-            <v-chart :options="activityTrendChart" autoresize />
+            <v-chart class="chart" :options="activityTrendChart" autoresize />
           </div>
         </el-card>
       </el-col>
@@ -53,7 +53,7 @@
             </el-select>
           </div>
           <div class="chart-container">
-            <v-chart :options="talentDistributionChart" autoresize />
+            <v-chart class="chart" :options="talentDistributionChart" autoresize />
           </div>
         </el-card>
       </el-col>
@@ -71,7 +71,7 @@
             </el-tooltip>
           </div>
           <div class="chart-container">
-            <v-chart :options="recruitmentChart" autoresize />
+            <v-chart class="chart" :options="recruitmentChart" autoresize />
           </div>
         </el-card>
       </el-col>
@@ -433,17 +433,25 @@ export default {
     }
   }
 
-  .charts-container {
+  .charts-container, .bottom-container {
     margin-bottom: 20px;
+
+    .chart-card {
+      height: 100%;
+    }
   }
 
-  .bottom-container {
-    margin-bottom: 20px;
-  }
+  .chart-container {
+    height: 350px;
+    position: relative;
+    width: 100%;
 
-  .chart-card {
-    .chart-container {
-      height: 350px;
+    .chart {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
     }
   }
 }

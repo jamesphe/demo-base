@@ -336,16 +336,9 @@
 
           <el-form-item label="福利待遇" prop="benefits">
             <el-checkbox-group v-model="positionForm.benefits" class="benefit-group">
-              <el-checkbox label="insurance">五险一金</el-checkbox>
-              <el-checkbox label="annual_bonus">年终奖</el-checkbox>
-              <el-checkbox label="overtime_pay">加班补助</el-checkbox>
-              <el-checkbox label="meal">餐补</el-checkbox>
-              <el-checkbox label="transportation">交通补助</el-checkbox>
-              <el-checkbox label="communication">通讯补贴</el-checkbox>
-              <el-checkbox label="holiday_benefits">节日福利</el-checkbox>
-              <el-checkbox label="paid_leave">带薪年假</el-checkbox>
-              <el-checkbox label="health_check">定期体检</el-checkbox>
-              <el-checkbox label="travel">员工旅游</el-checkbox>
+              <el-checkbox v-for="(label, value) in getBenefitMap()" :key="value" :label="value">
+                {{ label }}
+              </el-checkbox>
             </el-checkbox-group>
           </el-form-item>
         </el-card>
@@ -364,7 +357,7 @@
                   <el-option label="大专" value="college" />
                   <el-option label="本科" value="bachelor" />
                   <el-option label="硕士" value="master" />
-                  <el-option label="博士" value="doctor" />
+                  <el-option label="博士" value="phd" />
                 </el-select>
               </el-form-item>
             </el-col>
@@ -398,6 +391,15 @@
               type="textarea"
               :rows="6"
               placeholder="请详细描述该职位的任职要求，如专业技能、语言要求、性格特征等"
+            />
+          </el-form-item>
+
+          <el-form-item label="加分项" prop="preferences">
+            <el-input
+              v-model="positionForm.preferences"
+              type="textarea"
+              :rows="4"
+              placeholder="请描述该职位的加分项，如特定技能、证书、项目经验等"
             />
           </el-form-item>
         </el-card>
@@ -446,6 +448,7 @@ export default {
         salaryUnit: 'month',
         description: '',
         requirements: '',
+        preferences: '',
         experienceRequired: '',
         educationRequired: '',
         headcount: 1,
@@ -549,31 +552,38 @@ export default {
           limit: this.listQuery.limit
         })
 
-        this.list = (data || []).map(item => ({
-          id: item.id,
-          title: item.title,
-          type: item.job_type,
-          department: item.department || '',
-          location: item.location || '',
-          salaryMin: item.salaryMin || item.salary_min || 0,
-          salaryMax: item.salaryMax || item.salary_max || 0,
-          salaryUnit: (item.salaryType === '月薪' || item.salary_type === '月薪') ? 'month' : 'year',
-          description: item.description || '',
-          requirements: item.requirements || '',
-          benefits: item.benefits || [],
-          experienceRequired: item.experienceRequired || item.experience_required || '',
-          educationRequired: item.educationRequired || item.education_required || '',
-          headcount: item.headcount || 1,
-          status: item.status || 'draft',
-          createTime: item.createdAt || item.created_at || new Date().toISOString(),
-          tenant: {
-            id: item.tenant?.id,
-            name: item.tenant_name || '-',
-            code: item.tenant?.code,
-            status: item.tenant?.status
-          },
-          tenantName: item.tenant_name || '-'
-        }))
+        console.log('原始接口数据:', data)
+
+        this.list = (data || []).map(item => {
+          const mappedItem = {
+            id: item.id,
+            title: item.title,
+            type: item.job_type || item.jobType || item.type || '',
+            jobType: item.job_type || item.jobType || item.type || '',
+            department: item.department || '',
+            location: item.location || '',
+            salaryMin: item.salaryMin || item.salary_min || 0,
+            salaryMax: item.salaryMax || item.salary_max || 0,
+            salaryUnit: (item.salaryType === '月薪' || item.salary_type === '月薪') ? 'month' : 'year',
+            description: item.description || '',
+            requirements: item.requirements || '',
+            preferences: item.preferences || '',
+            benefits: typeof item.benefits === 'string' ? item.benefits.split(',') : (item.benefits || []),
+            experienceRequired: item.experienceRequired || item.experience_required || '',
+            educationRequired: item.educationRequired || item.education_required || '',
+            headcount: item.headcount || 1,
+            status: item.status || 'draft',
+            createTime: item.createdAt || item.created_at || new Date().toISOString(),
+            tenant: {
+              id: item.tenant?.id,
+              name: item.tenant_name || '-',
+              code: item.tenant?.code,
+              status: item.tenant?.status
+            }
+          }
+          console.log('数据转换后:', mappedItem)
+          return mappedItem
+        })
 
         this.total = meta ? meta.total : (data.total || this.list.length)
       } catch (error) {
@@ -609,6 +619,7 @@ export default {
         salaryUnit: 'month',
         description: '',
         requirements: '',
+        preferences: '',
         experienceRequired: '',
         educationRequired: '',
         headcount: 1,
@@ -617,12 +628,44 @@ export default {
       this.dialogVisible = true
     },
     handleEdit(row) {
+      console.log('编辑前的原始数据:', row)
+      console.log('职位类型:', row.type, row.jobType)
+
+      // 检查福利待遇数据
+      console.log('原始福利待遇:', row.benefits)
+      const benefitsArray = typeof row.benefits === 'string' ? row.benefits.split(',') : Array.isArray(row.benefits) ? row.benefits : []
+      console.log('转换为数组后的福利待遇:', benefitsArray)
+
+      const mappedBenefits = benefitsArray.map(benefit => {
+        const found = Object.entries(this.getBenefitMap()).find(([key, val]) => val === benefit)
+        console.log(`福利待遇映射: ${benefit} -> ${found ? found[0] : benefit}`)
+        return found ? found[0] : benefit
+      })
+      console.log('映射后的福利待遇:', mappedBenefits)
+
+      const jobType = row.jobType || row.type || ''
+      console.log('处理后的职位类型:', jobType)
+
       this.positionForm = {
-        ...row,
-        benefits: Array.isArray(row.benefits) ? row.benefits.map(benefit => {
-          return Object.entries(this.getBenefitMap()).find(([key, val]) => val === benefit)?.[0] || benefit
-        }) : []
+        id: row.id,
+        title: row.title,
+        type: jobType,
+        department: row.department || '',
+        location: row.location || '',
+        salaryMin: row.salaryMin || row.salary_min || '',
+        salaryMax: row.salaryMax || row.salary_max || '',
+        salaryUnit: row.salaryType === '面议' ? 'negotiate'
+          : row.salaryType === '年薪' ? 'year' : 'month',
+        description: row.description || '',
+        requirements: row.requirements || '',
+        preferences: row.preferences || '',
+        experienceRequired: row.experienceRequired || row.experience_required || '',
+        educationRequired: row.educationRequired || row.education_required || '',
+        headcount: row.headcount || 1,
+        benefits: mappedBenefits
       }
+
+      console.log('表单数据:', this.positionForm)
       this.dialogTitle = '编辑职位'
       this.dialogVisible = true
     },
@@ -635,21 +678,25 @@ export default {
         const submitData = {
           id: this.positionForm.id,
           title: this.positionForm.title,
-          jobType: this.positionForm.type,
+          job_type: this.positionForm.type,
           department: this.positionForm.department,
           location: this.positionForm.location,
-          salaryMin: this.positionForm.salaryMin,
-          salaryMax: this.positionForm.salaryMax,
-          salaryType: this.positionForm.salaryUnit === 'month' ? '月薪' : '年薪',
+          salary_min: Number(this.positionForm.salaryUnit === 'negotiate' ? 0 : this.positionForm.salaryMin),
+          salary_max: Number(this.positionForm.salaryUnit === 'negotiate' ? 0 : this.positionForm.salaryMax),
+          salary_type: this.positionForm.salaryUnit === 'month' ? '月薪'
+            : this.positionForm.salaryUnit === 'year' ? '年薪' : '面议',
           description: this.positionForm.description,
           requirements: this.positionForm.requirements,
-          benefits: this.positionForm.benefits.map(benefit => this.getBenefitLabel(benefit)),
-          experienceRequired: this.positionForm.experienceRequired,
-          educationRequired: this.positionForm.educationRequired,
-          headcount: this.positionForm.headcount
+          preferences: this.positionForm.preferences,
+          benefits: this.positionForm.benefits.map(benefit => this.getBenefitLabel(benefit)).join(','),
+          experience_required: this.positionForm.experienceRequired,
+          education_required: this.positionForm.educationRequired,
+          headcount: Number(this.positionForm.headcount),
+          status: 'published' // 修改为正确的状态值
         }
+        console.log('提交的数据:', submitData)
 
-        await updatePosition(submitData)
+        await updatePosition(this.positionForm.id, submitData)
         this.dialogVisible = false
         this.$message.success(this.positionForm.id ? '更新成功' : '创建成功')
         this.getList()
@@ -690,21 +737,6 @@ export default {
         console.error('删除职位失败:', error)
       }
     },
-    getBenefitLabel(value) {
-      const benefitMap = {
-        'insurance': '五险一金',
-        'annual_bonus': '年终奖',
-        'overtime_pay': '加班补助',
-        'meal': '餐补',
-        'transportation': '交通补助',
-        'communication': '通讯补贴',
-        'holiday_benefits': '节日福利',
-        'paid_leave': '带薪年假',
-        'health_check': '定期体检',
-        'travel': '员工旅游'
-      }
-      return benefitMap[value] || value
-    },
     getBenefitMap() {
       return {
         'insurance': '五险一金',
@@ -718,6 +750,9 @@ export default {
         'health_check': '定期体检',
         'travel': '员工旅游'
       }
+    },
+    getBenefitLabel(value) {
+      return this.getBenefitMap()[value] || value
     }
   }
 }

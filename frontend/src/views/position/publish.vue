@@ -10,7 +10,7 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="职位名称" prop="title">
-              <el-input v-model="positionForm.title" placeholder="请输入职位名称" />
+              <el-input v-model="positionForm.title" placeholder="例如：高级前端开发工程师" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -28,7 +28,7 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="所属部门" prop="department">
-              <el-input v-model="positionForm.department" placeholder="请输入所属部门" />
+              <el-input v-model="positionForm.department" placeholder="例如：技术部/研发中心" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -41,7 +41,7 @@
         <el-form-item label="工作地点" prop="location">
           <el-input
             v-model="positionForm.location"
-            placeholder="请输入工作地点，如: 北京市朝阳区望京SOHO"
+            placeholder="例如：北京市朝阳区望京SOHO T1座"
             :maxlength="255"
             show-word-limit
           />
@@ -61,7 +61,7 @@
               :min="1"
               :step="1"
               controls-position="right"
-              placeholder="最低薪资"
+              placeholder="最低薪资（单位：K）"
             />
           </el-col>
           <el-col :span="1" class="salary-separator">
@@ -73,7 +73,7 @@
               :min="positionForm.salary_min || 1"
               :step="1"
               controls-position="right"
-              placeholder="最高薪资"
+              placeholder="最高薪资（单位：K）"
             />
           </el-col>
           <el-col :span="6" :offset="1">
@@ -89,7 +89,7 @@
           <el-input
             v-model="positionForm.salary_structure"
             type="textarea"
-            placeholder="例如：基本工资 + 绩效奖金 + 年终奖"
+            placeholder="例如：基本工资(15K) + 绩效奖金(5K) + 年终奖(2-3个月) + 项目奖金"
             :rows="2"
           />
         </el-form-item>
@@ -148,7 +148,12 @@
             v-model="positionForm.description"
             type="textarea"
             :rows="6"
-            placeholder="请详细描述该职位的主要工作内容、职责范围等"
+            placeholder="请详细描述该职位的主要工作内容、职责范围等，建议包含：
+1. 主要工作内容
+2. 团队协作方式
+3. 技术栈要求
+4. 项目类型
+5. 晋升空间"
           />
         </el-form-item>
 
@@ -157,7 +162,12 @@
             v-model="positionForm.requirements"
             type="textarea"
             :rows="6"
-            placeholder="请详细描述该职位的任职要求，如专业技能、语言要求、性格特征等"
+            placeholder="请详细描述该职位的任职要求，建议包含：
+1. 学历要求
+2. 工作经验
+3. 专业技能
+4. 软技能要求
+5. 加分项"
           />
         </el-form-item>
 
@@ -166,7 +176,12 @@
             v-model="positionForm.preferences"
             type="textarea"
             :rows="4"
-            placeholder="请描述可以加分的条件（选填）"
+            placeholder="请描述可以加分的条件，例如：
+1. 有开源项目经验
+2. 熟悉特定技术栈
+3. 有相关行业经验
+4. 有团队管理经验
+5. 有良好的英语能力"
           />
         </el-form-item>
       </el-card>
@@ -207,40 +222,21 @@ export default {
 
     return {
       positionForm: {
-        title: '高级前端开发工程师',
-        job_type: 'fulltime',
-        department: '技术部',
-        headcount: 2,
-        location: '北京市朝阳区望京SOHO T1座',
-        salary_min: 25,
-        salary_max: 35,
+        title: '',
+        job_type: '',
+        department: '',
+        headcount: 1,
+        location: '',
+        salary_min: null,
+        salary_max: null,
         salary_type: 'month',
-        salary_structure: '基本工资(15K) + 绩效奖金(5K) + 年终奖(2-3个月) + 项目奖金',
-        benefits: ['五险一金', '年终奖', '加班补助', '餐补', '定期体检', '带薪年假'],
-        education_required: 'bachelor',
-        experience_required: '3-5',
-        description: `岗位职责：
-1. 负责公司前端项目的架构设计和开发工作；
-2. 负责前端技术选型，制定并规范团队开发规范；
-3. 负责项目性能优化，提升用户体验；
-4. 研究和引入新的前端技术，提升团队技术能力；
-5. 参与项目技术评审，解决项目开发过程中的技术难题；
-6. 指导初级工程师，促进团队技术成长。`,
-        requirements: `任职要求：
-1. 本科及以上学历，计算机相关专业；
-2. 3年以上前端开发经验，有大型项目经验；
-3. 精通 HTML5、CSS3、JavaScript，熟悉 ES6+ 特性；
-4. 精通 Vue.js 技术栈，有 Vue3 实际项目经验；
-5. 熟悉前端工程化，如 Webpack、Vite、ESLint 等工具；
-6. 熟悉 Node.js，有全栈开发经验优先；
-7. 有良好的代码风格和编程习惯，注重代码质量；
-8. 具备良好的团队协作能力和沟通能力。`,
-        preferences: `加分项：
-1. 有开源项目经验或技术博客；
-2. 熟悉 TypeScript、React、小程序开发；
-3. 有大型 SaaS 平台开发经验；
-4. 有团队管理经验；
-5. 有良好的英语读写能力。`
+        salary_structure: '',
+        benefits: [],
+        education_required: '',
+        experience_required: '',
+        description: '',
+        requirements: '',
+        preferences: ''
       },
       rules: {
         title: [

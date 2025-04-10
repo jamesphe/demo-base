@@ -318,12 +318,34 @@ def update_user_roles(
     """
     更新用户角色
     """
-    return user_service.update_user_roles(
-        db,
-        user_id=user_id,
-        role_ids=role_ids,
-        current_user=current_user
-    )
+    print("更新用户角色 - 接收到的参数:", {
+        "user_id": user_id,
+        "role_ids": role_ids,
+        "role_ids_type": type(role_ids),
+        "role_ids_items": [{"value": id, "type": type(id)} for id in role_ids] if isinstance(role_ids, list) else None,
+        "request_body": Body.get_default(),
+    })
+    
+    try:
+        result = user_service.update_user_roles(
+            db,
+            user_id=user_id,
+            role_ids=role_ids,
+            current_user=current_user
+        )
+        print("更新用户角色 - 成功:", {
+            "user_id": result.id,
+            "roles": [{"id": r.id, "name": r.name} for r in result.roles]
+        })
+        return result
+    except Exception as e:
+        print("更新用户角色 - 错误:", {
+            "error_type": type(e).__name__,
+            "error_msg": str(e),
+            "user_id": user_id,
+            "role_ids": role_ids
+        })
+        raise
 
 
 @router.get("/{user_id}/roles")

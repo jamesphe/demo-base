@@ -16,7 +16,7 @@ export function uploadResume(file, positionId, onProgress) {
     // 添加认证头
     const token = getToken()
     if (token) {
-      xhr.setRequestHeader('Authorization', `${token}`)
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
     }
 
     // 设置进度监听

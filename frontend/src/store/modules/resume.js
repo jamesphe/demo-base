@@ -1,4 +1,4 @@
-import { uploadResume, getResumePreviewUrl, deleteResume } from '@/api/resume'
+import { uploadResume, getResumePreviewUrl, deleteResume, parseResume } from '@/api/resume'
 import { baseURL } from '@/utils/request'
 import { getToken } from '@/utils/auth'
 import { searchResumes, downloadResume, toggleResumeStar, exportSearchResult, getResumeDetail } from '@/api/resume'
@@ -184,6 +184,24 @@ const actions = {
       commit('REMOVE_UPLOADED_FILE', fileId)
     } catch (error) {
       console.error('删除简历失败:', error)
+      throw error
+    }
+  },
+
+  // 重试简历处理
+  async retryResumeProcessing({ commit }, resumeId) {
+    try {
+      const response = await parseResume(resumeId)
+      if (response.data) {
+        // 更新文件处理状态
+        const file = state.uploadedFiles.find(f => f.id === resumeId)
+        if (file) {
+          file.processingStatus = 'processing'
+        }
+      }
+      return response.data
+    } catch (error) {
+      console.error('重试简历处理失败:', error)
       throw error
     }
   },

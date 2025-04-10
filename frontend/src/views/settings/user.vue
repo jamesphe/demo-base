@@ -141,8 +141,19 @@
           <el-input v-model="userForm.password" type="password" placeholder="请输入密码" show-password />
         </el-form-item>
         <el-form-item v-if="isAdmin" label="租户" prop="tenantId">
-          <el-select v-model="userForm.tenantId" placeholder="请选择租户" style="width: 100%">
-            <el-option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id" :label="tenant.name" />
+          <el-select
+            v-model="userForm.tenantId"
+            placeholder="请选择租户"
+            style="width: 100%"
+            value-key="id"
+            @change="handleTenantChange"
+          >
+            <el-option
+              v-for="tenant in tenants"
+              :key="tenant.id"
+              :value="tenant.id.toString()"
+              :label="tenant.name"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="角色" prop="roles">
@@ -192,7 +203,12 @@
             style="width: 100%"
             collapse-tags
           >
-            <el-option v-for="role in availableRoles" :key="role.id" :value="role.id" :label="role.name" />
+            <el-option
+              v-for="role in availableRoles"
+              :key="role.id"
+              :value="role.id"
+              :label="role.name"
+            />
           </el-select>
         </el-form-item>
       </el-form>
@@ -215,6 +231,7 @@ import {
   updateUserRoles,
   getRoleList
 } from '@/api/system/user'
+import { getTenantList } from '@/api/tenant'
 
 export default {
   name: 'SettingsUser',
@@ -284,7 +301,10 @@ export default {
         phone: [
           { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
         ],
-        tenantId: [{ required: this.$store.getters.userRoles && this.$store.getters.userRoles.includes('admin'), message: '请选择租户', trigger: 'change' }]
+        tenantId: [
+          { required: this.$store.getters.userRoles && this.$store.getters.userRoles.includes('admin'), message: '请选择租户', trigger: 'change' },
+          { type: 'string', transform: (value) => value?.toString(), message: '租户ID必须是字符串类型', trigger: 'change' }
+        ]
       }
     }
   },
@@ -305,8 +325,12 @@ export default {
         }
 
         const { data } = await getUserList(params)
-        this.userList = data
-        this.pagination.total = data.length // 暂时使用数组长度作为总数
+        this.userList = data.map(user => ({
+          ...user,
+          roles: user.roles || [],
+          roleNames: user.roles?.map(role => role.name) || []
+        }))
+        this.pagination.total = data.length
       } catch (error) {
         Message.error('获取用户列表失败')
         console.error(error)
@@ -319,28 +343,35 @@ export default {
       if (!this.isAdmin) return
 
       try {
-        // 模拟获取租户列表
-        this.tenants = [
-          { id: 1, name: '总部' },
-          { id: 2, name: '分支机构1' },
-          { id: 3, name: '分支机构2' }
-        ]
+        const { data } = await getTenantList({ page: 1, limit: 100 })
+        console.log('获取到的租户数据:', data)
+
+        this.tenants = data.map(tenant => ({
+          id: tenant.id,
+          name: tenant.tenantName
+        }))
+        if (this.userForm.tenantId) {
+          this.userForm.tenantId = this.userForm.tenantId.toString()
+        }
+        console.log('处理后的租户列表:', this.tenants)
       } catch (error) {
+        console.error('获取租户列表失败:', error)
         Message.error('获取租户列表失败')
-        console.error(error)
       }
     },
 
     async fetchRoleList() {
       try {
         const { data } = await getRoleList()
+        console.log('获取到的角色列表:', data)
         this.availableRoles = data.map(role => ({
           id: role.id,
           name: role.name
         }))
+        console.log('处理后的角色列表:', this.availableRoles)
       } catch (error) {
+        console.error('获取角色列表失败:', error)
         Message.error('获取角色列表失败')
-        console.error(error)
       }
     },
 
@@ -402,27 +433,40 @@ export default {
 
     handleEdit(record) {
       this.modalTitle = '编辑用户'
+      console.log('编辑前的用户数据:', record)
+
       this.userForm = {
         id: record.id,
         username: record.username,
         email: record.email,
         phone: record.phone,
-        tenantId: record.tenantId,
-        roles: record.roleNames || [],
+        tenantId: record.tenantId?.toString(),
+        roles: record.roles || [],
         isActive: record.isActive
       }
+      console.log('设置到表单的数据:', this.userForm)
       this.userModalVisible = true
     },
 
     async handleUserModalOk() {
-      this.$refs.userFormRef.validate(async valid => {
+      console.log('提交前的表单数据:', this.userForm)
+      console.log('租户ID类型:', typeof this.userForm.tenantId)
+
+      this.$refs.userFormRef.validate(async(valid, fields) => {
+        console.log('表单验证结果:', valid)
+        console.log('验证失败字段:', fields)
+
         if (valid) {
           this.submitLoading = true
           try {
             const formData = {
               ...this.userForm,
-              roles: this.userForm.roles
+              roles: this.userForm.roles,
+              tenantId: this.userForm.tenantId?.toString()
             }
+
+            console.log('准备提交的数据:', formData)
+            console.log('转换后的租户ID类型:', typeof formData.tenantId)
 
             if (this.userForm.id) {
               await updateUser(this.userForm.id, formData)
@@ -435,6 +479,7 @@ export default {
             this.userModalVisible = false
             this.fetchUserList()
           } catch (error) {
+            console.error('API错误详情:', error.response?.data)
             Message.error(error.response?.data?.detail || '操作失败')
           } finally {
             this.submitLoading = false
@@ -459,11 +504,9 @@ export default {
         await updateUser(row.id, {
           isActive: targetStatus
         })
-        // 使用Vue的响应式方法更新状态
         this.$set(row, 'isActive', targetStatus)
         this.$message.success(`${targetStatus ? '启用' : '禁用'}用户成功`)
       } catch (error) {
-        // 使用Vue的响应式方法恢复状态
         this.$set(row, 'isActive', !targetStatus)
         this.$message.error(error.response?.data?.detail || '操作失败')
       }
@@ -472,19 +515,54 @@ export default {
     handleRoleAssign(row) {
       this.currentUser = row
       this.roleForm.userId = row.id
-      this.roleForm.roles = row.roleNames || []
+
+      // 确保使用角色ID数组
+      this.roleForm.roles = Array.isArray(row.roles)
+        ? row.roles.map(role => role.id)
+        : []
+
+      console.log('角色分配 - 处理后数据:', {
+        userId: this.roleForm.userId,
+        roles: this.roleForm.roles,
+        rolesType: typeof this.roleForm.roles,
+        isArray: Array.isArray(this.roleForm.roles)
+      })
+
       this.roleModalVisible = true
     },
 
     async handleRoleModalOk() {
+      console.log('提交角色数据:', {
+        formData: this.roleForm,
+        roles: this.roleForm.roles,
+        rolesType: typeof this.roleForm.roles,
+        isArray: Array.isArray(this.roleForm.roles)
+      })
+
       this.submitLoading = true
       try {
-        await updateUserRoles(this.roleForm.userId, this.roleForm.roles)
+        // 确保发送的是数字数组
+        const roleIds = this.roleForm.roles.map(id => Number(id))
+
+        console.log('准备发送到API的数据:', {
+          userId: this.roleForm.userId,
+          roleIds,
+          roleIdsType: typeof roleIds,
+          isArray: Array.isArray(roleIds)
+        })
+
+        await updateUserRoles(this.roleForm.userId, roleIds)
         Message.success('分配角色成功')
         this.roleModalVisible = false
         this.fetchUserList()
       } catch (error) {
-        Message.error(error.response?.data?.detail || '分配角色失败')
+        console.error('分配角色失败:', error.response?.data)
+        console.error('错误详情:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data
+        })
+        Message.error(error.response?.data?.message || '分配角色失败')
       } finally {
         this.submitLoading = false
       }
@@ -496,6 +574,16 @@ export default {
 
     handleExport() {
       Message.info('导出功能开发中')
+    },
+
+    handleTenantChange(value) {
+      this.userForm.tenantId = value?.toString()
+      console.log('租户选择改变:', {
+        value,
+        type: typeof value,
+        formTenantId: this.userForm.tenantId,
+        formTenantIdType: typeof this.userForm.tenantId
+      })
     }
   }
 }

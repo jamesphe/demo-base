@@ -17,10 +17,63 @@
             <el-option label="已撤回" value="withdrawn" />
           </el-select>
         </el-form-item>
+        <el-form-item label="职位名称">
+          <el-input v-model="searchForm.jobTitle" placeholder="请输入职位名称" clearable />
+        </el-form-item>
+        <el-form-item label="候选人">
+          <el-input v-model="searchForm.candidateName" placeholder="请输入候选人姓名" clearable />
+        </el-form-item>
+        <el-form-item label="学历要求">
+          <el-select v-model="searchForm.education" placeholder="请选择学历" clearable>
+            <el-option label="大专" value="college" />
+            <el-option label="本科" value="bachelor" />
+            <el-option label="硕士" value="master" />
+            <el-option label="博士" value="phd" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="工作年限">
+          <el-select v-model="searchForm.experience" placeholder="请选择工作年限" clearable>
+            <el-option label="应届生" value="fresh" />
+            <el-option label="1年以下" value="0-1" />
+            <el-option label="1-3年" value="1-3" />
+            <el-option label="3-5年" value="3-5" />
+            <el-option label="5-10年" value="5-10" />
+            <el-option label="10年以上" value="10+" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="匹配度">
+          <el-select v-model="searchForm.matchScore" placeholder="请选择匹配度" clearable>
+            <el-option label="优秀(80分以上)" value="80+" />
+            <el-option label="良好(60-80分)" value="60-80" />
+            <el-option label="一般(60分以下)" value="0-60" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="申请时间">
+          <el-date-picker
+            v-model="searchForm.applyTimeRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="yyyy-MM-dd"
+            clearable
+          />
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
+
+      <!-- 批量操作工具栏 -->
+      <div v-if="selectedApplications.length > 0" class="batch-operations">
+        <el-button-group>
+          <el-button size="small" type="primary" @click="handleBatchUpdateStatus('reviewed')">批量标记为已审核</el-button>
+          <el-button size="small" type="success" @click="handleBatchUpdateStatus('interviewed')">批量标记为已面试</el-button>
+          <el-button size="small" type="warning" @click="handleBatchUpdateStatus('rejected')">批量标记为已拒绝</el-button>
+        </el-button-group>
+        <span class="selected-count">已选择 {{ selectedApplications.length }} 项</span>
+      </div>
 
       <!-- 申请列表 -->
       <el-table
@@ -31,7 +84,10 @@
         fit
         highlight-current-row
         class="application-table"
+        @sort-change="handleSortChange"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="55" align="center" />
         <!-- 申请ID列 -->
         <el-table-column
           label="申请ID"
@@ -39,6 +95,7 @@
           align="center"
           width="80"
           class-name="id-column"
+          sortable="custom"
         />
 
         <!-- 职位名称列 -->
@@ -47,6 +104,8 @@
           align="center"
           min-width="180"
           class-name="job-column"
+          sortable="custom"
+          :sort-by="row => row.job ? row.job.title : ''"
         >
           <template slot-scope="scope">
             <el-link
@@ -69,6 +128,8 @@
           align="center"
           min-width="120"
           class-name="candidate-column"
+          sortable="custom"
+          :sort-by="row => row.candidateName"
         >
           <template slot-scope="scope">
             <div class="candidate-info">
@@ -89,6 +150,8 @@
           min-width="180"
           class-name="resume-column"
           show-overflow-tooltip
+          sortable="custom"
+          :sort-by="row => row.resumeName"
         >
           <template slot-scope="scope">
             <el-link
@@ -106,6 +169,8 @@
           align="center"
           width="100"
           class-name="experience-column"
+          sortable="custom"
+          :sort-by="row => row.resumeExperienceYears || 0"
         >
           <template slot-scope="{row}">
             <span class="experience-years">
@@ -120,6 +185,8 @@
           align="center"
           width="160"
           class-name="time-column"
+          sortable="custom"
+          :sort-by="row => row.applyTime"
         >
           <template slot-scope="scope">
             <span class="apply-time">{{ formatDateTime(scope.row.applyTime) }}</span>
@@ -132,6 +199,8 @@
           align="center"
           width="100"
           class-name="status-column"
+          sortable="custom"
+          :sort-by="row => row.status"
         >
           <template slot-scope="scope">
             <el-tag
@@ -150,6 +219,8 @@
           align="center"
           width="120"
           class-name="match-column"
+          sortable="custom"
+          :sort-by="row => row.matchScore || 0"
         >
           <template slot-scope="{row}">
             <div class="match-score-wrapper">
@@ -468,10 +539,18 @@ export default {
     return {
       listQuery: {
         page: 1,
-        limit: 10
+        limit: 10,
+        sortField: '',
+        sortOrder: ''
       },
       searchForm: {
-        status: ''
+        status: '',
+        jobTitle: '',
+        candidateName: '',
+        education: '',
+        experience: '',
+        matchScore: '',
+        applyTimeRange: []
       },
       statusDialogVisible: false,
       statusForm: {
@@ -494,7 +573,8 @@ export default {
       isDocPreview: false,
       jobDetailVisible: false,
       jobDetailLoading: false,
-      currentJob: {}
+      currentJob: {},
+      selectedApplications: []
     }
   },
   computed: {
@@ -539,23 +619,46 @@ export default {
     ]),
     async getList() {
       try {
-        console.log('Fetching applications with params:', {
+        const params = {
           ...this.listQuery,
-          status: this.searchForm.status
-        })
-        const result = await this.getApplicationList({
-          ...this.listQuery,
-          status: this.searchForm.status
-        })
+          ...this.searchForm,
+          applyTimeStart: this.searchForm.applyTimeRange?.[0],
+          applyTimeEnd: this.searchForm.applyTimeRange?.[1]
+        }
+
+        // 处理匹配度筛选
+        if (this.searchForm.matchScore) {
+          const [min, max] = this.searchForm.matchScore.split('-')
+          if (max) {
+            params.matchScoreMin = parseInt(min)
+            params.matchScoreMax = parseInt(max)
+          } else {
+            params.matchScoreMin = parseInt(min.replace('+', ''))
+          }
+        }
+
+        console.log('Fetching applications with params:', params)
+        const result = await this.getApplicationList(params)
         console.log('API result:', result)
-        console.log('Application list sample:', this.applicationList?.slice(0, 2))
-        console.log('First application job data:', this.applicationList?.[0]?.job)
       } catch (error) {
         console.error('获取申请列表失败:', error)
         this.$message.error('获取申请列表失败')
       }
     },
     handleSearch() {
+      this.listQuery.page = 1
+      this.getList()
+    },
+    resetSearch() {
+      this.searchForm = {
+        status: '',
+        jobTitle: '',
+        candidateName: '',
+        education: '',
+        experience: '',
+        matchScore: '',
+        applyTimeRange: []
+      }
       this.listQuery.page = 1
       this.getList()
     },
@@ -906,6 +1009,52 @@ export default {
         'travel': '员工旅游'
       }
       return benefitMap[value] || value
+    },
+    handleSortChange({ prop, order }) {
+      this.listQuery.sortField = prop
+      this.listQuery.sortOrder = order === 'ascending' ? 'asc' : order === 'descending' ? 'desc' : ''
+      this.getList()
+    },
+    handleSelectionChange(selection) {
+      this.selectedApplications = selection
+    },
+    async handleBatchUpdateStatus(status) {
+      if (this.selectedApplications.length === 0) {
+        this.$message.warning('请先选择要操作的申请')
+        return
+      }
+
+      try {
+        await this.$confirm(
+          `确认将选中的 ${this.selectedApplications.length} 条申请标记为"${this.getStatusText(status)}"?`,
+          '提示',
+          {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          }
+        )
+
+        const promises = this.selectedApplications.map(application =>
+          this.updateStatus({
+            id: application.id,
+            data: {
+              status: status,
+              reviewNotes: `批量更新状态为${this.getStatusText(status)}`
+            }
+          })
+        )
+
+        await Promise.all(promises)
+        this.$message.success('批量更新状态成功')
+        this.selectedApplications = []
+        this.getList()
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('批量更新状态失败:', error)
+          this.$message.error('批量更新状态失败')
+        }
+      }
     }
   }
 }
@@ -1456,6 +1605,23 @@ export default {
     background: #fef0f0;
     padding: 2px 8px;
     border-radius: 4px;
+  }
+}
+
+.batch-operations {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .el-button-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .selected-count {
+    color: #909399;
+    font-size: 14px;
   }
 }
 </style>

@@ -56,11 +56,14 @@ export function deleteUser(id) {
 
 // 更新用户角色
 export function updateUserRoles(userId, roleIds) {
+  // 确保转换为原生数组
+  const plainRoleIds = Array.isArray(roleIds) ? [...roleIds] : []
+
   return request({
     url: `/users/${userId}/roles`,
     method: 'put',
     data: {
-      role_ids: roleIds
+      role_ids: plainRoleIds
     }
   })
 }

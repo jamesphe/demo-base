@@ -315,41 +315,90 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
         current_user: models.User
     ) -> models.User:
         """更新用户角色"""
-        # 获取用户
-        user = crud.user.get(db, id=user_id)
-        if not user:
-            raise HTTPException(
-                status_code=404,
-                detail="用户不存在"
-            )
+        print("用户服务 - 更新角色 - 输入参数:", {
+            "user_id": user_id,
+            "role_ids": role_ids,
+            "role_ids_type": type(role_ids),
+            "current_user_id": current_user.id
+        })
         
-        # 验证所有角色ID是否存在
-        for role_id in role_ids:
-            role = crud.role.get(db, id=role_id)
-            if not role:
+        try:
+            # 获取用户
+            user = crud.user.get(db, id=user_id)
+            if not user:
+                print("用户服务 - 更新角色 - 错误: 用户不存在", {
+                    "user_id": user_id
+                })
                 raise HTTPException(
                     status_code=404,
-                    detail=f"角色ID {role_id} 不存在"
+                    detail="用户不存在"
                 )
-        
-        # 直接操作关联表
-        # 1. 删除所有现有关联
-        db.execute(
-            "DELETE FROM user_role WHERE user_id = :user_id", 
-            {"user_id": user_id}
-        )
-        
-        # 2. 添加新的关联
-        for role_id in role_ids:
-            db.execute(
-                "INSERT INTO user_role (user_id, role_id) VALUES (:user_id, :role_id)",
-                {"user_id": user_id, "role_id": role_id}
+            
+            # 验证所有角色ID是否存在
+            roles = []
+            for role_id in role_ids:
+                role = crud.role.get(db, id=role_id)
+                if not role:
+                    print("用户服务 - 更新角色 - 错误: 角色不存在", {
+                        "role_id": role_id
+                    })
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"角色ID {role_id} 不存在"
+                    )
+                roles.append(role)
+            
+            print("用户服务 - 更新角色 - 找到的角色:", [
+                {"id": r.id, "name": r.name} for r in roles
+            ])
+            
+            # 直接操作关联表
+            try:
+                # 1. 删除所有现有关联
+                db.execute(
+                    "DELETE FROM user_role WHERE user_id = :user_id", 
+                    {"user_id": user_id}
+                )
+                
+                # 2. 添加新的关联
+                for role_id in role_ids:
+                    db.execute(
+                        "INSERT INTO user_role (user_id, role_id) VALUES (:user_id, :role_id)",
+                        {"user_id": user_id, "role_id": role_id}
+                    )
+                
+                db.commit()
+                db.refresh(user)
+                
+                print("用户服务 - 更新角色 - 成功:", {
+                    "user_id": user.id,
+                    "new_roles": [{"id": r.id, "name": r.name} for r in user.roles]
+                })
+                
+                return user
+                
+            except Exception as e:
+                db.rollback()
+                print("用户服务 - 更新角色 - 数据库操作错误:", {
+                    "error_type": type(e).__name__,
+                    "error_msg": str(e)
+                })
+                raise HTTPException(
+                    status_code=500,
+                    detail="更新角色失败"
+                )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            print("用户服务 - 更新角色 - 未预期的错误:", {
+                "error_type": type(e).__name__,
+                "error_msg": str(e)
+            })
+            raise HTTPException(
+                status_code=500,
+                detail="更新角色时发生错误"
             )
-        
-        db.commit()
-        db.refresh(user)
-        
-        return user
 
     def add_user_role(
         self,
