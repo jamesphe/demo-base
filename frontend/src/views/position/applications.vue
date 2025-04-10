@@ -101,11 +101,11 @@
         <!-- 职位名称列 -->
         <el-table-column
           label="职位名称"
+          prop="job_title"
           align="center"
           min-width="180"
           class-name="job-column"
           sortable="custom"
-          :sort-by="row => row.job ? row.job.title : ''"
         >
           <template slot-scope="scope">
             <el-link
@@ -125,11 +125,11 @@
         <!-- 候选人列 -->
         <el-table-column
           label="候选人"
+          prop="candidate_name"
           align="center"
           min-width="120"
           class-name="candidate-column"
           sortable="custom"
-          :sort-by="row => row.candidateName"
         >
           <template slot-scope="scope">
             <div class="candidate-info">
@@ -146,12 +146,12 @@
         <!-- 简历名称列 -->
         <el-table-column
           label="简历名称"
+          prop="resume_name"
           align="center"
           min-width="180"
           class-name="resume-column"
           show-overflow-tooltip
           sortable="custom"
-          :sort-by="row => row.resumeName"
         >
           <template slot-scope="scope">
             <el-link
@@ -166,11 +166,11 @@
         <!-- 工作年限列 -->
         <el-table-column
           label="工作年限"
+          prop="experience_years"
           align="center"
           width="100"
           class-name="experience-column"
           sortable="custom"
-          :sort-by="row => row.resumeExperienceYears || 0"
         >
           <template slot-scope="{row}">
             <span class="experience-years">
@@ -182,11 +182,11 @@
         <!-- 申请时间列 -->
         <el-table-column
           label="申请时间"
+          prop="apply_time"
           align="center"
           width="160"
           class-name="time-column"
           sortable="custom"
-          :sort-by="row => row.applyTime"
         >
           <template slot-scope="scope">
             <span class="apply-time">{{ formatDateTime(scope.row.applyTime) }}</span>
@@ -196,11 +196,11 @@
         <!-- 状态列 -->
         <el-table-column
           label="状态"
+          prop="status"
           align="center"
           width="100"
           class-name="status-column"
           sortable="custom"
-          :sort-by="row => row.status"
         >
           <template slot-scope="scope">
             <el-tag
@@ -216,11 +216,11 @@
         <!-- 匹配度列 -->
         <el-table-column
           label="匹配度"
+          prop="match_score"
           align="center"
           width="120"
           class-name="match-column"
           sortable="custom"
-          :sort-by="row => row.matchScore || 0"
         >
           <template slot-scope="{row}">
             <div class="match-score-wrapper">
@@ -635,6 +635,36 @@ export default {
           } else {
             params.matchScoreMin = parseInt(min.replace('+', ''))
           }
+        }
+
+        // 重命名参数以匹配后端API
+        if (params.jobTitle) {
+          params.job_title = params.jobTitle
+          delete params.jobTitle
+        }
+        if (params.candidateName) {
+          params.candidate_name = params.candidateName
+          delete params.candidateName
+        }
+        if (params.matchScore) {
+          params.match_score = params.matchScore
+          delete params.matchScore
+        }
+        if (params.applyTimeStart) {
+          params.apply_time_start = params.applyTimeStart
+          delete params.applyTimeStart
+        }
+        if (params.applyTimeEnd) {
+          params.apply_time_end = params.applyTimeEnd
+          delete params.applyTimeEnd
+        }
+        if (params.sortField) {
+          params.sort_field = params.sortField
+          delete params.sortField
+        }
+        if (params.sortOrder) {
+          params.sort_order = params.sortOrder
+          delete params.sortOrder
         }
 
         console.log('Fetching applications with params:', params)

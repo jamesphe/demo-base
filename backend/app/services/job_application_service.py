@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from fastapi import HTTPException
 from app.models.job_application import JobApplication
+from sqlalchemy.sql import func
 
 
 class JobApplicationService:
@@ -132,22 +133,191 @@ class JobApplicationService:
         *,
         tenant_id: int,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        filters: Optional[Dict[str, Any]] = None,
+        sort_field: Optional[str] = None,
+        sort_order: Optional[str] = None
     ) -> tuple[List[Dict[str, Any]], int]:
         """获取指定租户的所有职位申请（包含简历基本信息）及总数"""
-        applications = crud.job_application.get_by_tenant_with_resume_info(
-            db=db,
-            tenant_id=tenant_id,
-            skip=skip,
-            limit=limit
+        # 构建基础查询
+        query = (
+            db.query(
+                models.JobApplication,
+                models.Resume,
+                models.Job,
+                models.User.username.label('publisher_name'),
+                models.Tenant.tenant_name.label('tenant_name')
+            )
+            .join(
+                models.Resume,
+                models.JobApplication.resume_id == models.Resume.id
+            )
+            .join(
+                models.Job,
+                models.JobApplication.job_id == models.Job.id
+            )
+            .join(
+                models.User,
+                models.Job.publisher_id == models.User.id
+            )
+            .join(
+                models.Tenant,
+                models.Job.tenant_id == models.Tenant.id
+            )
+            .filter(models.JobApplication.tenant_id == tenant_id)
         )
-        
+
+        # 应用搜索条件
+        if filters:
+            if filters.get("status"):
+                query = query.filter(
+                    models.JobApplication.status == filters["status"]
+                )
+            if filters.get("job_title"):
+                query = query.filter(
+                    models.Job.title.ilike(f"%{filters['job_title']}%")
+                )
+            if filters.get("candidate_name"):
+                query = query.filter(
+                    models.Resume.name.ilike(f"%{filters['candidate_name']}%")
+                )
+            if filters.get("education"):
+                # 学历中英文映射
+                education_map = {
+                    "college": "大专",
+                    "bachelor": "本科",
+                    "master": "硕士",
+                    "phd": "博士"
+                }
+                education_value = education_map.get(filters["education"].lower())
+                if education_value:
+                    query = query.filter(
+                        models.Resume.highest_education == education_value
+                    )
+            if filters.get("experience"):
+                # 处理工作经验范围
+                if filters["experience"] == "fresh":
+                    query = query.filter(
+                        models.Resume.experience_years == 0
+                    )
+                elif filters["experience"] == "0-1":
+                    query = query.filter(
+                        models.Resume.experience_years < 1
+                    )
+                elif filters["experience"] == "1-3":
+                    query = query.filter(
+                        models.Resume.experience_years >= 1,
+                        models.Resume.experience_years < 3
+                    )
+                elif filters["experience"] == "3-5":
+                    query = query.filter(
+                        models.Resume.experience_years >= 3,
+                        models.Resume.experience_years < 5
+                    )
+                elif filters["experience"] == "5-10":
+                    query = query.filter(
+                        models.Resume.experience_years >= 5,
+                        models.Resume.experience_years < 10
+                    )
+                elif filters["experience"] == "10+":
+                    query = query.filter(
+                        models.Resume.experience_years >= 10
+                    )
+            if filters.get("match_score"):
+                # 处理匹配度范围
+                if filters["match_score"] == "80+":
+                    query = query.filter(
+                        models.JobApplication.match_score >= 80
+                    )
+                elif filters["match_score"] == "60-80":
+                    query = query.filter(
+                        models.JobApplication.match_score >= 60,
+                        models.JobApplication.match_score < 80
+                    )
+                elif filters["match_score"] == "0-60":
+                    query = query.filter(
+                        models.JobApplication.match_score < 60
+                    )
+            if filters.get("apply_time_start"):
+                query = query.filter(
+                    models.JobApplication.apply_time >= filters["apply_time_start"]
+                )
+            if filters.get("apply_time_end"):
+                query = query.filter(
+                    models.JobApplication.apply_time <= filters["apply_time_end"]
+                )
+
+        # 应用排序
+        if sort_field and sort_order:
+            # 定义排序字段映射
+            sort_field_map = {
+                "id": models.JobApplication.id,
+                "job_title": models.Job.title,
+                "candidate_name": models.Resume.name,
+                "resume_name": models.Resume.file_name,
+                "experience_years": models.Resume.experience_years,
+                "apply_time": models.JobApplication.apply_time,
+                "status": models.JobApplication.status,
+                "match_score": models.JobApplication.match_score
+            }
+            
+            # 获取排序字段
+            sort_column = sort_field_map.get(sort_field)
+            if sort_column:
+                # 应用排序
+                if sort_order == "desc":
+                    query = query.order_by(sort_column.desc())
+                else:
+                    query = query.order_by(sort_column.asc())
+            else:
+                # 默认按申请时间倒序
+                query = query.order_by(models.JobApplication.apply_time.desc())
+
         # 获取总数
-        total = db.query(models.JobApplication).filter(
-            models.JobApplication.tenant_id == tenant_id
-        ).count()
-        
-        return applications, total
+        total = query.count()
+
+        # 应用分页
+        applications = query.offset(skip).limit(limit).all()
+
+        # 转换结果
+        result = [
+            {
+                "id": application.JobApplication.id,
+                "job_id": application.JobApplication.job_id,
+                "resume_id": application.JobApplication.resume_id,
+                "status": application.JobApplication.status,
+                "created_at": application.JobApplication.created_at,
+                "updated_at": application.JobApplication.updated_at,
+                "apply_time": application.JobApplication.apply_time,
+                "resume_name": application.Resume.file_name,
+                "candidate_name": application.Resume.name,
+                "resume_phone": application.Resume.phone,
+                "resume_email": application.Resume.email,
+                "resume_highest_education": application.Resume.highest_education,
+                "resume_experience_years": application.Resume.experience_years,
+                "match_score": application.JobApplication.match_score,
+                "match_reason": application.JobApplication.match_reason,
+                "resume": {
+                    "id": application.Resume.id,
+                    "name": application.Resume.name,
+                    "phone": application.Resume.phone,
+                    "email": application.Resume.email,
+                    "file_name": application.Resume.file_name,
+                    "file_path": application.Resume.file_path,
+                    "file_type": application.Resume.file_type,
+                },
+                "job": {
+                    "id": application.Job.id,
+                    "title": application.Job.title,
+                    "department_name": application.Job.department,
+                    "publisher_name": application.publisher_name,
+                },
+                "tenant_name": application.tenant_name,
+            }
+            for application in applications
+        ]
+
+        return result, total
     
     def get_applications_by_status(
         self,

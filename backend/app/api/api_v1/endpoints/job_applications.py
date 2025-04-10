@@ -1,4 +1,4 @@
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 
@@ -61,6 +61,16 @@ def read_all_job_applications(
     db: Session = Depends(deps.get_db),
     page: int = Query(1, ge=1, description="页码"),
     per_page: int = Query(10, ge=1, le=100, description="每页数量"),
+    status: Optional[str] = Query(None, description="申请状态"),
+    job_title: Optional[str] = Query(None, description="职位名称"),
+    candidate_name: Optional[str] = Query(None, description="候选人姓名"),
+    education: Optional[str] = Query(None, description="学历要求"),
+    experience: Optional[str] = Query(None, description="工作年限"),
+    match_score: Optional[str] = Query(None, description="匹配度范围"),
+    apply_time_start: Optional[str] = Query(None, description="申请开始时间"),
+    apply_time_end: Optional[str] = Query(None, description="申请结束时间"),
+    sort_field: Optional[str] = Query(None, description="排序字段"),
+    sort_order: Optional[str] = Query(None, description="排序方向(asc/desc)"),
     current_tenant_id: int = Depends(deps.get_current_tenant_id)
 ) -> Any:
     """
@@ -68,16 +78,34 @@ def read_all_job_applications(
     - 返回当前租户下的所有职位申请
     - 包含简历的基本信息（姓名、联系方式等）
     - 支持分页查询
+    - 支持多条件搜索
+    - 支持排序
     """
     # 转换分页参数
     skip = (page - 1) * per_page
+    
+    # 构建搜索条件
+    filters = {
+        "tenant_id": current_tenant_id,
+        "status": status,
+        "job_title": job_title,
+        "candidate_name": candidate_name,
+        "education": education,
+        "experience": experience,
+        "match_score": match_score,
+        "apply_time_start": apply_time_start,
+        "apply_time_end": apply_time_end
+    }
     
     # 获取数据和总数
     applications, total = job_application_service.get_applications_by_tenant_with_resume_info_and_count(
         db=db,
         tenant_id=current_tenant_id,
         skip=skip,
-        limit=per_page
+        limit=per_page,
+        filters=filters,
+        sort_field=sort_field,
+        sort_order=sort_order
     )
     
     # 计算总页数
