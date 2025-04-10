@@ -249,6 +249,7 @@
           width="160"
           fixed="right"
           class-name="action-column"
+          header-align="center"
         >
           <template slot-scope="scope">
             <div class="action-buttons">
@@ -1095,12 +1096,74 @@ export default {
   margin-top: 20px;
   border-radius: 4px;
 
-  ::v-deep .el-table__header-wrapper {
-    th {
-      background-color: #f5f7fa;
-      color: #606266;
-      font-weight: 600;
-      height: 50px;
+  ::v-deep {
+    .el-table__header-wrapper {
+      th.el-table__cell {
+        background-color: #f5f7fa;
+        color: #606266;
+        font-weight: 600;
+        height: 50px;
+        border-right: 1px solid #ebeef5;
+        border-bottom: 1px solid #ebeef5;
+        padding: 0 !important;
+
+        .cell {
+          white-space: nowrap;
+          line-height: 50px;
+          padding: 0 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          .caret-wrapper {
+            margin-left: 4px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+          }
+        }
+
+        &.is-leaf {
+          border-bottom: 1px solid #ebeef5;
+        }
+
+        &:last-child {
+          border-right: none;
+        }
+      }
+    }
+
+    .el-table__fixed-right {
+      height: 100% !important;
+      background-color: #fff;
+
+      .el-table__fixed-header-wrapper {
+        th.el-table__cell {
+          background-color: #f5f7fa;
+          color: #606266;
+          font-weight: 600;
+          height: 50px;
+          border-right: 1px solid #ebeef5;
+          border-bottom: 1px solid #ebeef5;
+          padding: 0 !important;
+
+          .cell {
+            white-space: nowrap;
+            line-height: 50px;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            .caret-wrapper {
+              margin-left: 4px;
+              height: 50px;
+              display: flex;
+              align-items: center;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -1187,11 +1250,6 @@ export default {
         font-size: 14px;
       }
     }
-  }
-
-  ::v-deep .el-table__fixed-right {
-    height: 100% !important;
-    background-color: #fff;
   }
 }
 
