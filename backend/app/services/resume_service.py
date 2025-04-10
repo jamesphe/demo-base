@@ -18,7 +18,7 @@ import random
 import subprocess
 from pathlib import Path
 from sqlalchemy import String
-
+import asyncio
 from app import models, crud, schemas
 from app.core.config import settings
 from app.schemas.resume import (
@@ -2246,9 +2246,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     async def async_process_resume(
         self,
         resume_id: int,
-        file_info: Dict[str, str],
-        current_user: models.User,
-        background_tasks: BackgroundTasks,
+        publisher_id: int, 
         job_id: Optional[int] = None,
         job_external_id: Optional[str] = None
     ) -> None:
@@ -2267,7 +2265,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                 
             try:
                 # 2. 解析文件
-                resume_text = await parser_service.parse_resume(file_info["file_path"])
+                resume_text = await parser_service.parse_resume(resume.file_path)
                 
                 # 3. 获取LLM配置
                 llm_config = await llm_service.get_default_config(db)
@@ -2288,6 +2286,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                     if hasattr(resume, field):
                         setattr(resume, field, value)
                 
+                logger.debug("job_id: %s, job_external_id: %s", job_id, job_external_id)
                 # 处理职位申请
                 if job_id or job_external_id:
                     job = None
@@ -2299,6 +2298,13 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                         ).first()
                 
                 if job:
+                    # 检查当前用户是否有权限访问该职位
+                    current_user = db.query(models.User).filter(
+                        models.User.id == publisher_id
+                    ).first()
+                    if not current_user:
+                        logger.error(f"用户不存在: {publisher_id}")
+                        return
                     if (job.tenant_id != current_user.tenant_id and 
                             not current_user.is_superuser):
                         raise ValueError("无权访问该职位")
@@ -2311,15 +2317,14 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                         created_by=current_user.id
                     )
                     
-                    if background_tasks:
-                        from app.services.job_application_service import job_application_service
-                        background_tasks.add_task(
-                            job_application_service.create_application_with_validation,
-                            db=db,
-                            application_in=job_application,
-                            tenant_id=current_user.tenant_id,
-                            created_by=current_user.id
-                        )
+                    # 直接创建职位申请
+                    from app.services.job_application_service import job_application_service
+                    await job_application_service.create_application_with_validation(
+                        db=db,
+                        application_in=job_application,
+                        tenant_id=current_user.tenant_id,
+                        created_by=current_user.id
+                    )
                 
                 # 7. 提交更改
                 db.commit()
@@ -2338,6 +2343,24 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             db.rollback()
         finally:
             db.close()
+            
+    def process_resume_sync(
+        self,
+        resume_id: int,
+        publisher_id: int, 
+        job_id: Optional[int] = None,
+        job_external_id: Optional[str] = None
+    ) -> None:
+        """同步处理简历内容，用于 Celery 任务"""
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(
+            self.async_process_resume(
+                resume_id=resume_id,
+                publisher_id=publisher_id,
+                job_id=job_id,
+                job_external_id=job_external_id
+            )
+        )
 
     async def _parse_resume(self, file_path: str) -> str:
         """解析简历文件内容"""
@@ -2421,6 +2444,77 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         except Exception as e:
             logger.error(f"解析文本文件失败: {str(e)}")
             raise
+
+    async def process_resume_by_id(self, resume_id: int) -> None:
+        """根据简历ID处理简历内容
+        
+        Args:
+            resume_id: 简历ID
+        """
+        # 创建新的数据库会话
+        db = SessionLocal()
+        try:
+            # 1. 获取简历记录
+            resume = db.query(models.Resume).filter(
+                models.Resume.id == resume_id
+            ).first()
+            
+            if not resume:
+                logger.error(f"简历不存在: {resume_id}")
+                return
+                
+            try:
+                # 2. 解析文件
+                resume_text = await parser_service.parse_resume(resume.file_path)
+                
+                # 3. 获取LLM配置
+                llm_config = await llm_service.get_default_config(db)
+                
+                # 4. 分析简历内容
+                analysis_result = await self._analyze_resume_with_llm(resume_text, llm_config)
+                
+                # 5. 更新简历记录
+                resume.content = resume_text
+                resume.parsed_data = analysis_result
+                resume.processing_status = "completed"
+                resume.processing_error = None
+                resume.updated_at = datetime.utcnow()
+                
+                # 6. 更新基本字段
+                resume_fields = self._extract_resume_fields(analysis_result)
+                for field, value in resume_fields.items():
+                    if hasattr(resume, field):
+                        setattr(resume, field, value)
+                
+                # 7. 处理职位申请
+                if resume.job_id:
+                    job = job_service.get_job(db=db, job_id=resume.job_id)
+                    if job:
+                        if (job.tenant_id != resume.tenant_id and 
+                                not resume.created_by.is_superuser):
+                            raise ValueError("无权访问该职位")
+                            
+                        # 更新职位申请状态
+                        job_application.status = "pending"
+                        job_application.updated_at = datetime.utcnow()
+                
+                # 8. 提交更改
+                db.commit()
+                
+                # 9. 记录日志
+                logger.info(f"简历 {resume_id} 处理完成")
+                
+            except Exception as e:
+                logger.error(f"处理简历失败: {str(e)}")
+                resume.processing_status = "failed"
+                resume.processing_error = str(e)
+                db.commit()
+                
+        except Exception as e:
+            logger.error(f"数据库操作失败: {str(e)}")
+            db.rollback()
+        finally:
+            db.close()
 
 # 创建单例实例
 resume_service = ResumeService()

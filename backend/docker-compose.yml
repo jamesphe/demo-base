@@ -19,9 +19,60 @@ services:
       - POSTGRES_DB=recruitment
       - SECRET_KEY=your-super-secret-key
       - BACKEND_CORS_ORIGINS_STR=http://localhost:3000,http://localhost:8080
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - recruitment-network
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
+    container_name: recruitment-celery-worker
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+    environment:
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=recruitment
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - recruitment-network
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.celerybeat
+    container_name: recruitment-celery-beat
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+    environment:
+      - POSTGRES_SERVER=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=recruitment
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    depends_on:
+      - redis
+      - postgres
     networks:
       - recruitment-network
 
@@ -44,6 +95,22 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7
+    container_name: recruitment-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - recruitment-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   pgadmin:
     image: dpage/pgadmin4
     container_name: recruitment-pgadmin
@@ -59,6 +126,7 @@ services:
 
 volumes:
   postgres-data:
+  redis-data:
 
 networks:
   recruitment-network:

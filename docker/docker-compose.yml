@@ -10,9 +10,63 @@ services:
       - "8000:8000"
     depends_on:
       - resume-db
+      - resume-redis
     volumes:
       - ./backend/.env:/app/.env
       - ./backend/uploads:/app/uploads
+    environment:
+      - REDIS_HOST=resume-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+
+  resume-celery-worker:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.celery
+    command: celery -A app.services.resume_queue_service worker --loglevel=info
+    depends_on:
+      - resume-db
+      - resume-redis
+    volumes:
+      - ./backend/.env:/app/.env
+      - ./backend/uploads:/app/uploads
+    environment:
+      - REDIS_HOST=resume-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+
+  resume-celery-beat:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.celery
+    command: celery -A app.services.resume_queue_service beat --loglevel=info
+    depends_on:
+      - resume-db
+      - resume-redis
+    volumes:
+      - ./backend/.env:/app/.env
+      - ./backend/uploads:/app/uploads
+    environment:
+      - REDIS_HOST=resume-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+
+  resume-celery-flower:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.celery
+    command: celery -A app.services.resume_queue_service flower --port=5555
+    ports:
+      - "5555:5555"
+    depends_on:
+      - resume-celery-worker
+      - resume-redis
+    volumes:
+      - ./backend/.env:/app/.env
+    environment:
+      - REDIS_HOST=resume-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
 
   resume-frontend:
     build:
@@ -37,6 +91,25 @@ services:
       - "5420:5432"
     volumes:
       - resume_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  resume-redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - resume_redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   resume_postgres_data:
+  resume_redis_data:

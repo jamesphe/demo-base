@@ -21,6 +21,8 @@ from app.schemas.resume import (
 import os
 from datetime import datetime
 from app.services.job_application_service import job_application_service
+from app.services.resume_queue_service import resume_queue_service
+from app.services.resume_queue_service import process_resume_task
 
 
 router = APIRouter()
@@ -185,7 +187,6 @@ def search_resumes(
     ]
 )
 async def upload_files(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     repository_name: Optional[str] = Form(None),
     resume_type: Optional[str] = Form("general"),  # 默认为通用简历
@@ -236,15 +237,13 @@ async def upload_files(
         job_id
     )
     
-    # 4. 将耗时操作放入真正的异步任务
-    background_tasks.add_task(
-        resume_service.async_process_resume,
+    # 4. 将简历ID加入处理队列
+    process_resume_task.delay(
         resume.id,
-        file_info,
-        current_user,
-        background_tasks,
-        job_id,
-        job_external_id
+        **{
+            'job_id': job_id,
+            'publisher_id': current_user.id
+        }
     )
     
     return {"message": "简历上传成功，正在处理中"}

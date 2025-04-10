@@ -51,6 +51,21 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: List[str] = ["pdf", "doc", "docx"]
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
 
+    # Celery配置
+    REDIS_HOST: str
+    REDIS_PORT: str
+    REDIS_DB: str
+
+    @computed_field
+    @property
+    def CELERY_BROKER_URL(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
+    @computed_field
+    @property
+    def CELERY_RESULT_BACKEND(self) -> str:
+        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
+
     # 更新配置
     model_config = SettingsConfigDict(
         case_sensitive=True,
