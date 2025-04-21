@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/",
+    "",
     response_model=List[schemas.LLMConfig],
     dependencies=[
         Depends(
@@ -40,7 +40,7 @@ def read_llm_configs(
 
 
 @router.post(
-    "/",
+    "",
     response_model=schemas.LLMConfig,
     dependencies=[
         Depends(

@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/",
+    "",
     response_model=List[schemas.Resume],
     dependencies=[
         Depends(

@@ -6,11 +6,12 @@ from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.api import deps
 from app.services import user_service
+from app.core.security import get_password_hash
 
 router = APIRouter()
 
 
-@router.get("/", response_model=schemas.UserListResponse)
+@router.get("", response_model=schemas.UserListResponse)
 def read_users(
     db: Session = Depends(deps.get_db),
     page: int = Query(1, ge=1, description="页码"),
@@ -43,7 +44,7 @@ def read_users(
     }
 
 
-@router.post("/", response_model=schemas.User)
+@router.post("", response_model=schemas.User)
 def create_user(
     *,
     db: Session = Depends(deps.get_db),
@@ -51,11 +52,14 @@ def create_user(
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """创建新用户"""
-    return user_service.create_user(
-        db, 
-        user_in=user_in, 
-        current_user=current_user
-    )
+    user = crud.user.get_by_email(db, email=user_in.email)
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="The user with this email already exists in the system.",
+        )
+    user = crud.user.create(db, obj_in=user_in)
+    return user
 
 
 @router.get("/me", response_model=schemas.User)

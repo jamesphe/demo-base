@@ -8,7 +8,7 @@ from app.services.skill_service import skill_service  # 直接导入实例
 
 router = APIRouter()
 
-@router.post("/", response_model=schemas.Skill)
+@router.post("", response_model=schemas.Skill)
 def create_skill(
     *,
     db: Session = Depends(deps.get_db),
@@ -19,7 +19,7 @@ def create_skill(
     # 不需要创建新的服务实例，直接使用导入的实例
     return skill_service.create_skill(db=db, skill=skill_in, tenant_id=current_tenant_id)
 
-@router.get("/", response_model=List[schemas.Skill])
+@router.get("", response_model=List[schemas.Skill])
 def list_skills(
     db: Session = Depends(deps.get_db),
     skip: int = 0,

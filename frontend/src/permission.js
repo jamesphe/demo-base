@@ -9,7 +9,7 @@ import { getUserPermissions } from '@/api/user' // 导入获取用户权限的AP
 
 NProgress.configure({ showSpinner: false }) // NProgress Configuration
 
-const whiteList = ['/', '/login', '/register', '/trial-application'] // 无需权限验证的路由路径白名单
+const whiteList = ['/', '/login', '/register', '/trial-application', '/trial-application/terms', '/trial-application/privacy'] // 无需权限验证的路由路径白名单
 
 router.beforeEach(async(to, from, next) => {
   // 开始进度条

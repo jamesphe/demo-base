@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/",
+    "",
     response_model=schemas.TenantListResponse,
     dependencies=[Depends(deps.get_current_active_superuser)]
 )
@@ -44,7 +44,7 @@ def read_tenants(
 
 
 @router.post(
-    "/",
+    "",
     response_model=schemas.Tenant,
     dependencies=[Depends(deps.get_current_active_superuser)]
 )

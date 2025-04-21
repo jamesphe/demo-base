@@ -10,7 +10,7 @@ from app.services.certification_service import certification_service
 router = APIRouter()
 
 
-@router.get("/", response_model=schemas.CertificationListResponse)
+@router.get("", response_model=schemas.CertificationListResponse)
 def read_certifications(
     db: Session = Depends(deps.get_db),
     page: int = Query(1, ge=1, description="页码"),
@@ -65,7 +65,7 @@ def read_certifications(
     }
 
 
-@router.post("/", response_model=schemas.certification.Certification)
+@router.post("", response_model=schemas.certification.Certification)
 def create_certification(
     *,
     db: Session = Depends(deps.get_db),

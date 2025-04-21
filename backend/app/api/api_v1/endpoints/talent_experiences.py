@@ -14,7 +14,7 @@ from app.models.user import User
 router = APIRouter()
 
 
-@router.post("/", response_model=TalentExperienceResponse)
+@router.post("", response_model=TalentExperienceResponse)
 def create_experience(
     experience: TalentExperienceCreate,
     db: Session = Depends(get_db),

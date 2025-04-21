@@ -9,7 +9,7 @@ from app.services import repository_service
 router = APIRouter()
 
 
-@router.get("/", response_model=schemas.ResumeRepositoryListResponse)
+@router.get("", response_model=schemas.ResumeRepositoryListResponse)
 def read_repositories(
     db: Session = Depends(deps.get_db),
     page: int = Query(1, ge=1, description="页码"),
@@ -48,7 +48,7 @@ def read_repositories(
 
 
 @router.post(
-    "/",
+    "",
     response_model=schemas.ResumeRepository,
     dependencies=[
         Depends(

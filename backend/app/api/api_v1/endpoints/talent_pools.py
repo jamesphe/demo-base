@@ -16,7 +16,7 @@ from app.models.user import User
 router = APIRouter()
 
 
-@router.post("/", response_model=TalentPoolResponse)
+@router.post("", response_model=TalentPoolResponse)
 def create_pool(
     pool: TalentPoolCreate,
     db: Session = Depends(get_db),

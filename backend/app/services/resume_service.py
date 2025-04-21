@@ -2288,8 +2288,8 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
                 
                 logger.debug("job_id: %s, job_external_id: %s", job_id, job_external_id)
                 # 处理职位申请
+                job = None
                 if job_id or job_external_id:
-                    job = None
                     if job_id:
                         job = job_service.get_job(db=db, job_id=job_id)
                     elif job_external_id:

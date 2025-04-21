@@ -1,6 +1,6 @@
 from datetime import timedelta
 from typing import Any
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -44,4 +44,16 @@ def test_token(current_user: models.User = Depends(deps.get_current_user)) -> An
     """
     测试访问令牌
     """
-    return current_user 
+    return current_user
+
+@router.post("/logout")
+async def logout(
+    current_user: models.User = Depends(deps.get_current_user)
+) -> Any:
+    """
+    用户登出
+    """
+    return {
+        "code": 20000,
+        "data": "success"
+    } 

@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/",
+    "",
     response_model=schemas.CandidateListResponse,
     dependencies=[
         Depends(
@@ -61,7 +61,7 @@ def read_candidates(
 
 
 @router.post(
-    "/",
+    "",
     response_model=schemas.Candidate,
     dependencies=[
         Depends(

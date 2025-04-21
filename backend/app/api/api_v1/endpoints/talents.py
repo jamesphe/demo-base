@@ -11,7 +11,7 @@ from app.schemas import TalentListResponse
 router = APIRouter()
 
 
-@router.post("/", response_model=TalentResponse)
+@router.post("", response_model=TalentResponse)
 def create_talent(
     talent: TalentCreate,
     db: Session = Depends(get_db),
@@ -51,7 +51,7 @@ def update_talent(
     return updated_talent
 
 
-@router.get("/", response_model=TalentListResponse)
+@router.get("", response_model=TalentListResponse)
 def list_talents(
     skip: int = Query(0, ge=0),
     limit: int = Query(10, ge=1, le=100),

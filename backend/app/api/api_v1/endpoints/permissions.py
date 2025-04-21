@@ -8,7 +8,7 @@ from app.api import deps
 router = APIRouter()
 
 
-@router.get("/", response_model=schemas.PermissionListResponse)
+@router.get("", response_model=schemas.PermissionListResponse)
 def read_permissions(
     db: Session = Depends(deps.get_db),
     page: int = 1,
@@ -32,7 +32,7 @@ def read_permissions(
 
 
 @router.post(
-    "/",
+    "",
     response_model=schemas.Permission,
     dependencies=[Depends(deps.get_current_active_superuser)]
 )

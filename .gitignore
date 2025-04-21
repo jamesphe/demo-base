@@ -1,0 +1,22 @@
+# 忽略Docker目录中的tar文件
+docker/*.tar
+
+# 忽略大型二进制文件
+*.tar
+*.gz
+*.zip
+*.iso
+*.dmg
+
+# 开发环境
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+env/
+venv/
+ENV/
+node_modules/
+.DS_Store 

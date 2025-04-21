@@ -1,6 +1,7 @@
 # 构建阶段
-FROM node:18 as build-stage
+FROM node:18-alpine as build-stage
 WORKDIR /app
+RUN apk add --no-cache git
 COPY package*.json ./
 RUN npm install
 COPY . .

@@ -3,7 +3,9 @@ version: '3.8'
 name: resume-system
 services:
   resume-backend:
-    image: resume-backend
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     depends_on:
@@ -18,7 +20,9 @@ services:
       - REDIS_DB=0
 
   resume-celery-worker:
-    image: resume-celery-worker 
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.celery
     command: celery -A app.services.resume_queue_service worker --loglevel=info
     depends_on:
       - resume-db
@@ -32,7 +36,9 @@ services:
       - REDIS_DB=0
 
   resume-celery-beat:
-    image: resume-celery-beat
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.celery
     command: celery -A app.services.resume_queue_service beat --loglevel=info
     depends_on:
       - resume-db
@@ -46,7 +52,9 @@ services:
       - REDIS_DB=0
 
   resume-celery-flower:
-    image: resume-celery-worker
+    build:
+      context: ../backend
+      dockerfile: Dockerfile.celery
     command: celery -A app.services.resume_queue_service flower --port=5555
     ports:
       - "5555:5555"
@@ -61,9 +69,11 @@ services:
       - REDIS_DB=0
 
   resume-frontend:
-    image: resume-frontend
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
     ports:
-      - "6110:80"
+      - "8099:80"
     env_file:
       - ./frontend/.env
     depends_on:

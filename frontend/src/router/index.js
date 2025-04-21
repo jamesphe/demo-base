@@ -48,6 +48,26 @@ export const constantRoutes = [
     }
   },
   {
+    path: '/trial-application/terms',
+    name: 'TermsOfService',
+    component: () => import('@/views/trial-application/terms'),
+    hidden: true,
+    meta: {
+      title: '服务条款',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/trial-application/privacy',
+    name: 'PrivacyPolicy',
+    component: () => import('@/views/trial-application/privacy'),
+    hidden: true,
+    meta: {
+      title: '隐私政策',
+      requiresAuth: false
+    }
+  },
+  {
     path: '/401',
     component: () => import('@/views/error-page/401'),
     hidden: true
@@ -344,7 +364,7 @@ export const asyncRoutes = [
         name: 'SettingsUser',
         meta: {
           title: '用户管理',
-          roles: ['tenant_admin']
+          roles: ['admin', 'tenant_admin']
         }
       },
       {
@@ -353,7 +373,7 @@ export const asyncRoutes = [
         name: 'SettingsRole',
         meta: {
           title: '角色管理',
-          roles: ['tenant_admin']
+          roles: ['admin']
         }
       },
       {
@@ -362,7 +382,7 @@ export const asyncRoutes = [
         name: 'SettingsPermission',
         meta: {
           title: '权限管理',
-          roles: ['tenant_admin']
+          roles: ['admin']
         }
       }
     ]

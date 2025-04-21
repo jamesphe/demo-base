@@ -46,7 +46,7 @@
             <el-form-item label="公司名称" prop="companyName">
               <el-input
                 v-model="formData.companyName"
-                placeholder="请输入公司名称"
+                placeholder="请输入您的公司全称"
                 prefix-icon="el-icon-office-building"
               />
             </el-form-item>
@@ -55,7 +55,7 @@
             <el-form-item label="联系人" prop="contactName">
               <el-input
                 v-model="formData.contactName"
-                placeholder="请输入联系人姓名"
+                placeholder="请输入您的真实姓名"
                 prefix-icon="el-icon-user"
               />
             </el-form-item>
@@ -67,7 +67,7 @@
             <el-form-item label="联系电话" prop="contactPhone">
               <el-input
                 v-model="formData.contactPhone"
-                placeholder="请输入联系电话"
+                placeholder="请输入11位手机号码"
                 prefix-icon="el-icon-phone"
               />
             </el-form-item>
@@ -76,7 +76,7 @@
             <el-form-item label="联系邮箱" prop="contactEmail">
               <el-input
                 v-model="formData.contactEmail"
-                placeholder="请输入联系邮箱"
+                placeholder="请输入常用邮箱地址"
                 prefix-icon="el-icon-message"
               />
             </el-form-item>
@@ -85,7 +85,7 @@
 
         <h3 class="form-section-title"><i class="el-icon-office-building" /> 业务信息</h3>
         <el-form-item label="公司规模">
-          <el-select v-model="formData.companySize" placeholder="请选择公司规模" style="width: 100%">
+          <el-select v-model="formData.companySize" placeholder="请选择贵公司规模" style="width: 100%">
             <el-option label="1-10人" value="1-10" />
             <el-option label="11-50人" value="11-50" />
             <el-option label="51-200人" value="51-200" />
@@ -100,7 +100,7 @@
             v-model="formData.businessDescription"
             type="textarea"
             rows="4"
-            placeholder="请简要描述您的业务，例如：公司规模、主要业务方向、目前招聘情况等"
+            placeholder="请简要描述贵公司的主要业务、规模及招聘需求"
           />
         </el-form-item>
 
@@ -109,12 +109,12 @@
             v-model="formData.applicationReason"
             type="textarea"
             rows="4"
-            placeholder="请说明申请试用的原因，例如：希望解决的招聘痛点、对AI招聘的期望等"
+            placeholder="请说明您希望通过AI招聘助手解决哪些问题"
           />
         </el-form-item>
 
         <div class="agreement-section">
-          <el-checkbox v-model="agreement">我已阅读并同意<a href="#">《服务条款》</a>和<a href="#">《隐私政策》</a></el-checkbox>
+          <el-checkbox v-model="agreement">我已阅读并同意<router-link to="/trial-application/terms">《服务条款》</router-link>和<router-link to="/trial-application/privacy">《隐私政策》</router-link></el-checkbox>
         </div>
 
         <div class="form-actions">
@@ -186,7 +186,7 @@
       <div class="testimonials-grid">
         <div class="testimonial-item">
           <div class="testimonial-avatar">
-            <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="用户头像">
+            <img src="@/assets/images/avatars/hr-director.jpg" alt="用户头像">
           </div>
           <div class="testimonial-content">
             <div class="quote-icon"><i class="el-icon-chat-round" /></div>
@@ -206,7 +206,7 @@
 
         <div class="testimonial-item">
           <div class="testimonial-avatar">
-            <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="用户头像">
+            <img src="@/assets/images/avatars/recruitment-manager.jpg" alt="用户头像">
           </div>
           <div class="testimonial-content">
             <div class="quote-icon"><i class="el-icon-chat-round" /></div>
@@ -226,7 +226,7 @@
 
         <div class="testimonial-item">
           <div class="testimonial-avatar">
-            <img src="https://randomuser.me/api/portraits/men/68.jpg" alt="用户头像">
+            <img src="@/assets/images/avatars/hr-manager.jpg" alt="用户头像">
           </div>
           <div class="testimonial-content">
             <div class="quote-icon"><i class="el-icon-chat-round" /></div>
@@ -267,13 +267,13 @@ export default {
       loading: false,
       agreement: false,
       formData: {
-        companyName: '未来智联科技有限公司',
-        contactName: '刘洋',
-        contactPhone: '13912345678',
-        contactEmail: 'liuyang@futurelink.com',
-        companySize: '201-500',
-        businessDescription: '公司专注于智慧人力资源管理平台研发，现阶段正在扩大产品推广团队，主要业务方向为SaaS招聘系统，近期有大规模招聘需求。',
-        applicationReason: '希望借助系统解决当前招聘流程繁琐、候选人筛选效率低等问题，提升HR团队工作效率，并借助AI智能推荐提升招聘质量。'
+        companyName: '',
+        contactName: '',
+        contactPhone: '',
+        contactEmail: '',
+        companySize: '',
+        businessDescription: '',
+        applicationReason: ''
       },
       rules: {
         companyName: [

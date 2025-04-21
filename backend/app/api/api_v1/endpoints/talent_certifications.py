@@ -14,7 +14,7 @@ from app.models.user import User
 router = APIRouter()
 
 
-@router.post("/", response_model=TalentCertificationResponse)
+@router.post("", response_model=TalentCertificationResponse)
 def create_certification(
     certification: TalentCertificationCreate,
     db: Session = Depends(get_db),

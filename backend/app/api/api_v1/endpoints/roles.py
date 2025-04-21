@@ -9,7 +9,7 @@ from app.api import deps
 router = APIRouter()
 
 
-@router.get("/", response_model=schemas.RoleListResponse)
+@router.get("", response_model=schemas.RoleListResponse)
 def read_roles(
     db: Session = Depends(deps.get_db),
     page: int = Query(1, ge=1, description="页码"),
@@ -33,7 +33,7 @@ def read_roles(
 
 
 @router.post(
-    "/", 
+    "", 
     response_model=schemas.Role,
     dependencies=[
         Depends(

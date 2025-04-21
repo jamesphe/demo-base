@@ -8,7 +8,7 @@ from app.api import deps
 router = APIRouter()
 
 
-@router.get("/", response_model=schemas.InterviewListResponse)
+@router.get("", response_model=schemas.InterviewListResponse)
 def read_interviews(
     db: Session = Depends(deps.get_db),
     page: int = Query(1, ge=1, description="页码"),
@@ -43,7 +43,7 @@ def read_interviews(
 
 
 @router.post(
-    "/",
+    "",
     response_model=schemas.Interview,
     dependencies=[
         Depends(

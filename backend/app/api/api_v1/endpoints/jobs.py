@@ -11,7 +11,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/",
+    "",
     response_model=schemas.JobListResponse,
     dependencies=[
         Depends(
@@ -85,7 +85,7 @@ def read_jobs(
 
 
 @router.post(
-    "/",
+    "",
     response_model=schemas.Job,
     dependencies=[
         Depends(

@@ -1,5 +1,5 @@
 module.exports = {
-  title: '华创云联演示系统',
+  title: '午巳数据智能招聘系统',
 
   /**
    * @type {boolean} true | false

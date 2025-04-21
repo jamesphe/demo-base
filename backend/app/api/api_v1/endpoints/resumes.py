@@ -250,7 +250,7 @@ async def upload_files(
 
 
 @router.get(
-    "/",
+    "",
     response_model=ResumeListResponse,
     summary="获取简历列表",
     description="分页获取简历列表，支持按条件筛选",
@@ -558,7 +558,7 @@ def delete_resume(
 
 
 @router.post(
-    "/",
+    "",
     response_model=Resume,
     summary="创建简历",
     description="直接创建完整的简历信息，无需先上传文件，可以不属于任何简历库",
