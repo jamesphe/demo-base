@@ -4,7 +4,8 @@ import {
   updatePosition,
   deletePosition,
   publishPosition,
-  getPositionDetail
+  getPositionDetail,
+  updatePositionStatus
 } from '@/api/position'
 
 const state = {
@@ -84,6 +85,13 @@ const actions = {
     } finally {
       commit('SET_LOADING', false)
     }
+  },
+  
+  // 更新职位状态
+  async updatePositionStatus({ dispatch }, { id, status }) {
+    const response = await updatePositionStatus(id, status)
+    await dispatch('getList')
+    return response
   },
 
   async fetchPositions({ commit }) {

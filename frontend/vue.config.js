@@ -1,6 +1,7 @@
 'use strict'
 const path = require('path')
 const defaultSettings = require('./src/settings.js')
+const webpack = require('webpack')
 
 function resolve(dir) {
   return path.join(__dirname, dir)
@@ -29,14 +30,27 @@ module.exports = {
   assetsDir: 'static',
   lintOnSave: false,
   productionSourceMap: false,
+  css: {
+    loaderOptions: {
+    }
+  },
   devServer: {
     port: port,
     open: true,
-    overlay: {
-      warnings: false,
-      errors: true
+    client: {
+      overlay: {
+        warnings: false,
+        errors: true
+      }
     },
-    before: require('./mock/mock-server.js')
+    setupMiddlewares: (middlewares, devServer) => {
+      if (!devServer) {
+        throw new Error('webpack-dev-server is not defined')
+      }
+
+      require('./mock/mock-server.js')(devServer.app)
+      return middlewares
+    }
   },
   configureWebpack: {
     // provide the app's title in webpack's name field, so that
@@ -45,23 +59,34 @@ module.exports = {
     resolve: {
       alias: {
         '@': resolve('src')
+      },
+      fallback: {
+        'path': require.resolve('path-browserify'),
+        'os': require.resolve('os-browserify/browser'),
+        'stream': require.resolve('stream-browserify'),
+        'crypto': require.resolve('crypto-browserify'),
+        'zlib': require.resolve('browserify-zlib'),
+        'assert': require.resolve('assert'),
+        'process': require.resolve('process/browser'),
+        'fs': false,
+        'http': false,
+        'https': false,
+        'net': false,
+        'tls': false,
+        'child_process': false
       }
-    }
+    },
+    plugins: [
+      new webpack.ProvidePlugin({
+        process: 'process/browser',
+        Buffer: ['buffer', 'Buffer']
+      })
+    ]
   },
   chainWebpack(config) {
-    // it can improve the speed of the first screen, it is recommended to turn on preload
-    // it can improve the speed of the first screen, it is recommended to turn on preload
-    config.plugin('preload').tap(() => [
-      {
-        rel: 'preload',
-        // to ignore runtime.js
-        // https://github.com/vuejs/vue-cli/blob/dev/packages/@vue/cli-service/lib/config/app.js#L171
-        fileBlacklist: [/\.map$/, /hot-update\.js$/, /runtime\..*\.js$/],
-        include: 'initial'
-      }
-    ])
-
-    // when there are many pages, it will cause too many meaningless requests
+    // 移除preload插件配置
+    config.plugins.delete('preload')
+    // 移除prefetch插件配置
     config.plugins.delete('prefetch')
 
     // set svg-sprite-loader
@@ -84,14 +109,6 @@ module.exports = {
     config
       .when(process.env.NODE_ENV !== 'development',
         config => {
-          config
-            .plugin('ScriptExtHtmlWebpackPlugin')
-            .after('html')
-            .use('script-ext-html-webpack-plugin', [{
-            // `runtime` must same as runtimeChunk name. default is `runtime`
-              inline: /runtime\..*\.js$/
-            }])
-            .end()
           config
             .optimization.splitChunks({
               chunks: 'all',

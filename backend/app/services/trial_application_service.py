@@ -5,7 +5,6 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app import crud, models, schemas
-from app.utils.security import generate_random_password
 from app.services.user_service import user_service
 
 
@@ -28,7 +27,9 @@ class TrialApplicationService:
             )
         
         # 检查公司名是否已存在
-        existing_company = crud.trial_application.get_by_company_name(db, company_name=company_name)
+        existing_company = crud.trial_application.get_by_company_name(
+            db, company_name=company_name
+        )
         if existing_company:
             raise HTTPException(
                 status_code=400,
@@ -36,7 +37,9 @@ class TrialApplicationService:
             )
         
         # 检查联系人手机是否已存在
-        existing_phone = crud.trial_application.get_by_contact_phone(db, contact_phone=contact_phone)
+        existing_phone = crud.trial_application.get_by_contact_phone(
+            db, contact_phone=contact_phone
+        )
         if existing_phone:
             raise HTTPException(
                 status_code=400,
@@ -107,71 +110,86 @@ class TrialApplicationService:
         approval_data: Dict[str, Any]
     ) -> models.TrialApplication:
         """审批通过试用申请"""
-        trial = crud.trial_application.get(db, id=trial_id)
-        if not trial:
-            raise HTTPException(status_code=404, detail="试用申请不存在")
-        
-        if trial.status != "pending":
-            raise HTTPException(status_code=400, detail="只能审批待处理的申请")
-        
-        # 验证邮箱是否已被使用
-        if crud.user.get_by_email(db, email=approval_data["admin"]["email"]):
-            raise HTTPException(
-                status_code=400,
-                detail="管理员邮箱已被使用"
+        # 开始事务
+        try:
+            trial = crud.trial_application.get(db, id=trial_id)
+            if not trial:
+                raise HTTPException(status_code=404, detail="试用申请不存在")
+            
+            if trial.status != "pending":
+                raise HTTPException(status_code=400, detail="只能审批待处理的申请")
+            
+            # 验证邮箱是否已被使用
+            admin_email = approval_data["admin"]["email"]
+            if crud.user.get_by_email(db, email=admin_email):
+                raise HTTPException(
+                    status_code=400,
+                    detail="管理员邮箱已被使用"
+                )
+            
+            # 创建租户
+            tenant_data = approval_data["tenant"]
+            tenant_in = {
+                "tenant_name": tenant_data["name"],
+                "contact_person": tenant_data["contact_person"],
+                "phone": tenant_data["phone"],
+                "email": tenant_data["email"],
+                "address": tenant_data["address"],
+                "status": "active"
+            }
+            tenant = crud.tenant.create(db, obj_in=tenant_in)
+            
+            # 创建管理员账号
+            admin_data = approval_data["admin"]
+            user_in = schemas.UserCreate(
+                email=admin_data["email"],
+                username=admin_data["username"],
+                password=admin_data["password"],
+                is_active=True,
+                user_type="tenant",
+                tenant_id=tenant.id
             )
-        
-        # 创建租户
-        tenant_data = approval_data["tenant"]
-        tenant_in = {
-            "tenant_name": tenant_data["name"],
-            "contact_person": tenant_data["contact_person"],
-            "phone": tenant_data["phone"],
-            "email": tenant_data["email"],
-            "address": tenant_data["address"],
-            "status": "active"
-        }
-        tenant = crud.tenant.create(db, obj_in=tenant_in)
-        
-        # 创建管理员账号
-        admin_data = approval_data["admin"]
-        user_in = schemas.UserCreate(
-            email=admin_data["email"],
-            username=admin_data["username"],
-            password=admin_data["password"],
-            is_active=True,
-            user_type="tenant",
-            tenant_id=tenant.id
-        )
-        user = crud.user.create(db, obj_in=user_in)
-        
-        # 获取租户管理员角色并分配给新用户
-        tenant_admin_role = crud.role.get_by_name(db, name="tenant_admin")
-        if tenant_admin_role:
-            user_service.add_user_role(
-                db,
+            user = crud.user.create(db, obj_in=user_in)
+            
+            # 获取租户管理员角色并分配给新用户
+            tenant_admin_role = crud.role.get_by_name(db, name="tenant_admin")
+            if tenant_admin_role:
+                user_service.add_user_role(
+                    db,
+                    user_id=user.id,
+                    role_id=tenant_admin_role.id,
+                    current_user=user  # 这里传入新创建的用户作为当前用户
+                )
+            
+            # 设置试用期
+            start_date = datetime.strptime(
+                approval_data["trial_start_date"], 
+                "%Y-%m-%d"
+            )
+            end_date = start_date + timedelta(days=approval_data["trial_days"])
+            
+            # 更新试用申请状态
+            trial_update = schemas.TrialApplicationUpdate(
+                status="active",
+                trial_start_date=start_date,
+                trial_end_date=end_date,
                 user_id=user.id,
-                role_id=tenant_admin_role.id,
-                current_user=user  # 这里传入新创建的用户作为当前用户
+                tenant_id=tenant.id
             )
-        
-        # 设置试用期
-        start_date = datetime.strptime(approval_data["trial_start_date"], "%Y-%m-%d")
-        end_date = start_date + timedelta(days=approval_data["trial_days"])
-        
-        # 更新试用申请状态
-        trial_update = schemas.TrialApplicationUpdate(
-            status="active",
-            trial_start_date=start_date,
-            trial_end_date=end_date,
-            user_id=user.id,
-            tenant_id=tenant.id
-        )
-        return crud.trial_application.update(
-            db, 
-            db_obj=trial, 
-            obj_in=trial_update
-        )
+            updated_trial = crud.trial_application.update(
+                db, 
+                db_obj=trial, 
+                obj_in=trial_update
+            )
+            
+            # 提交事务
+            db.commit()
+            return updated_trial
+            
+        except Exception as e:
+            # 发生异常，回滚事务
+            db.rollback()
+            raise e
 
     @staticmethod
     def reject_trial(
@@ -211,7 +229,11 @@ class TrialApplicationService:
         )
 
     @staticmethod
-    def get_trial_list(db: Session, skip: int = 0, limit: int = 100) -> List[models.TrialApplication]:
+    def get_trial_list(
+        db: Session, 
+        skip: int = 0, 
+        limit: int = 100
+    ) -> List[models.TrialApplication]:
         """获取所有试用申请记录"""
         return db.query(models.TrialApplication)\
             .order_by(models.TrialApplication.id.desc())\

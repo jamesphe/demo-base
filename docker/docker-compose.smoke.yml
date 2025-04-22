@@ -1,0 +1,97 @@
+version: '3.8'
+
+name: resume-system-smoke
+services:
+  e2e-smoke-test:
+    image: mcr.microsoft.com/playwright:v1.31.0-focal
+    volumes:
+      - ../e2e-tests:/app
+    working_dir: /app
+    command: >
+      bash -c "npm install && 
+               npx playwright test --project=smoke"
+    environment:
+      - BASE_URL=http://resume-frontend
+      - API_URL=http://resume-backend:8000
+      - WAIT_TIMEOUT=30000
+    depends_on:
+      - resume-backend
+      - resume-frontend
+    networks:
+      - resume-smoke-network
+
+  resume-backend:
+    image: resume-backend
+    ports:
+      - "8001:8000"
+    depends_on:
+      - resume-db
+      - resume-redis
+    volumes:
+      - ../backend/.env:/app/.env
+    environment:
+      - REDIS_HOST=resume-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - TEST_MODE=true
+      - INITIAL_DATA=true
+    networks:
+      - resume-smoke-network
+
+  resume-frontend:
+    image: resume-frontend
+    ports:
+      - "6111:80"
+    env_file:
+      - ../frontend/.env
+    depends_on:
+      - resume-backend
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    environment:
+      - TEST_MODE=true
+      - API_URL=http://resume-backend:8000
+    networks:
+      - resume-smoke-network
+
+  resume-db:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=demo_smoke
+    ports:
+      - "5421:5432"
+    volumes:
+      - resume_postgres_smoke_data:/var/lib/postgresql/data
+      - ../database/init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - resume-smoke-network
+
+  resume-redis:
+    image: redis:7
+    ports:
+      - "6380:6379"
+    volumes:
+      - resume_redis_smoke_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - resume-smoke-network
+
+volumes:
+  resume_postgres_smoke_data:
+  resume_redis_smoke_data: 
+
+networks:
+  resume-smoke-network:
+    driver: bridge 

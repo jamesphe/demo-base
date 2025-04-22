@@ -189,3 +189,11 @@ aside {
 .multiselect--active {
   z-index: 1000 !important;
 }
+
+// 确保菜单样式被正确应用
+.el-menu {
+  border-right: none !important;
+}
+.el-menu-item.is-active {
+  color: #409EFF !important;
+}

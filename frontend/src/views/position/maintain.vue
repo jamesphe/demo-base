@@ -69,9 +69,28 @@
         style="width: 100%"
       >
         <el-table-column
+          v-if="isAdmin"
+          label="所属租户"
+          width="150"
+          align="center"
+          show-overflow-tooltip
+        >
+          <template slot-scope="{row}">
+            <el-tooltip
+              :content="row.tenantId ? `租户ID: ${row.tenantId}` : ''"
+              placement="top"
+            >
+              <el-tag size="mini" type="info">
+                {{ row.tenantName || '-' }}
+              </el-tag>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+
+        <el-table-column
           label="职位名称"
           prop="title"
-          min-width="180"
+          min-width="160"
           show-overflow-tooltip
         >
           <template slot-scope="{row}">
@@ -82,7 +101,7 @@
         <el-table-column
           label="部门"
           prop="department"
-          width="120"
+          width="110"
           align="center"
           show-overflow-tooltip
         />
@@ -90,36 +109,36 @@
         <el-table-column
           label="工作地点"
           prop="location"
-          width="180"
+          width="160"
           align="center"
           show-overflow-tooltip
         />
 
         <el-table-column
           label="职位类型"
-          width="80"
+          width="85"
           align="center"
         >
           <template slot-scope="{row}">
-            <el-tag :type="row.type === 'fulltime' ? 'primary' : row.type === 'parttime' ? 'success' : 'warning'">
-              {{ row.type === 'fulltime' ? '全职' : row.type === 'parttime' ? '兼职' : '实习' }}
+            <el-tag :type="row.jobType === 'fulltime' ? 'primary' : row.jobType === 'parttime' ? 'success' : 'warning'">
+              {{ row.jobType === 'fulltime' ? '全职' : row.jobType === 'parttime' ? '兼职' : '实习' }}
             </el-tag>
           </template>
         </el-table-column>
 
         <el-table-column
           label="薪资范围"
-          width="120"
+          width="110"
           align="center"
         >
           <template slot-scope="{row}">
-            <span class="salary-text">{{ row.salaryMin }}-{{ row.salaryMax }}K/{{ row.salaryUnit === 'month' ? '月' : '年' }}</span>
+            <span class="salary-text">{{ row.salaryMin }}-{{ row.salaryMax }}K/{{ row.salaryType === '年薪' ? '年' : '月' }}</span>
           </template>
         </el-table-column>
 
         <el-table-column
           label="经验要求"
-          width="100"
+          width="90"
           align="center"
           show-overflow-tooltip
         >
@@ -154,37 +173,18 @@
 
         <el-table-column
           label="发布时间"
-          width="140"
+          width="135"
           align="center"
         >
           <template slot-scope="{row}">
-            <span>{{ formatTime(row.createTime) }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column
-          v-if="isAdmin"
-          label="所属租户"
-          width="120"
-          align="center"
-          show-overflow-tooltip
-        >
-          <template slot-scope="{row}">
-            <el-tooltip
-              :content="row.tenant ? `租户代码: ${row.tenant.code}` : ''"
-              placement="top"
-            >
-              <el-tag size="mini" type="info">
-                {{ row.tenant ? row.tenant.name : '-' }}
-              </el-tag>
-            </el-tooltip>
+            <span>{{ formatTime(row.createdAt) }}</span>
           </template>
         </el-table-column>
 
         <el-table-column
           label="操作"
           align="center"
-          width="280"
+          width="350"
           fixed="right"
         >
           <template slot-scope="{row}">
@@ -199,7 +199,7 @@
                 编辑
               </el-button>
               <el-button
-                v-if="row.status === 'active'"
+                v-if="row.status === 'active' || row.status === 'published'"
                 size="mini"
                 type="warning"
                 icon="el-icon-video-pause"
@@ -326,7 +326,7 @@
               />
             </el-col>
             <el-col :span="6" :offset="1">
-              <el-select v-model="positionForm.salaryUnit" style="width: 100%">
+              <el-select v-model="positionForm.salaryType" style="width: 100%">
                 <el-option label="月薪" value="month" />
                 <el-option label="年薪" value="year" />
                 <el-option label="面议" value="negotiate" />
@@ -413,9 +413,9 @@
 </template>
 
 <script>
-import { getPositionList, updatePosition, deletePosition, updatePositionStatus } from '@/api/position'
 import Pagination from '@/components/Pagination'
 import { parseTime } from '@/utils'
+import { mapState, mapActions } from 'vuex'
 
 export default {
   name: 'PositionMaintain',
@@ -425,9 +425,6 @@ export default {
   },
   data() {
     return {
-      list: null,
-      total: 0,
-      listLoading: true,
       listQuery: {
         page: 1,
         limit: 10,
@@ -445,7 +442,7 @@ export default {
         location: '',
         salaryMin: '',
         salaryMax: '',
-        salaryUnit: 'month',
+        salaryType: 'month',
         description: '',
         requirements: '',
         preferences: '',
@@ -489,17 +486,31 @@ export default {
         salaryMin: [{ required: true, message: '请输入最低薪资', trigger: 'blur' }],
         salaryMax: [{ required: true, message: '请输入最高薪资', trigger: 'blur' }]
       },
-      isAdmin: false // 是否为系统管理员
+      isAdmin: false
     }
+  },
+  computed: {
+    ...mapState('position', {
+      list: state => state.positions,
+      total: state => state.total,
+      listLoading: state => state.loading
+    })
   },
   created() {
     this.isAdmin = this.$store.getters.roles.includes('admin')
     this.getList()
   },
   methods: {
+    ...mapActions('position', [
+      'getList',
+      'updatePosition',
+      'deletePosition',
+      'updatePositionStatus'
+    ]),
     getStatusType(status) {
       const statusMap = {
         draft: 'info',
+        published: 'success',
         active: 'success',
         paused: 'warning',
         closed: 'danger'
@@ -510,6 +521,7 @@ export default {
     getStatusText(status) {
       const statusMap = {
         draft: '草稿',
+        published: '招聘中',
         active: '招聘中',
         paused: '已暂停',
         closed: '已结束'
@@ -543,58 +555,9 @@ export default {
       return `${year}-${month}-${day} ${hour}:${minute}`
     },
 
-    async getList() {
-      this.listLoading = true
-      try {
-        const { data, meta } = await getPositionList({
-          ...this.listQuery,
-          page: this.listQuery.page,
-          limit: this.listQuery.limit
-        })
-
-        console.log('原始接口数据:', data)
-
-        this.list = (data || []).map(item => {
-          const mappedItem = {
-            id: item.id,
-            title: item.title,
-            type: item.job_type || item.jobType || item.type || '',
-            jobType: item.job_type || item.jobType || item.type || '',
-            department: item.department || '',
-            location: item.location || '',
-            salaryMin: item.salaryMin || item.salary_min || 0,
-            salaryMax: item.salaryMax || item.salary_max || 0,
-            salaryUnit: (item.salaryType === '月薪' || item.salary_type === '月薪') ? 'month' : 'year',
-            description: item.description || '',
-            requirements: item.requirements || '',
-            preferences: item.preferences || '',
-            benefits: typeof item.benefits === 'string' ? item.benefits.split(',') : (item.benefits || []),
-            experienceRequired: item.experienceRequired || item.experience_required || '',
-            educationRequired: item.educationRequired || item.education_required || '',
-            headcount: item.headcount || 1,
-            status: item.status || 'draft',
-            createTime: item.createdAt || item.created_at || new Date().toISOString(),
-            tenant: {
-              id: item.tenant?.id,
-              name: item.tenant_name || '-',
-              code: item.tenant?.code,
-              status: item.tenant?.status
-            }
-          }
-          console.log('数据转换后:', mappedItem)
-          return mappedItem
-        })
-
-        this.total = meta ? meta.total : (data.total || this.list.length)
-      } catch (error) {
-        console.error('获取职位列表失败:', error)
-        this.$message.error('获取职位列表失败')
-      }
-      this.listLoading = false
-    },
     handleFilter() {
       this.listQuery.page = 1
-      this.getList()
+      this.getList(this.listQuery)
     },
     resetQuery() {
       this.listQuery = {
@@ -604,7 +567,7 @@ export default {
         type: undefined,
         status: undefined
       }
-      this.getList()
+      this.getList(this.listQuery)
     },
     handleCreate() {
       this.dialogTitle = '新增职位'
@@ -616,7 +579,7 @@ export default {
         location: '',
         salaryMin: '',
         salaryMax: '',
-        salaryUnit: 'month',
+        salaryType: 'month',
         description: '',
         requirements: '',
         preferences: '',
@@ -629,7 +592,7 @@ export default {
     },
     handleEdit(row) {
       console.log('编辑前的原始数据:', row)
-      console.log('职位类型:', row.type, row.jobType)
+      console.log('职位类型:', row.jobType)
 
       // 检查福利待遇数据
       console.log('原始福利待遇:', row.benefits)
@@ -643,24 +606,21 @@ export default {
       })
       console.log('映射后的福利待遇:', mappedBenefits)
 
-      const jobType = row.jobType || row.type || ''
-      console.log('处理后的职位类型:', jobType)
-
       this.positionForm = {
         id: row.id,
         title: row.title,
-        type: jobType,
+        type: row.jobType,
         department: row.department || '',
         location: row.location || '',
-        salaryMin: row.salaryMin || row.salary_min || '',
-        salaryMax: row.salaryMax || row.salary_max || '',
-        salaryUnit: row.salaryType === '面议' ? 'negotiate'
+        salaryMin: row.salaryMin || '',
+        salaryMax: row.salaryMax || '',
+        salaryType: row.salaryType === '面议' ? 'negotiate'
           : row.salaryType === '年薪' ? 'year' : 'month',
         description: row.description || '',
         requirements: row.requirements || '',
         preferences: row.preferences || '',
-        experienceRequired: row.experienceRequired || row.experience_required || '',
-        educationRequired: row.educationRequired || row.education_required || '',
+        experienceRequired: row.experienceRequired || '',
+        educationRequired: row.educationRequired || '',
         headcount: row.headcount || 1,
         benefits: mappedBenefits
       }
@@ -678,28 +638,32 @@ export default {
         const submitData = {
           id: this.positionForm.id,
           title: this.positionForm.title,
-          job_type: this.positionForm.type,
+          jobType: this.positionForm.type,
           department: this.positionForm.department,
           location: this.positionForm.location,
-          salary_min: Number(this.positionForm.salaryUnit === 'negotiate' ? 0 : this.positionForm.salaryMin),
-          salary_max: Number(this.positionForm.salaryUnit === 'negotiate' ? 0 : this.positionForm.salaryMax),
-          salary_type: this.positionForm.salaryUnit === 'month' ? '月薪'
-            : this.positionForm.salaryUnit === 'year' ? '年薪' : '面议',
+          salaryMin: Number(this.positionForm.salaryType === 'negotiate' ? 0 : this.positionForm.salaryMin),
+          salaryMax: Number(this.positionForm.salaryType === 'negotiate' ? 0 : this.positionForm.salaryMax),
+          salaryType: this.positionForm.salaryType === 'month' ? '月薪'
+            : this.positionForm.salaryType === 'year' ? '年薪' : '面议',
           description: this.positionForm.description,
           requirements: this.positionForm.requirements,
           preferences: this.positionForm.preferences,
           benefits: this.positionForm.benefits.map(benefit => this.getBenefitLabel(benefit)).join(','),
-          experience_required: this.positionForm.experienceRequired,
-          education_required: this.positionForm.educationRequired,
+          experienceRequired: this.positionForm.experienceRequired,
+          educationRequired: this.positionForm.educationRequired,
           headcount: Number(this.positionForm.headcount),
           status: 'published' // 修改为正确的状态值
         }
         console.log('提交的数据:', submitData)
 
-        await updatePosition(this.positionForm.id, submitData)
+        await this.updatePosition({
+          id: this.positionForm.id, 
+          data: submitData
+        })
+        
         this.dialogVisible = false
         this.$message.success(this.positionForm.id ? '更新成功' : '创建成功')
-        this.getList()
+        this.getList(this.listQuery)
       } catch (error) {
         console.error('保存职位失败:', error)
         this.$message.error('保存失败，请重试')
@@ -716,9 +680,9 @@ export default {
             type: 'warning'
           }
         )
-        await updatePositionStatus(row.id, status)
+        await this.updatePositionStatus({id: row.id, status})
         this.$message.success('操作成功')
-        this.getList()
+        this.getList(this.listQuery)
       } catch (error) {
         console.error('更新状态失败:', error)
       }
@@ -730,9 +694,9 @@ export default {
           cancelButtonText: '取消',
           type: 'warning'
         })
-        await deletePosition(row.id)
+        await this.deletePosition(row.id)
         this.$message.success('删除成功')
-        this.getList()
+        this.getList(this.listQuery)
       } catch (error) {
         console.error('删除职位失败:', error)
       }

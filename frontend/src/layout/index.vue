@@ -16,6 +16,7 @@
 <script>
 import { Navbar, Sidebar, AppMain } from './components'
 import { mapState } from 'vuex'
+import variables from '@/styles/variables.scss'
 
 export default {
   name: 'Layout',
@@ -34,6 +35,9 @@ export default {
         openSidebar: this.sidebar.opened,
         withoutAnimation: this.sidebar.withoutAnimation
       }
+    },
+    variables() {
+      return variables
     },
     debugInfo() {
       return {
@@ -60,7 +64,9 @@ export default {
 }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
+@import "~@/styles/variables.scss";
+
 .app-wrapper {
   position: relative;
   height: 100%;
@@ -81,22 +87,9 @@ export default {
     }
   }
 
-  .sidebar-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 210px;
-    height: 100%;
-    background: #304156;
-    z-index: 1001;
-    transition: width 0.28s;
-    overflow: hidden;
-  }
-
   .main-container {
     min-height: 100%;
-    margin-left: 210px;
+    margin-left: $sideBarWidth;
     position: relative;
     transition: margin-left 0.28s;
   }

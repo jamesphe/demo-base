@@ -109,6 +109,7 @@ class Job(JobBase):
     """职位完整模型"""
     id: int
     tenant_id: int
+    tenant_name: str
     publisher_id: int
     status: str
     created_at: datetime

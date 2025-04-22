@@ -19,9 +19,9 @@ NC='\033[0m' # No Color
 echo -e "${YELLOW}拉取基础镜像...${NC}"
 # 提取Dockerfile中的基础镜像
 echo -e "${YELLOW}拉取前端基础镜像...${NC}"
-docker pull --platform ${PLATFORM} node:16-alpine
+docker pull --platform ${PLATFORM} node:18-alpine
 echo -e "${YELLOW}拉取后端基础镜像...${NC}"
-docker pull --platform ${PLATFORM} python:3.10-slim
+docker pull --platform ${PLATFORM} python:3.10.16-slim
 echo -e "${YELLOW}拉取nginx镜像...${NC}"
 docker pull --platform ${PLATFORM} nginx:stable-alpine
 echo -e "${GREEN}基础镜像拉取完成!${NC}"

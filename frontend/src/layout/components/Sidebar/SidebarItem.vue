@@ -56,17 +56,11 @@ export default {
     }
   },
   data() {
-    console.log('SidebarItem data, basePath:', this.basePath)
     this.onlyOneChild = null
     return {}
   },
-  created() {
-    console.log('SidebarItem created, item:', this.item)
-  },
   methods: {
     resolvePath(routePath) {
-      console.log('SidebarItem resolvePath called:', { routePath, basePath: this.basePath })
-
       // 如果是外部链接，直接返回
       if (isExternal(routePath)) {
         return routePath
@@ -74,7 +68,6 @@ export default {
 
       // 如果是绝对路径，直接返回
       if (routePath.startsWith('/')) {
-        console.log('Absolute path detected:', routePath)
         return routePath
       }
 
@@ -84,45 +77,25 @@ export default {
       }
 
       // 解析相对路径
-      const resolvedPath = path.resolve(this.basePath, routePath)
-      console.log('Path resolution:', {
-        routePath,
-        basePath: this.basePath,
-        resolvedPath
-      })
-      return resolvedPath
+      return path.resolve(this.basePath, routePath)
     },
     hasOneShowingChild(children = [], parent) {
-      console.log('hasOneShowingChild called:', {
-        children,
-        parent,
-        path: parent.path
-      })
-
       const showingChildren = children.filter(item => {
         if (item.hidden) {
           return false
         }
         this.onlyOneChild = item
-        console.log('Child route:', {
-          path: item.path,
-          meta: item.meta
-        })
         return true
       })
 
-      console.log('Showing children count:', showingChildren.length)
-
       // 当只有一个子路由时，显示为独立菜单项
       if (showingChildren.length === 1) {
-        console.log('Single child detected:', this.onlyOneChild)
         return true
       }
 
       // 没有子路由时，显示父路由
       if (showingChildren.length === 0) {
         this.onlyOneChild = { ...parent, path: '', noShowingChildren: true }
-        console.log('No children, using parent:', this.onlyOneChild)
         return true
       }
 
@@ -157,8 +130,29 @@ export default {
 }
 </script>
 
-<style scoped>
-.is-active {
-  color: #409EFF !important;
+<style lang="scss" scoped>
+@import "~@/styles/variables.scss";
+
+.el-menu-item, .el-submenu__title {
+  &:hover {
+    background-color: $menuHover !important;
+  }
+}
+
+.el-menu-item.is-active {
+  color: $menuActiveText !important;
+  font-weight: 600;
+  background-color: $menuHover !important;
+  border-right: 3px solid $menuActiveText;
+}
+
+.el-menu-item {
+  height: 50px;
+  line-height: 50px;
+}
+
+.el-submenu__title {
+  height: 50px;
+  line-height: 50px;
 }
 </style>

@@ -33,64 +33,57 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.sidebar-logo-container {
-  position: relative;
-  width: 100%;
-  height: 50px;
-  background: #304156;
-  text-align: left;
-  overflow: hidden;
+@import "~@/styles/variables.scss";
 
-  .sidebar-logo-link {
-    height: 100%;
-    width: 100%;
-    display: block;
-    overflow: hidden;
-    padding: 0 12px;
-
-    .logo-wrapper {
-      height: 100%;
-      display: flex;
-      align-items: center;
-
-      .sidebar-logo {
-        width: 28px;
-        height: 28px;
-        margin-right: 8px;
-        vertical-align: middle;
-      }
-
-      .sidebar-title {
-        display: inline-block;
-        color: #fff;
-        font-weight: 600;
-        font-size: 14px;
-        font-family: "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
-        white-space: nowrap;
-        opacity: 0.95;
-      }
-    }
-  }
-
-  &.collapse {
-    .sidebar-logo-link {
-      padding: 0;
-      .sidebar-logo {
-        margin: 11px auto;
-        width: 28px;
-        height: 28px;
-      }
-    }
-  }
-}
-
-.sidebarLogoFade-enter-active,
-.sidebarLogoFade-leave-active {
-  transition: opacity 0.2s;
+.sidebarLogoFade-enter-active {
+  transition: opacity 1.5s;
 }
 
 .sidebarLogoFade-enter,
 .sidebarLogoFade-leave-to {
   opacity: 0;
+}
+
+.sidebar-logo-container {
+  position: relative;
+  width: 100%;
+  height: 50px;
+  line-height: 50px;
+  background: $menuBg;
+  text-align: center;
+  overflow: hidden;
+  border-bottom: 1px solid #ebeef5;
+
+  & .sidebar-logo-link {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    & .sidebar-logo {
+      width: 28px;
+      height: 28px;
+      vertical-align: middle;
+      margin-right: 12px;
+    }
+
+    & .sidebar-title {
+      display: inline-block;
+      margin: 0;
+      color: #1890ff;
+      font-weight: 600;
+      line-height: 50px;
+      font-size: 16px;
+      font-family: Avenir, Helvetica Neue, Arial, Helvetica, sans-serif;
+      vertical-align: middle;
+    }
+  }
+
+  &.collapse {
+    .sidebar-logo {
+      margin-right: 0px;
+    }
+  }
 }
 </style>
