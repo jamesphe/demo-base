@@ -371,51 +371,12 @@
     </el-dialog>
 
     <!-- 简历预览弹窗 -->
-    <el-dialog
+    <resume-preview
       :visible.sync="resumePreviewVisible"
-      :width="isFullscreen ? '100%' : '80%'"
-      :close-on-click-modal="false"
-      :fullscreen="isFullscreen"
-      class="resume-preview-dialog"
-      append-to-body
-      destroy-on-close
-    >
-      <div slot="title" class="dialog-custom-header">
-        <i class="el-icon-document" />
-        <span>简历预览</span>
-        <div class="header-actions">
-          <el-tooltip content="全屏" placement="bottom" :enterable="false">
-            <i
-              :class="['el-icon-full-screen', { 'is-fullscreen': isFullscreen }]"
-              @click="toggleFullscreen"
-            />
-          </el-tooltip>
-          <el-tooltip content="下载原文件" placement="bottom" :enterable="false">
-            <i class="el-icon-download" @click="handleDownload" />
-          </el-tooltip>
-        </div>
-      </div>
-      <div v-loading="previewLoading" class="preview-container">
-        <template v-if="isDocPreview">
-          <div class="doc-preview" v-html="previewContent" />
-        </template>
-        <template v-else>
-          <iframe
-            v-if="previewUrl"
-            :src="previewUrl"
-            class="preview-object"
-            frameborder="0"
-            style="width: 100%; height: calc(100vh - 200px); min-height: 500px;"
-            @load="handlePreviewLoad"
-            @error="handlePreviewError"
-          />
-          <div v-else class="no-preview">
-            <i class="el-icon-document-delete" style="font-size: 48px; color: #909399; margin-bottom: 16px;" />
-            <p>暂无可预览的文件</p>
-          </div>
-        </template>
-      </div>
-    </el-dialog>
+      :resume-id="currentPreviewId"
+      :file-name="currentPreviewFileName"
+      @close="handlePreviewClose"
+    />
 
     <!-- 职位详情弹窗 -->
     <el-dialog
@@ -527,14 +488,15 @@
 import { mapGetters, mapActions } from 'vuex'
 import Pagination from '@/components/Pagination'
 import { getToken } from '@/utils/auth'
-import mammoth from 'mammoth'
 import ResumeDetail from '@/components/ResumeDetail'
+import ResumePreview from '@/components/ResumePreview'
 
 export default {
   name: 'PositionApplications',
   components: {
     Pagination,
-    ResumeDetail
+    ResumeDetail,
+    ResumePreview
   },
   data() {
     return {
@@ -566,12 +528,8 @@ export default {
       resumeDetailLoading: false,
       currentResume: null,
       resumePreviewVisible: false,
-      isFullscreen: false,
-      previewUrl: '',
-      downloadUrl: '',
-      previewLoading: false,
-      previewContent: '',
-      isDocPreview: false,
+      currentPreviewId: null,
+      currentPreviewFileName: '',
       jobDetailVisible: false,
       jobDetailLoading: false,
       currentJob: {},
@@ -866,118 +824,24 @@ export default {
       try {
         console.log('开始预览简历:', row)
         console.log('简历ID:', row.resumeId)
+        
+        if (!row.resumeId) {
+          console.error('简历ID不存在')
+          this.$message.error('无法预览简历：简历ID不存在')
+          return
+        }
+        
+        this.currentPreviewId = row.resumeId
+        this.currentPreviewFileName = row.resumeName || 'resume.pdf'
         this.resumePreviewVisible = true
-        this.previewLoading = true
-        this.isDocPreview = false
-        this.previewContent = ''
-
-        // 获取文件类型
-        const fileType = this.getFileType(row.resumeName)
-
-        if (fileType === 'doc' || fileType === 'docx') {
-          // 处理doc/docx文件预览
-          this.isDocPreview = true
-          await this.previewWordDocument(row)
-        } else {
-          // 处理其他类型文件预览
-          console.log('正在获取预览URL...')
-          const result = await this.getPreviewUrl(row.resumeId)
-          console.log('获取预览URL结果:', result)
-
-          const previewPath = typeof result === 'string' ? result : result.previewUrl
-          const token = this.authToken
-          // 确保令牌不包含Bearer前缀
-          const cleanToken = token && token.startsWith('Bearer ') ? token.substring(7) : token
-          const tokenParam = cleanToken ? `?token=${cleanToken}` : ''
-          this.previewUrl = previewPath ? `${this.baseApiUrl}${previewPath}${tokenParam}` : ''
-          this.downloadUrl = `${this.baseApiUrl}/resume/download/${row.resumeId}${tokenParam}`
-          console.log('预览URL:', this.previewUrl)
-          console.log('下载URL:', this.downloadUrl)
-        }
-
-        console.log('预览设置完成')
       } catch (error) {
-        console.error('获取简历预览失败:', error)
-        console.error('错误详情:', error.response?.data || error.message)
-        this.$message.error('获取简历预览失败')
-      } finally {
-        this.previewLoading = false
+        console.error('预览简历失败:', error)
+        this.$message.error('预览简历失败')
       }
     },
-    getFileType(fileName) {
-      if (!fileName) return ''
-      const extension = fileName.split('.').pop().toLowerCase()
-      return extension
-    },
-    async previewWordDocument(row) {
-      try {
-        // 修改API路径
-        const response = await fetch(`${this.baseApiUrl}/resumes/download/${row.resumeId}`, {
-          headers: {
-            'Authorization': `${this.authToken}`
-          }
-        })
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-        const blob = await response.blob()
-        // 检查文件类型
-        const fileType = this.getFileType(row.resumeName)
-        if (fileType !== 'doc' && fileType !== 'docx') {
-          throw new Error('不支持的文件格式')
-        }
-        // 读取文件内容
-        const arrayBuffer = await blob.arrayBuffer()
-        // 使用mammoth.js转换docx为HTML
-        const result = await mammoth.convertToHtml(
-          { arrayBuffer },
-          {
-            convertImage: mammoth.images.imgElement(function(image) {
-              return image.read('base64').then(function(imageBase64) {
-                return {
-                  src: `data:${image.contentType};base64,${imageBase64}`
-                }
-              })
-            })
-          }
-        )
-        this.previewContent = result.value
-        // 确保令牌不包含Bearer前缀
-        const cleanToken = this.authToken && this.authToken.startsWith('Bearer ') ? this.authToken.substring(7) : this.authToken
-        this.downloadUrl = `${this.baseApiUrl}/resumes/download/${row.resumeId}?token=${cleanToken}`
-      } catch (error) {
-        console.error('Word文档预览失败:', error)
-        this.$message.error('文档预览失败：' + error.message)
-        throw error
-      }
-    },
-    handleDownload() {
-      if (this.downloadUrl) {
-        console.log('开始下载文件:', this.downloadUrl)
-        window.open(this.downloadUrl, '_blank')
-      } else {
-        console.warn('下载URL不存在')
-      }
-    },
-    handlePreviewLoad() {
-      console.log('预览加载成功')
-      console.log('当前预览URL:', this.previewUrl)
-      this.previewLoading = false
-    },
-    handlePreviewError(e) {
-      console.error('预览加载失败:', e)
-      console.error('预览URL:', this.previewUrl)
-      console.error('预览组件错误详情:', {
-        error: e,
-        type: e.type,
-        target: e.target,
-        currentSrc: e.target?.currentSrc
-      })
-      this.$message.error('预览加载失败，请尝试直接打开文件')
-      this.previewLoading = false
-    },
-    toggleFullscreen() {
-      this.isFullscreen = !this.isFullscreen
+    handlePreviewClose() {
+      this.currentPreviewId = null
+      this.currentPreviewFileName = ''
     },
     async handleViewJob(job) {
       console.log('handleViewJob called with job:', job)
@@ -1517,120 +1381,6 @@ export default {
   white-space: pre-line;
   line-height: 1.6;
   color: #666;
-}
-
-.resume-preview-dialog {
-  .dialog-custom-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-
-    i {
-      font-size: 18px;
-      color: #606266;
-      cursor: pointer;
-      transition: all 0.3s;
-
-      &:hover {
-        color: #409EFF;
-        transform: scale(1.1);
-      }
-    }
-  }
-
-  .preview-container {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: #f5f7fa;
-    overflow: hidden;
-
-    .preview-object {
-      width: 100%;
-      height: 100%;
-      border: none;
-      background: white;
-    }
-
-    .doc-preview {
-      width: 100%;
-      height: calc(100vh - 200px);
-      min-height: 500px;
-      padding: 20px;
-      background: white;
-      overflow-y: auto;
-      box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
-      border-radius: 4px;
-
-      ::v-deep {
-        h1, h2, h3, h4, h5, h6 {
-          margin: 1em 0 0.5em;
-          color: #303133;
-        }
-
-        p {
-          margin: 0.5em 0;
-          line-height: 1.6;
-          color: #606266;
-        }
-
-        img {
-          max-width: 100%;
-          height: auto;
-          margin: 1em 0;
-        }
-
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 1em 0;
-
-          th, td {
-            border: 1px solid #dcdfe6;
-            padding: 8px;
-            text-align: left;
-          }
-
-          th {
-            background-color: #f5f7fa;
-            color: #606266;
-          }
-        }
-
-        ul, ol {
-          padding-left: 2em;
-          margin: 0.5em 0;
-        }
-
-        li {
-          line-height: 1.6;
-          color: #606266;
-        }
-      }
-    }
-
-    .fallback-message {
-      padding: 20px;
-      text-align: center;
-      color: #909399;
-
-      a {
-        color: #409EFF;
-        text-decoration: none;
-
-        &:hover {
-          text-decoration: underline;
-        }
-      }
-    }
-
-    .no-preview {
-      color: #909399;
-      font-size: 14px;
-    }
-  }
 }
 
 .job-detail-dialog {

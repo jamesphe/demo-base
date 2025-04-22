@@ -6,7 +6,14 @@
         <el-table-column prop="fileName" label="文件名" min-width="250">
           <template slot-scope="{row}">
             <div class="file-name-cell">
-              {{ row.fileName }}
+              <el-link
+                type="primary"
+                :underline="false"
+                class="resume-name"
+                @click="handlePreviewResume(row)"
+              >
+                {{ row.fileName }}
+              </el-link>
             </div>
           </template>
         </el-table-column>
@@ -101,6 +108,14 @@
           :loading="detailLoading"
         />
       </el-dialog>
+
+      <!-- 使用新的简历预览组件 -->
+      <resume-preview
+        :visible.sync="resumePreviewVisible"
+        :resume-id="currentPreviewId"
+        :file-name="currentPreviewFileName"
+        @close="handlePreviewClose"
+      />
     </div>
   </basic-view>
 </template>
@@ -108,6 +123,7 @@
 <script>
 import BasicView from '@/components/BasicView'
 import ResumeDetail from '@/components/ResumeDetail'
+import ResumePreview from '@/components/ResumePreview'
 import { getParseList, parseResume, deleteParseRecord } from '@/api/resume'
 import { mapGetters } from 'vuex'
 
@@ -115,7 +131,8 @@ export default {
   name: 'ResumeParse',
   components: {
     BasicView,
-    ResumeDetail
+    ResumeDetail,
+    ResumePreview
   },
   data() {
     return {
@@ -134,13 +151,19 @@ export default {
         { color: '#E6A23C', percentage: 75 },
         { color: '#67C23A', percentage: 90 },
         { color: '#409EFF', percentage: 100 }
-      ]
+      ],
+      // 简历预览相关
+      resumePreviewVisible: false,
+      currentPreviewId: null,
+      currentPreviewFileName: ''
     }
   },
   computed: {
     ...mapGetters('resume', [
       'currentDetail',
-      'detailLoading'
+      'detailLoading',
+      'previewUrl',
+      'previewLoading'
     ]),
     getMatchingColor() {
       return (percentage) => {
@@ -151,6 +174,12 @@ export default {
         }
         return '#409EFF'
       }
+    },
+    baseApiUrl() {
+      return process.env.VUE_APP_BASE_API || ''
+    },
+    authToken() {
+      return getToken()
     }
   },
   created() {
@@ -381,6 +410,105 @@ export default {
       const start = formatDate(startDate)
       const end = endDate ? formatDate(endDate) : '至今'
       return `${start} - ${end}`
+    },
+
+    // 预览简历 - 使用新组件
+    async handlePreviewResume(row) {
+      try {
+        // 先尝试获取预览URL，确认简历存在
+        await this.$store.dispatch('resume/getPreviewUrl', row.id)
+        
+        // 如果没有抛出错误，则简历存在，可以打开预览窗口
+        this.currentPreviewId = row.id
+        this.currentPreviewFileName = row.fileName
+        this.resumePreviewVisible = true
+      } catch (error) {
+        // 如果获取URL失败，提示用户简历不存在
+        console.error('简历预览失败:', error)
+        this.$message.error('该简历无法预览')
+        // 不打开预览窗口
+      }
+    },
+    
+    // 处理预览关闭
+    handlePreviewClose() {
+      this.currentPreviewId = null
+      this.currentPreviewFileName = ''
+    },
+
+    getFileType(fileName) {
+      if (!fileName) return ''
+      const extension = fileName.split('.').pop().toLowerCase()
+      return extension
+    },
+
+    async previewWordDocument(row) {
+      try {
+        // 发起下载请求获取文件内容
+        const response = await fetch(`${this.baseApiUrl}/resume/download/${row.id}`, {
+          headers: {
+            'Authorization': `${this.authToken}`
+          }
+        })
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+        const blob = await response.blob()
+        
+        // 检查文件类型
+        const fileType = this.getFileType(row.fileName)
+        if (fileType !== 'doc' && fileType !== 'docx') {
+          throw new Error('不支持的文件格式')
+        }
+        
+        // 读取文件内容
+        const arrayBuffer = await blob.arrayBuffer()
+        
+        // 使用mammoth.js转换docx为HTML
+        const result = await mammoth.convertToHtml(
+          { arrayBuffer },
+          {
+            convertImage: mammoth.images.imgElement(function(image) {
+              return image.read('base64').then(function(imageBase64) {
+                return {
+                  src: `data:${image.contentType};base64,${imageBase64}`
+                }
+              })
+            })
+          }
+        )
+        this.previewContent = result.value
+        
+        // 设置下载URL
+        const cleanToken = this.authToken && this.authToken.startsWith('Bearer ') ? this.authToken.substring(7) : this.authToken
+        this.downloadUrl = `${this.baseApiUrl}/resume/download/${row.id}?token=${cleanToken}`
+      } catch (error) {
+        console.error('Word文档预览失败:', error)
+        this.$message.error('文档预览失败：' + error.message)
+        throw error
+      }
+    },
+
+    handleDownload() {
+      if (this.downloadUrl) {
+        console.log('开始下载文件:', this.downloadUrl)
+        window.open(this.downloadUrl, '_blank')
+      } else {
+        this.$message.warning('下载URL不存在')
+      }
+    },
+
+    handlePreviewLoad() {
+      console.log('预览加载成功')
+    },
+
+    handlePreviewError(e) {
+      console.error('预览加载失败:', e)
+      this.$message.error('预览加载失败，请尝试直接下载文件')
+    },
+
+    toggleFullscreen() {
+      this.isFullscreen = !this.isFullscreen
     }
   }
 }
@@ -536,5 +664,110 @@ export default {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.resume-preview-dialog {
+  .dialog-custom-header {
+    display: flex;
+    align-items: center;
+    
+    i {
+      font-size: 18px;
+      color: #606266;
+      cursor: pointer;
+      transition: all 0.3s;
+      
+      &:hover {
+        color: #409EFF;
+        transform: scale(1.1);
+      }
+    }
+    
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 16px;
+    }
+  }
+  
+  .preview-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #f5f7fa;
+    overflow: hidden;
+    
+    .preview-object {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: white;
+    }
+    
+    .doc-preview {
+      width: 100%;
+      height: calc(100vh - 200px);
+      min-height: 500px;
+      padding: 20px;
+      background: white;
+      overflow-y: auto;
+      box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+      border-radius: 4px;
+      
+      ::v-deep {
+        h1, h2, h3, h4, h5, h6 {
+          margin: 1em 0 0.5em;
+          color: #303133;
+        }
+        
+        p {
+          margin: 0.5em 0;
+          line-height: 1.6;
+          color: #606266;
+        }
+        
+        img {
+          max-width: 100%;
+          height: auto;
+          margin: 1em 0;
+        }
+        
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 1em 0;
+          
+          th, td {
+            border: 1px solid #dcdfe6;
+            padding: 8px;
+            text-align: left;
+          }
+          
+          th {
+            background-color: #f5f7fa;
+            color: #606266;
+          }
+        }
+        
+        ul, ol {
+          padding-left: 2em;
+          margin: 0.5em 0;
+        }
+        
+        li {
+          line-height: 1.6;
+          color: #606266;
+        }
+      }
+    }
+    
+    .no-preview {
+      text-align: center;
+      color: #909399;
+      font-size: 14px;
+    }
+  }
 }
 </style>

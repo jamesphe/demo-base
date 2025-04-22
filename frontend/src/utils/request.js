@@ -115,11 +115,11 @@ service.interceptors.response.use(
         error.message = errMsg
     }
 
-    Message({
-      message: error.message,
-      type: 'error',
-      duration: 5 * 1000
-    })
+    // Message({
+    //   message: error.message,
+    //   type: 'error',
+    //   duration: 5 * 1000
+    // })
     return Promise.reject(error)
   }
 )
