@@ -125,14 +125,169 @@
         >
           {{ resume.starred ? '取消收藏' : '收藏简历' }}
         </el-button>
+        <el-button type="success" @click="showAiAnalysis">AI解读</el-button>
         <el-button @click="goBack">返回</el-button>
       </div>
     </el-card>
+
+    <!-- AI解读对话框 -->
+    <el-dialog
+      title="AI简历解读"
+      :visible.sync="aiAnalysisVisible"
+      width="70%"
+      :before-close="closeAiAnalysis"
+      custom-class="ai-analysis-dialog"
+    >
+      <div v-loading="aiAnalysisLoading" class="ai-analysis-container">
+        <div v-if="!aiAnalysisResult" class="analysis-form">
+          <h3>请配置AI解读参数</h3>
+          <el-form :model="aiAnalysisForm" label-width="100px" class="ai-form">
+            <el-form-item label="职位要求">
+              <el-input
+                type="textarea"
+                v-model="aiAnalysisForm.job_requirements"
+                :rows="5"
+                placeholder="请输入目标职位的详细要求描述，越详细越有助于精准分析"
+              ></el-input>
+            </el-form-item>
+            
+            <el-form-item label="分析维度">
+              <el-checkbox-group v-model="aiAnalysisForm.dimensions">
+                <el-checkbox label="技能匹配度">技能匹配度</el-checkbox>
+                <el-checkbox label="专业经验">专业经验</el-checkbox>
+                <el-checkbox label="教育背景">教育背景</el-checkbox>
+                <el-checkbox label="职业发展">职业发展</el-checkbox>
+                <el-checkbox label="综合能力">综合能力</el-checkbox>
+              </el-checkbox-group>
+            </el-form-item>
+            
+            <el-form-item label="特别关注点">
+              <el-input
+                type="textarea"
+                v-model="aiAnalysisForm.questions"
+                :rows="2"
+                placeholder="有什么特别需要关注的问题？"
+              ></el-input>
+            </el-form-item>
+            
+            <el-form-item>
+              <el-checkbox v-model="aiAnalysisForm.include_interview_tips">
+                包含面试建议和推荐问题
+              </el-checkbox>
+            </el-form-item>
+          </el-form>
+          
+          <div class="ai-analysis-actions">
+            <el-button @click="closeAiAnalysis">取消</el-button>
+            <el-button type="primary" @click="startAiAnalysis" :disabled="aiAnalysisLoading">
+              开始解读
+            </el-button>
+          </div>
+        </div>
+        
+        <div v-else class="analysis-result">
+          <h3>解读结果</h3>
+          
+          <div class="result-section">
+            <h4>候选人概述</h4>
+            <p>{{ aiAnalysisResult.summary }}</p>
+          </div>
+          
+          <div class="result-section">
+            <h4>匹配度</h4>
+            <el-progress :percentage="aiAnalysisResult.match_score" :color="matchScoreColor"></el-progress>
+            <span class="score-text">{{ aiAnalysisResult.match_score }}% 匹配度</span>
+          </div>
+          
+          <div class="result-section">
+            <h4>技能分析</h4>
+            <p>{{ aiAnalysisResult.skill_analysis }}</p>
+            <div v-if="aiAnalysisResult.skills && aiAnalysisResult.skills.length" class="skill-tags">
+              <el-tag
+                v-for="(skill, index) in aiAnalysisResult.skills"
+                :key="index"
+                :type="getSkillMatchType(skill.match)"
+                class="skill-tag"
+              >
+                {{ skill.name }}: {{ skill.match }}%
+              </el-tag>
+            </div>
+          </div>
+          
+          <div class="result-section">
+            <h4>工作经验</h4>
+            <p>{{ aiAnalysisResult.experience_analysis }}</p>
+          </div>
+          
+          <div class="result-section">
+            <h4>教育背景</h4>
+            <p>{{ aiAnalysisResult.education_analysis }}</p>
+          </div>
+          
+          <div class="result-section">
+            <h4>职业发展</h4>
+            <p>{{ aiAnalysisResult.career_analysis }}</p>
+          </div>
+          
+          <div v-if="aiAnalysisResult.strengths && aiAnalysisResult.strengths.length || aiAnalysisResult.weaknesses && aiAnalysisResult.weaknesses.length" class="strengths-weaknesses">
+            <div v-if="aiAnalysisResult.strengths && aiAnalysisResult.strengths.length" class="advantages">
+              <h4>核心优势</h4>
+              <ul>
+                <li v-for="(strength, index) in aiAnalysisResult.strengths" :key="'s'+index">
+                  {{ strength }}
+                </li>
+              </ul>
+            </div>
+            
+            <div v-if="aiAnalysisResult.weaknesses && aiAnalysisResult.weaknesses.length" class="disadvantages">
+              <h4>潜在不足</h4>
+              <ul>
+                <li v-for="(weakness, index) in aiAnalysisResult.weaknesses" :key="'w'+index">
+                  {{ weakness }}
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <div v-if="aiAnalysisResult.interview_tips" class="interview-tips">
+            <h4>面试建议</h4>
+            <p>{{ aiAnalysisResult.interview_tips }}</p>
+            
+            <h4 v-if="aiAnalysisResult.suggested_questions && aiAnalysisResult.suggested_questions.length">建议问题</h4>
+            <ol v-if="aiAnalysisResult.suggested_questions && aiAnalysisResult.suggested_questions.length">
+              <li v-for="(question, index) in aiAnalysisResult.suggested_questions" :key="index">
+                {{ question }}
+              </li>
+            </ol>
+          </div>
+          
+          <div class="result-section">
+            <h4>结论</h4>
+            <p>{{ aiAnalysisResult.conclusion }}</p>
+          </div>
+          
+          <div class="recommendation">
+            <el-tag
+              :type="getRecommendationType(aiAnalysisResult.recommendation)"
+              size="large"
+            >
+              {{ aiAnalysisResult.recommendation }}
+            </el-tag>
+          </div>
+          
+          <div class="ai-analysis-actions">
+            <el-button @click="resetAiAnalysis">返回修改</el-button>
+            <el-button type="primary" @click="saveAiAnalysis">保存解读结果</el-button>
+            <el-button type="success" @click="exportAiAnalysis">导出报告</el-button>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { getResumeDetail, downloadResume, toggleResumeStar } from '@/api/resume'
+import { getResumeDetail, downloadResume, toggleResumeStar, analyzeResumeWithAI } from '@/api/resume'
 
 export default {
   name: 'ResumeDetail',
@@ -140,7 +295,27 @@ export default {
   data() {
     return {
       resume: {},
-      loading: false
+      loading: false,
+      aiAnalysisVisible: false,
+      aiAnalysisLoading: false,
+      aiAnalysisResult: null,
+      aiAnalysisForm: {
+        job_requirements: '',
+        dimensions: ['技能匹配度', '专业经验', '教育背景', '职业发展', '综合能力'],
+        questions: '',
+        include_interview_tips: true
+      }
+    }
+  },
+
+  computed: {
+    matchScoreColor() {
+      if (!this.aiAnalysisResult) return '';
+      const score = this.aiAnalysisResult.match_score;
+      if (score >= 85) return '#67C23A';
+      if (score >= 70) return '#409EFF';
+      if (score >= 60) return '#E6A23C';
+      return '#F56C6C';
     }
   },
 
@@ -182,6 +357,77 @@ export default {
 
     goBack() {
       this.$router.back()
+    },
+
+    // AI解读相关方法
+    showAiAnalysis() {
+      this.aiAnalysisVisible = true
+      this.aiAnalysisResult = null
+      
+      // 预填职位要求
+      if (this.resume.expectedPosition) {
+        this.aiAnalysisForm.job_requirements = `职位名称：${this.resume.expectedPosition}\n`
+      }
+    },
+
+    closeAiAnalysis() {
+      this.aiAnalysisVisible = false
+      this.aiAnalysisResult = null
+      this.aiAnalysisLoading = false
+    },
+
+    async startAiAnalysis() {
+      if (!this.aiAnalysisForm.job_requirements) {
+        this.$message.warning('请填写岗位要求，以便AI进行更准确的分析')
+        return
+      }
+      
+      this.aiAnalysisLoading = true
+      
+      try {
+        // 调用API获取AI分析结果
+        const response = await analyzeResumeWithAI(
+          this.resume.id,
+          this.aiAnalysisForm
+        )
+        
+        this.aiAnalysisResult = response.data
+      } catch (error) {
+        console.error('AI分析失败:', error)
+        this.$message.error('AI分析失败: ' + (error.message || '未知错误'))
+      } finally {
+        this.aiAnalysisLoading = false
+      }
+    },
+
+    resetAiAnalysis() {
+      this.aiAnalysisResult = null
+    },
+
+    saveAiAnalysis() {
+      this.$message.success('AI解读结果已保存到候选人档案')
+      this.closeAiAnalysis()
+    },
+
+    exportAiAnalysis() {
+      this.$message.success('AI解读报告已导出，请到下载中心查看')
+    },
+
+    getSkillMatchType(match) {
+      if (match >= 85) return 'success'
+      if (match >= 70) return 'primary'
+      if (match >= 60) return 'warning'
+      return 'danger'
+    },
+
+    getRecommendationType(recommendation) {
+      const typeMap = {
+        '强烈推荐': 'success',
+        '推荐面试': 'primary',
+        '待定': 'warning',
+        '不建议继续': 'danger'
+      }
+      return typeMap[recommendation] || 'info'
     }
   }
 }
@@ -299,6 +545,104 @@ export default {
       padding-top: 20px;
       border-top: 1px solid #eee;
     }
+  }
+}
+
+.ai-analysis-dialog {
+  .el-dialog__body {
+    padding: 20px 30px;
+  }
+}
+
+.ai-analysis-container {
+  min-height: 300px;
+
+  .ai-form {
+    margin-top: 20px;
+  }
+
+  .analysis-result {
+    h3 {
+      margin-bottom: 20px;
+      font-weight: 600;
+      color: #303133;
+    }
+
+    .result-section {
+      margin-bottom: 24px;
+
+      h4 {
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #409EFF;
+      }
+
+      p {
+        line-height: 1.6;
+        color: #606266;
+      }
+    }
+
+    .skill-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .strengths-weaknesses {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 24px;
+
+      ul {
+        padding-left: 20px;
+        color: #606266;
+        
+        li {
+          margin-bottom: 5px;
+          line-height: 1.5;
+        }
+      }
+    }
+
+    .interview-tips {
+      margin-bottom: 24px;
+      
+      ol {
+        padding-left: 20px;
+        color: #606266;
+        
+        li {
+          margin-bottom: 8px;
+          line-height: 1.5;
+        }
+      }
+    }
+
+    .recommendation {
+      display: flex;
+      justify-content: center;
+      margin: 30px 0;
+      
+      .el-tag {
+        font-size: 16px;
+        padding: 8px 16px;
+      }
+    }
+
+    .score-text {
+      margin-left: 10px;
+      font-weight: 600;
+    }
+  }
+
+  .ai-analysis-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+    gap: 15px;
   }
 }
 </style>

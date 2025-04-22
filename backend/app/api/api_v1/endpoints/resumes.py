@@ -18,11 +18,43 @@ from app.schemas.resume import (
     ResumeCreate,
     ResumeUpdate
 )
+from pydantic import BaseModel
 import os
 from datetime import datetime
 from app.services.job_application_service import job_application_service
-from app.services.resume_queue_service import resume_queue_service
 from app.services.resume_queue_service import process_resume_task
+
+
+# 定义请求和响应模型
+class AIAnalysisRequest(BaseModel):
+    """简历AI解读请求模型"""
+    job_requirements: str = ""
+    dimensions: List[str] = ["技能匹配度", "专业经验", "教育背景", "职业发展", "综合能力"]
+    questions: Optional[str] = None
+    include_interview_tips: bool = True
+
+
+class SkillMatch(BaseModel):
+    """技能匹配模型"""
+    name: str
+    match: int
+
+
+class AIAnalysisResponse(BaseModel):
+    """简历AI解读响应模型"""
+    summary: str
+    match_score: int
+    skill_analysis: str
+    skills: List[SkillMatch]
+    experience_analysis: str
+    education_analysis: str
+    career_analysis: str
+    strengths: List[str]
+    weaknesses: List[str]
+    interview_tips: Optional[str] = None
+    suggested_questions: Optional[List[str]] = None
+    conclusion: str
+    recommendation: str
 
 
 router = APIRouter()
@@ -725,3 +757,35 @@ async def download_resume(
         content_disposition_type="inline",
         headers=headers
     )
+
+
+@router.post(
+    "/{resume_id}/ai-analysis",
+    response_model=AIAnalysisResponse,
+    summary="AI简历解读",
+    description="使用AI对简历进行深度解读分析，评估候选人与岗位的匹配程度",
+    dependencies=[
+        Depends(
+            deps.get_current_user_with_tenant_permission(
+                required_permissions=["resume_read"]
+            )
+        )
+    ]
+)
+async def analyze_resume_with_ai(
+    *,
+    resume_id: int = Path(..., description="简历ID"),
+    analysis_request: AIAnalysisRequest,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_active_user)
+) -> Any:
+    """使用AI对简历进行深度解读分析，评估候选人与岗位的匹配程度"""
+    # 调用服务层方法进行AI分析
+    result = await resume_service.analyze_resume_with_ai(
+        db=db,
+        resume_id=resume_id,
+        analysis_request=analysis_request.dict(),
+        current_user=current_user
+    )
+    
+    return result

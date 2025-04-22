@@ -387,7 +387,7 @@
                       type="success"
                       class="skill-tag"
                     >
-                      {{ skill.name }}
+                      {{ skill.name }}: {{ Math.floor(skill.match) }}%
                     </el-tag>
                     <el-tag v-if="row.skills.length > 3" size="mini" type="info">
                       +{{ row.skills.length - 3 }}
@@ -444,6 +444,12 @@
                     <el-tooltip content="预览原件" placement="top" effect="light">
                       <el-button type="warning" size="mini" plain circle @click="previewOriginalResume(row)">
                         <i class="el-icon-document" />
+                      </el-button>
+                    </el-tooltip>
+
+                    <el-tooltip content="AI解读" placement="top" effect="light">
+                      <el-button type="success" size="mini" plain circle @click="aiAnalyzeResume(row)">
+                        <i class="el-icon-cpu" />
                       </el-button>
                     </el-tooltip>
 
@@ -583,6 +589,12 @@
                   </el-button>
                 </el-tooltip>
                 
+                <el-tooltip content="AI解读" placement="top">
+                  <el-button type="text" @click="aiAnalyzeResume(item)">
+                    <i class="el-icon-cpu" />
+                  </el-button>
+                </el-tooltip>
+                
                 <el-tooltip content="下载简历" placement="top">
                   <el-button type="text" @click="handleDownload(item)">
                     <i class="el-icon-download" />
@@ -664,6 +676,223 @@
         :file-name="currentFileName"
         @close="handlePreviewClose"
       />
+
+      <!-- AI解读对话框 -->
+      <el-dialog
+        title="AI简历解读"
+        :visible.sync="aiAnalysisVisible"
+        width="65%"
+        :before-close="handleAiAnalysisClose"
+        custom-class="ai-analysis-dialog"
+      >
+        <div class="ai-analysis-container">
+          <div v-if="!aiAnalysisResult && !aiAnalysisLoading" class="analysis-form">
+            <p class="analysis-intro">使用AI对简历进行深度解读，帮助您更好地评估候选人的匹配度和潜力。</p>
+            
+            <el-form :model="aiAnalysisForm" label-width="100px" class="ai-form">
+              <el-form-item label="岗位要求">
+                <el-input
+                  type="textarea"
+                  :rows="4"
+                  placeholder="请输入目标岗位的具体要求，如技能、经验、性格特质等"
+                  v-model="aiAnalysisForm.jobRequirements"
+                />
+              </el-form-item>
+              
+              <el-form-item label="分析维度">
+                <el-checkbox-group v-model="aiAnalysisForm.dimensions">
+                  <el-checkbox label="技能匹配度">评估候选人的技能与岗位要求的匹配程度</el-checkbox>
+                  <el-checkbox label="专业经验">分析候选人的工作经历与行业经验</el-checkbox>
+                  <el-checkbox label="教育背景">评价候选人的学历与专业背景</el-checkbox>
+                  <el-checkbox label="职业发展">分析候选人的职业轨迹与稳定性</el-checkbox>
+                  <el-checkbox label="综合能力">评估候选人的综合素质与潜力</el-checkbox>
+                </el-checkbox-group>
+              </el-form-item>
+              
+              <el-form-item label="关注问题">
+                <el-input
+                  type="textarea"
+                  :rows="3"
+                  placeholder="有什么特别关注的问题？例如：该候选人是否适合团队文化？"
+                  v-model="aiAnalysisForm.questions"
+                />
+              </el-form-item>
+              
+              <el-form-item label="面试建议">
+                <el-switch
+                  v-model="aiAnalysisForm.includeInterviewTips"
+                  active-text="生成面试问题建议"
+                />
+              </el-form-item>
+            </el-form>
+            
+            <div class="ai-analysis-actions">
+              <el-button @click="handleAiAnalysisClose">取消</el-button>
+              <el-button type="primary" @click="startAiAnalysis" :disabled="aiAnalysisLoading">
+                开始解读
+              </el-button>
+            </div>
+          </div>
+          
+          <div v-else-if="aiAnalysisLoading" class="analysis-loading">
+            <div class="progress-container">
+              <div class="loading-icon">
+                <div class="pulse-container">
+                  <div class="pulse-circle"></div>
+                  <div class="pulse-circle"></div>
+                  <div class="pulse-circle"></div>
+                </div>
+                <i class="el-icon-loading"></i>
+              </div>
+              <h3 class="progress-title">AI简历分析中</h3>
+              <el-progress 
+                :percentage="Math.floor(analysisProgress)" 
+                :format="format => `${Math.floor(format)}%`" 
+                :stroke-width="14" 
+                :color="progressBarColor"
+                class="analysis-progress-bar">
+              </el-progress>
+              <div class="progress-step-container">
+                <div class="progress-step">{{ currentAnalysisStep }}</div>
+              </div>
+              <p class="progress-tip">{{ currentTipText }}</p>
+              <div class="progress-time-container">
+                <i class="el-icon-time"></i>
+                <p class="progress-estimate">预计剩余时间: {{ remainingTimeText }}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div v-else-if="aiAnalysisResult" class="analysis-result">
+            <div class="resume-summary">
+              <h3><i class="el-icon-user"></i> 候选人概况</h3>
+              <p>{{ aiAnalysisResult.summary }}</p>
+            </div>
+            
+            <div class="skill-match">
+              <h3><i class="el-icon-data-analysis"></i> 技能匹配度分析</h3>
+              <div class="match-card">
+                <div class="match-rating">
+                  <div class="match-progress-container">
+                    <el-progress :percentage="Math.floor(aiAnalysisResult.matchScore || aiAnalysisResult.match_score || 0)" :color="matchScoreColor" :stroke-width="18" class="match-progress"></el-progress>
+                  </div>
+                </div>
+                <div class="match-details">
+                  <p>{{ aiAnalysisResult.skillAnalysis || aiAnalysisResult.skill_analysis || '无技能分析数据' }}</p>
+                  <div v-if="(aiAnalysisResult.skills && aiAnalysisResult.skills.length)" class="skill-tags">
+                    <h4>关键技能评估：</h4>
+                    <div class="tag-list">
+                      <el-tag 
+                        v-for="(skill, index) in aiAnalysisResult.skills" 
+                        :key="index"
+                        :type="getSkillMatchType(skill.match)"
+                        effect="dark"
+                        class="skill-tag"
+                      >
+                        {{ skill.name }}: {{ Math.floor(skill.match) }}%
+                      </el-tag>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="experience-analysis">
+              <h3><i class="el-icon-office-building"></i> 工作经验分析</h3>
+              <div class="analysis-card">
+                <p>{{ aiAnalysisResult.experienceAnalysis || aiAnalysisResult.experience_analysis || '无工作经验分析数据' }}</p>
+              </div>
+            </div>
+            
+            <div class="education-analysis">
+              <h3><i class="el-icon-reading"></i> 教育背景评估</h3>
+              <div class="analysis-card">
+                <p>{{ aiAnalysisResult.educationAnalysis || aiAnalysisResult.education_analysis || '无教育背景评估数据' }}</p>
+              </div>
+            </div>
+            
+            <div class="career-analysis">
+              <h3><i class="el-icon-trend-charts"></i> 职业发展轨迹</h3>
+              <div class="analysis-card">
+                <p>{{ aiAnalysisResult.careerAnalysis || aiAnalysisResult.career_analysis || '无职业发展轨迹数据' }}</p>
+              </div>
+            </div>
+            
+            <div v-if="(aiAnalysisResult.strengths && aiAnalysisResult.strengths.length) || 
+                       (aiAnalysisResult.weaknesses && aiAnalysisResult.weaknesses.length)" 
+                 class="strengths-weaknesses">
+              <div v-if="aiAnalysisResult.strengths && aiAnalysisResult.strengths.length" class="strengths">
+                <h3><i class="el-icon-star-on"></i> 优势亮点</h3>
+                <div class="analysis-card">
+                  <ul>
+                    <li v-for="(strength, index) in aiAnalysisResult.strengths" :key="'s'+index">
+                      {{ strength }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <div v-if="aiAnalysisResult.weaknesses && aiAnalysisResult.weaknesses.length" class="weaknesses">
+                <h3><i class="el-icon-warning"></i> 不足之处</h3>
+                <div class="analysis-card">
+                  <ul>
+                    <li v-for="(weakness, index) in aiAnalysisResult.weaknesses" :key="'w'+index">
+                      {{ weakness }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            <div v-if="aiAnalysisForm.includeInterviewTips && 
+                      (aiAnalysisResult.interviewTips || aiAnalysisResult.interview_tips)" 
+                 class="interview-tips">
+              <h3><i class="el-icon-chat-dot-square"></i> 面试建议</h3>
+              <div class="analysis-card">
+                <p>{{ aiAnalysisResult.interviewTips || aiAnalysisResult.interview_tips }}</p>
+                <div v-if="(aiAnalysisResult.suggestedQuestions && aiAnalysisResult.suggestedQuestions.length) ||
+                          (aiAnalysisResult.suggested_questions && aiAnalysisResult.suggested_questions.length)" 
+                    class="suggested-questions">
+                  <h4>建议面试问题：</h4>
+                  <ol>
+                    <li v-for="(question, index) in (aiAnalysisResult.suggestedQuestions || aiAnalysisResult.suggested_questions || [])" :key="index">
+                      {{ question }}
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+            
+            <div class="conclusion">
+              <h3><i class="el-icon-medal"></i> 综合评价</h3>
+              <div class="analysis-card conclusion-card">
+                <p>{{ aiAnalysisResult.conclusion }}</p>
+                <div v-if="aiAnalysisResult.recommendation" class="recommendation">
+                  <span class="recommendation-label">推荐意见：</span>
+                  <el-tag 
+                    :type="getRecommendationType(aiAnalysisResult.recommendation)" 
+                    effect="dark"
+                    class="recommendation-tag"
+                  >
+                    {{ aiAnalysisResult.recommendation }}
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+            
+            <div class="ai-analysis-actions">
+              <el-button @click="resetAiAnalysis">
+                <i class="el-icon-back"></i> 返回修改
+              </el-button>
+              <el-button type="primary" @click="saveAiAnalysis">
+                <i class="el-icon-check"></i> 保存解读结果
+              </el-button>
+              <el-button type="success" @click="exportAiAnalysis">
+                <i class="el-icon-download"></i> 导出报告
+              </el-button>
+            </div>
+          </div>
+        </div>
+      </el-dialog>
     </div>
   </basic-view>
 </template>
@@ -673,6 +902,7 @@ import BasicView from '@/components/BasicView'
 import ResumeDetail from '@/components/ResumeDetail'
 import ResumePreview from '@/components/ResumePreview'
 import { mapState, mapGetters, mapActions } from 'vuex'
+import { searchResumes, getResumesByAIChat, analyzeResumeWithAI } from '@/api/resume'
 
 export default {
   name: 'ResumeSearch',
@@ -724,7 +954,49 @@ export default {
       detailVisible: false,
       previewVisible: false,
       currentResumeId: null,
-      currentFileName: ''
+      currentFileName: '',
+      aiAnalysisVisible: false,
+      aiAnalysisLoading: false,
+      aiAnalysisResult: null,
+      aiAnalysisForm: {
+        jobRequirements: '',
+        dimensions: ['技能匹配度', '专业经验', '教育背景', '职业发展', '综合能力'],
+        questions: '',
+        includeInterviewTips: true
+      },
+      currentAnalyzedResume: null,
+      analysisProgress: 0,
+      currentAnalysisStep: "正在初始化...",
+      analysisStepIndex: 0,
+      analysisSteps: [
+        { name: "正在初始化分析引擎..." },
+        { name: "正在提取简历数据..." },
+        { name: "正在匹配职位要求..." },
+        { name: "正在分析技能匹配度..." },
+        { name: "正在评估工作经验..." },
+        { name: "正在分析教育背景..." },
+        { name: "正在生成综合评价..." },
+        { name: "正在完善分析报告..." }
+      ],
+      analysisStartTime: null,
+      // 进度条相关数据
+      progressTimer: null,
+      // 加载提示
+      loadingTips: [
+        '正在提取候选人简历数据...',
+        '正在深入分析候选人的技能组合与项目经验...',
+        '正在评估候选人的专业能力与岗位匹配度...',
+        '正在分析候选人的教育背景与工作经历的相关性...',
+        '正在评估候选人的职业发展轨迹与稳定性...',
+        '正在生成综合评价报告，这可能需要一点时间...',
+        '即将完成，正在整理分析结果...'
+      ],
+      currentTipIndex: 0,
+      tipChangeTimer: null,
+      currentTipText: '',
+      typingTimer: null,
+      typingIndex: 0,
+      remainingTimeText: "即将完成"
     }
   },
   computed: {
@@ -766,6 +1038,22 @@ export default {
       if (form.additionalRequirements) count++
 
       return count
+    },
+    matchScoreColor() {
+      if (!this.aiAnalysisResult) return '';
+      // 兼容不同命名格式
+      const score = this.aiAnalysisResult.matchScore || this.aiAnalysisResult.match_score || 0;
+      if (score >= 85) return '#67C23A';
+      if (score >= 70) return '#409EFF';
+      if (score >= 60) return '#E6A23C';
+      return '#F56C6C';
+    },
+    // 计算进度条颜色
+    progressBarColor() {
+      if (this.analysisProgress < 30) return '#409EFF';
+      if (this.analysisProgress < 60) return 'linear-gradient(90deg, #409EFF, #67C23A)';
+      if (this.analysisProgress < 90) return 'linear-gradient(90deg, #409EFF 10%, #67C23A 90%)';
+      return '#67C23A';
     }
   },
   created() {
@@ -1032,6 +1320,275 @@ export default {
         rowspan: 1,
         colspan: 1
       }
+    },
+
+    // AI解读简历
+    aiAnalyzeResume(row) {
+      this.currentAnalyzedResume = row;
+      this.aiAnalysisVisible = true;
+      this.aiAnalysisResult = null;
+      
+      // 预填职位要求（如果当前有筛选条件）
+      if (this.searchForm.expectedPosition) {
+        this.aiAnalysisForm.jobRequirements = `职位名称：${this.searchForm.expectedPosition}\n`;
+        
+        if (this.searchForm.skills && this.searchForm.skills.length > 0) {
+          this.aiAnalysisForm.jobRequirements += `技能要求：${this.searchForm.skills.join('、')}\n`;
+        }
+        
+        if (this.searchForm.experience) {
+          this.aiAnalysisForm.jobRequirements += `工作经验：${this.searchForm.experience}\n`;
+        }
+        
+        if (this.searchForm.education) {
+          this.aiAnalysisForm.jobRequirements += `学历要求：${this.searchForm.education}\n`;
+        }
+      }
+    },
+    
+    // 关闭AI解读对话框
+    handleAiAnalysisClose() {
+      this.aiAnalysisVisible = false;
+      this.currentAnalyzedResume = null;
+      setTimeout(() => {
+        this.aiAnalysisResult = null;
+        this.aiAnalysisLoading = false;
+      }, 300);
+    },
+    
+    // 开始AI解读
+    async startAiAnalysis() {
+      if (!this.aiAnalysisForm.jobRequirements) {
+        this.$message.warning('请填写岗位要求，以便AI进行更准确的分析');
+        return;
+      }
+      
+      this.aiAnalysisLoading = true;
+      
+      // 初始化分析进度
+      this.analysisProgress = 0;
+      this.analysisStepIndex = 0;
+      this.currentAnalysisStep = this.analysisSteps[0].name;
+      this.analysisStartTime = Date.now();
+      
+      // 启动进度更新
+      this.startProgressUpdate();
+      
+      try {
+        const resumeId = this.currentAnalyzedResume.id;
+        
+        // 准备请求数据 - 转换为后端API需要的下划线命名格式
+        const analysisRequest = {
+          job_requirements: this.aiAnalysisForm.jobRequirements,
+          dimensions: this.aiAnalysisForm.dimensions,
+          questions: this.aiAnalysisForm.questions,
+          include_interview_tips: this.aiAnalysisForm.includeInterviewTips
+        };
+        
+        // 调用API获取分析结果
+        const response = await analyzeResumeWithAI(resumeId, analysisRequest);
+        
+        // 获取响应数据，直接使用response可能不包含data属性
+        const responseData = response;
+        
+        // 检查字段名，可能需要转换
+        if (responseData.match_score !== undefined && responseData.skill_analysis !== undefined) {
+          // 字段名是下划线格式，需要转换为驼峰格式
+          this.aiAnalysisResult = {
+            summary: responseData.summary,
+            matchScore: responseData.match_score,
+            skillAnalysis: responseData.skill_analysis,
+            skills: responseData.skills || [],
+            experienceAnalysis: responseData.experience_analysis,
+            educationAnalysis: responseData.education_analysis,
+            careerAnalysis: responseData.career_analysis,
+            strengths: responseData.strengths || [],
+            weaknesses: responseData.weaknesses || [],
+            interviewTips: responseData.interview_tips,
+            suggestedQuestions: responseData.suggested_questions || [],
+            conclusion: responseData.conclusion,
+            recommendation: responseData.recommendation
+          };
+        } else if (responseData.matchScore !== undefined && responseData.skillAnalysis !== undefined) {
+          // 字段名已经是驼峰格式，直接使用
+          this.aiAnalysisResult = responseData;
+        } else if (responseData.summary !== undefined) {
+          // 至少有summary字段，尝试使用原始数据
+          this.aiAnalysisResult = responseData;
+        } else {
+          // 无法识别的格式
+          throw new Error('API返回数据格式无效：缺少必要字段');
+        }
+        
+        // 确保进度条到达100%
+        this.completeProgress();
+      } catch (error) {
+        console.error('AI分析失败:', error);
+        this.$message.error('AI分析失败: ' + (error.message || '未知错误'));
+        // 停止进度条
+        this.stopProgressUpdate();
+        this.aiAnalysisLoading = false;
+      }
+    },
+    
+    // 开始更新进度
+    startProgressUpdate() {
+      // 重置进度状态
+      this.analysisProgress = 0;
+      
+      // 清除之前的定时器
+      if (this.progressTimer) clearInterval(this.progressTimer);
+      if (this.tipChangeTimer) clearInterval(this.tipChangeTimer);
+      if (this.typingTimer) clearInterval(this.typingTimer);
+      
+      // 开始提示文字轮换
+      this.currentTipIndex = 0;
+      this.startTypingEffect();
+      
+      // 设置定时切换提示
+      this.tipChangeTimer = setInterval(() => {
+        this.currentTipIndex = (this.currentTipIndex + 1) % this.loadingTips.length;
+        this.startTypingEffect();
+      }, 5000);
+      
+      // 模拟进度增长
+      this.progressTimer = setInterval(() => {
+        if (this.analysisProgress < 95) {
+          // 计算当前应该停留在哪个阶段
+          const totalSteps = this.analysisSteps.length;
+          const targetStepIndex = Math.floor(this.analysisProgress / (95 / totalSteps));
+          
+          // 更新当前步骤（如果需要）
+          if (targetStepIndex > this.analysisStepIndex && targetStepIndex < totalSteps) {
+            this.analysisStepIndex = targetStepIndex;
+            this.currentAnalysisStep = this.analysisSteps[this.analysisStepIndex].name;
+          }
+          
+          // 非线性增长，初期快，后期慢
+          const increment = Math.max(0.5, 5 * Math.exp(-this.analysisProgress / 30));
+          this.analysisProgress = Math.floor(Math.min(95, this.analysisProgress + increment));
+          
+          // 更新剩余时间计算
+          this.updateRemainingTime();
+        }
+      }, 300);
+    },
+    
+    // 更新剩余时间
+    updateRemainingTime() {
+      const elapsedTime = Date.now() - this.analysisStartTime;
+      const estimatedTotalTime = elapsedTime / (this.analysisProgress / 100);
+      const remainingTime = estimatedTotalTime - elapsedTime;
+      
+      if (remainingTime > 0) {
+        const seconds = Math.ceil(remainingTime / 1000);
+        if (seconds < 60) {
+          this.remainingTimeText = `${seconds} 秒`;
+        } else {
+          const minutes = Math.floor(seconds / 60);
+          const remainingSeconds = seconds % 60;
+          this.remainingTimeText = `${minutes} 分 ${remainingSeconds} 秒`;
+        }
+      } else {
+        this.remainingTimeText = "即将完成";
+      }
+    },
+    
+    // 停止进度条模拟
+    stopProgressUpdate() {
+      if (this.progressTimer) {
+        clearInterval(this.progressTimer);
+        this.progressTimer = null;
+      }
+      
+      if (this.tipChangeTimer) {
+        clearInterval(this.tipChangeTimer);
+        this.tipChangeTimer = null;
+      }
+      
+      if (this.typingTimer) {
+        clearInterval(this.typingTimer);
+        this.typingTimer = null;
+      }
+    },
+    
+    // 完成进度（调用在API返回结果后）
+    completeProgress() {
+      // 停止进度条自动增长
+      this.stopProgressUpdate();
+      
+      // 更新到最后一个步骤
+      this.analysisStepIndex = this.analysisSteps.length - 1;
+      this.currentAnalysisStep = this.analysisSteps[this.analysisStepIndex].name;
+      
+      // 平滑动画到100%
+      const completeAnimation = setInterval(() => {
+        if (this.analysisProgress < 100) {
+          this.analysisProgress = Math.min(100, Math.floor(this.analysisProgress) + 1);
+        } else {
+          clearInterval(completeAnimation);
+          // 稍微延迟以显示100%完成状态
+          setTimeout(() => {
+            this.aiAnalysisLoading = false;
+          }, 500);
+        }
+      }, 20);
+    },
+    
+    // 重置AI分析
+    resetAiAnalysis() {
+      this.aiAnalysisResult = null;
+    },
+    
+    // 保存AI分析结果
+    saveAiAnalysis() {
+      this.$message.success('AI解读结果已保存到候选人档案');
+      this.handleAiAnalysisClose();
+    },
+    
+    // 导出AI分析报告
+    exportAiAnalysis() {
+      this.$message.success('AI解读报告已导出，请到下载中心查看');
+    },
+    
+    // 获取技能匹配类型
+    getSkillMatchType(match) {
+      if (match >= 85) return 'success';
+      if (match >= 70) return 'primary';
+      if (match >= 60) return 'warning';
+      return 'danger';
+    },
+    
+    // 获取推荐等级类型
+    getRecommendationType(recommendation) {
+      const typeMap = {
+        '强烈推荐': 'success',
+        '推荐': 'primary',
+        '待定': 'warning',
+        '不建议继续': 'danger',
+        '一般推荐': 'info',
+        '建议面试': 'success',
+        '不推荐': 'danger',
+        '需要更多信息': 'warning'
+      };
+      return typeMap[recommendation] || 'info';
+    },
+    
+    // 打字机效果
+    startTypingEffect() {
+      this.typingIndex = 0;
+      this.currentTipText = '';
+      
+      if (this.typingTimer) clearInterval(this.typingTimer);
+      
+      this.typingTimer = setInterval(() => {
+        if (this.typingIndex < this.loadingTips[this.currentTipIndex].length) {
+          this.currentTipText += this.loadingTips[this.currentTipIndex].charAt(this.typingIndex);
+          this.typingIndex++;
+        } else {
+          clearInterval(this.typingTimer);
+        }
+      }, 30);
     }
   }
 }
@@ -1848,6 +2405,829 @@ export default {
     color: #909399;
     border-color: #e4e7ed;
     font-size: 13px;
+  }
+}
+
+.ai-analysis-dialog {
+  :deep(.el-dialog__body) {
+    padding: 20px 30px;
+  }
+}
+
+.ai-analysis-container {
+  min-height: 300px;
+  
+  .analysis-intro {
+    color: #606266;
+    margin-bottom: 20px;
+    line-height: 1.6;
+  }
+  
+  .ai-form {
+    margin-bottom: 20px;
+    
+    :deep(.el-form-item__label) {
+      font-weight: 500;
+    }
+    
+    :deep(.el-checkbox) {
+      margin-right: 20px;
+      margin-bottom: 10px;
+    }
+  }
+  
+  .ai-analysis-actions {
+    padding-top: 20px;
+    border-top: 1px solid #EBEEF5;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+  
+  .analysis-result {
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #EBEEF5;
+      color: #303133;
+    }
+    
+    h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 16px 0 8px;
+      color: #606266;
+    }
+    
+    p {
+      color: #606266;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    
+    .resume-summary, 
+    .skill-match, 
+    .experience-analysis, 
+    .education-analysis, 
+    .career-analysis, 
+    .strengths-weaknesses, 
+    .interview-tips, 
+    .conclusion {
+      margin-bottom: 24px;
+    }
+    
+    .match-rating {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      
+      :deep(.el-progress) {
+        width: 80%;
+        margin-right: 15px;
+      }
+      
+      .score-text {
+        font-size: 16px;
+        font-weight: 600;
+        white-space: nowrap;
+        color: #606266;
+      }
+    }
+    
+    .skill-tags {
+      margin-top: 12px;
+      
+      .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        
+        .skill-tag {
+          padding: 5px 10px;
+          font-size: 13px;
+        }
+      }
+    }
+    
+    .strengths-weaknesses {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      
+      ul {
+        padding-left: 20px;
+        
+        li {
+          color: #606266;
+          line-height: 1.6;
+          margin-bottom: 8px;
+        }
+      }
+      
+      .strengths li {
+        color: #67C23A;
+      }
+      
+      .weaknesses li {
+        color: #E6A23C;
+      }
+    }
+    
+    .suggested-questions {
+      ol {
+        padding-left: 20px;
+        
+        li {
+          color: #606266;
+          line-height: 1.6;
+          margin-bottom: 8px;
+        }
+      }
+    }
+    
+    .recommendation {
+      display: flex;
+      align-items: center;
+      margin-top: 16px;
+      
+      .recommendation-label {
+        font-weight: 600;
+        margin-right: 10px;
+        color: #606266;
+      }
+      
+      .recommendation-tag {
+        font-size: 14px;
+        padding: 6px 16px;
+      }
+    }
+  }
+}
+
+.match-rating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  
+  :deep(.el-progress) {
+    width: 80%;
+    margin-right: 15px;
+  }
+  
+  .score-text {
+    font-size: 16px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: #606266;
+  }
+}
+
+.score-text {
+  font-weight: 500;
+}
+
+.match-rating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.score-text {
+  font-size: 14px;
+  color: #606266;
+}
+
+// AI解读结果美化样式
+.analysis-result {
+  padding: 0 10px;
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 24px 0 16px;
+    color: #303133;
+    display: flex;
+    align-items: center;
+    
+    i {
+      margin-right: 8px;
+      font-size: 20px;
+      color: #409EFF;
+    }
+  }
+  
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 16px 0 12px;
+    color: #606266;
+  }
+  
+  p {
+    line-height: 1.8;
+    color: #606266;
+    margin-bottom: 16px;
+  }
+  
+  .resume-summary {
+    background-color: #f0f9ff;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    border-left: 4px solid #409EFF;
+    
+    h3 {
+      margin-top: 0;
+      
+      i {
+        color: #409EFF;
+      }
+    }
+    
+    p {
+      margin-bottom: 0;
+    }
+  }
+  
+  .match-card, .analysis-card {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    border: 1px solid #EBEEF5;
+    transition: all 0.3s;
+    
+    &:hover {
+      box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.1);
+    }
+  }
+  
+  .match-progress {
+    margin-bottom: 12px;
+  }
+  
+  .skill-tags {
+    margin-top: 16px;
+    
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      
+      .skill-tag {
+        padding: 6px 12px;
+        font-size: 13px;
+        border-radius: 4px;
+      }
+    }
+  }
+  
+  .conclusion-card {
+    background-color: #f9f9f9;
+    border-left: 4px solid #67C23A;
+  }
+  
+  .strengths-weaknesses {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-bottom: 24px;
+    
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+    }
+    
+    ul {
+      padding-left: 20px;
+      margin-top: 0;
+      margin-bottom: 0;
+      
+      li {
+        margin-bottom: 10px;
+        line-height: 1.6;
+        position: relative;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+    
+    .strengths {
+      h3 i {
+        color: #67C23A;
+      }
+      
+      .analysis-card {
+        border-left: 3px solid #67C23A;
+      }
+      
+      li {
+        color: #67C23A;
+        
+        &::marker {
+          color: #67C23A;
+        }
+      }
+    }
+    
+    .weaknesses {
+      h3 i {
+        color: #E6A23C;
+      }
+      
+      .analysis-card {
+        border-left: 3px solid #E6A23C;
+      }
+      
+      li {
+        color: #E6A23C;
+        
+        &::marker {
+          color: #E6A23C;
+        }
+      }
+    }
+  }
+  
+  .interview-tips {
+    margin-bottom: 24px;
+    
+    h3 i {
+      color: #409EFF;
+    }
+    
+    .analysis-card {
+      border-left: 3px solid #409EFF;
+    }
+    
+    .suggested-questions {
+      ol {
+        padding-left: 20px;
+        margin-top: 0;
+        margin-bottom: 0;
+        
+        li {
+          margin-bottom: 10px;
+          line-height: 1.6;
+          color: #606266;
+          
+          &:last-child {
+            margin-bottom: 0;
+          }
+        }
+      }
+    }
+  }
+  
+  .recommendation {
+    display: flex;
+    align-items: center;
+    margin-top: 16px;
+    border-top: 1px dashed #EBEEF5;
+    padding-top: 16px;
+    
+    .recommendation-label {
+      font-weight: 600;
+      margin-right: 12px;
+      color: #303133;
+    }
+    
+    .recommendation-tag {
+      font-size: 14px;
+      padding: 8px 16px;
+      border-radius: 4px;
+    }
+  }
+  
+  .ai-analysis-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #EBEEF5;
+    gap: 16px;
+    
+    .el-button {
+      min-width: 120px;
+      
+      i {
+        margin-right: 4px;
+      }
+    }
+  }
+}
+
+// 修改匹配度进度条样式
+.match-rating {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+  width: 100%;
+  
+  .match-progress-container {
+    width: 100%;
+    position: relative;
+  }
+  
+  :deep(.el-progress) {
+    margin-bottom: 8px;
+    
+    .el-progress-bar__outer {
+      border-radius: 8px;
+      background-color: #E6E6E6;
+    }
+    
+    .el-progress-bar__inner {
+      border-radius: 8px;
+    }
+  }
+  
+  .score-text {
+    font-size: 18px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: #303133;
+    text-align: right;
+    display: block;
+    margin-top: 10px;
+  }
+}
+
+.recommendation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  border-top: 1px dashed #EBEEF5;
+  padding-top: 20px;
+  
+  .recommendation-label {
+    font-weight: 600;
+    margin-right: 12px;
+    color: #303133;
+    font-size: 16px;
+  }
+  
+  :deep(.recommendation-tag) {
+    font-size: 15px;
+    font-weight: 600;
+    padding: 8px 20px;
+    border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    letter-spacing: 1px;
+    position: relative;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    line-height: 1;
+    
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      
+      &::before {
+        opacity: 1;
+      }
+    }
+    
+    &.el-tag--success {
+      background: linear-gradient(135deg, #67C23A, #85CE61);
+    }
+    
+    &.el-tag--primary {
+      background: linear-gradient(135deg, #409EFF, #66B1FF);
+    }
+    
+    &.el-tag--warning {
+      background: linear-gradient(135deg, #E6A23C, #EEBE77);
+    }
+    
+    &.el-tag--danger {
+      background: linear-gradient(135deg, #F56C6C, #F78989);
+    }
+  }
+}
+
+// 新增加载中的样式
+.analysis-progress, .analysis-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 20px;
+  
+  .progress-container {
+    width: 100%;
+    max-width: 600px;
+    text-align: center;
+    
+    .ai-loader, .loading-icon {
+      margin-bottom: 24px;
+      position: relative;
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 30px;
+      
+      i.el-icon-loading {
+        font-size: 40px;
+        color: #409EFF;
+      }
+      
+      .ai-icon {
+        position: absolute;
+        font-size: 40px;
+        color: #409EFF;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 2;
+        animation: pulse 1.5s infinite;
+      }
+      
+      // ... existing code ...
+    }
+    
+    .progress-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #303133;
+    }
+    
+    .progress-step {
+      font-size: 16px;
+      color: #606266;
+      margin: 12px 0;
+    }
+    
+    .progress-tip {
+      font-size: 14px;
+      color: #909399;
+      margin-bottom: 8px;
+    }
+    
+    .progress-estimate {
+      font-size: 14px;
+      color: #409EFF;
+      font-weight: 500;
+    }
+    
+    .analysis-progress-bar {
+      margin: 15px 0;
+    }
+    
+    // ... existing code ...
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 0.7;
+  }
+}
+
+@keyframes pulse-animation {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in-out {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.analysis-loading {
+  .progress-container {
+    background-color: #fff;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    text-align: center;
+    width: 90%;
+    max-width: 620px;
+    margin: 0 auto;
+    
+    .loading-icon {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 25px;
+      
+      i.el-icon-loading {
+        font-size: 48px;
+        color: #409EFF;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 2;
+      }
+      
+      .pulse-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        
+        .pulse-circle {
+          position: absolute;
+          border: 3px solid #409EFF;
+          border-radius: 50%;
+          height: 100%;
+          width: 100%;
+          opacity: 0;
+          animation: pulse-animation 3s infinite;
+          
+          &:nth-child(2) {
+            animation-delay: 1s;
+          }
+          
+          &:nth-child(3) {
+            animation-delay: 2s;
+          }
+        }
+      }
+    }
+    
+    .progress-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 25px;
+      color: #303133;
+      letter-spacing: 1px;
+    }
+    
+    .analysis-progress-bar {
+      margin: 15px 0 25px;
+      
+      :deep(.el-progress-bar__outer) {
+        border-radius: 10px;
+        background-color: #f0f7ff;
+        height: 14px !important;
+      }
+      
+      :deep(.el-progress-bar__inner) {
+        border-radius: 10px;
+        background: linear-gradient(90deg, #409EFF, #67C23A);
+        transition: width 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      
+      :deep(.el-progress__text) {
+        font-size: 18px !important;
+        color: #409EFF;
+        font-weight: 600;
+        min-width: 60px !important;
+      }
+    }
+    
+    .progress-step-container {
+      margin: 20px 0;
+      
+      .progress-step {
+        display: inline-block;
+        background-color: #ecf5ff;
+        color: #409EFF;
+        padding: 10px 20px;
+        border-radius: 30px;
+        font-weight: 500;
+        font-size: 16px;
+        box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+        transition: all 0.3s ease;
+        border: 1px solid rgba(64, 158, 255, 0.2);
+      }
+    }
+    
+    .progress-tip {
+      font-size: 14px;
+      color: #909399;
+      margin: 15px 0;
+    }
+    
+    .progress-time-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px 0 0;
+      background-color: rgba(64, 158, 255, 0.1);
+      padding: 12px 20px;
+      border-radius: 8px;
+      display: inline-flex;
+      
+      i {
+        font-size: 18px;
+        color: #409EFF;
+        margin-right: 8px;
+        animation: pulse 1.5s infinite;
+      }
+      
+      .progress-estimate {
+        font-size: 15px;
+        color: #409EFF;
+        font-weight: 500;
+        margin: 0;
+      }
+    }
+    
+    .progress-tip {
+      font-size: 15px;
+      color: #606266;
+      margin: 15px 0;
+      min-height: 22px;
+      position: relative;
+      
+      &::after {
+        content: '|';
+        font-weight: 500;
+        color: #409EFF;
+        animation: cursor-blink 1s infinite;
+        opacity: 0;
+      }
+    }
+  }
+}
+
+@keyframes pulse-animation {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes cursor-blink {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
   }
 }
 </style>

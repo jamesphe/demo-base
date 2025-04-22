@@ -219,3 +219,12 @@ export function saveChat(chatData) {
     data: chatData
   })
 }
+
+// AI分析简历
+export function analyzeResumeWithAI(resumeId, analysisRequest) {
+  return request({
+    url: `/resumes/${resumeId}/ai-analysis`,
+    method: 'post',
+    data: analysisRequest
+  })
+}

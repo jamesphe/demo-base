@@ -37,7 +37,7 @@ from app.db.session import SessionLocal
 # 创建服务实例
 job_service = JobService()
 
-# 设置日志
+# 设置日志记录器
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -2516,8 +2516,326 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         finally:
             db.close()
 
+    async def analyze_resume_with_ai(
+        self,
+        db: Session,
+        resume_id: int,
+        analysis_request: Dict,
+        current_user: Any
+    ) -> Dict:
+        """
+        使用AI对简历进行深度解读分析
+        
+        Args:
+            db: 数据库会话
+            resume_id: 简历ID
+            analysis_request: 分析请求参数，包含job_requirements, dimensions等
+            current_user: 当前用户
+            
+        Returns:
+            包含分析结果的字典
+        """
+        # 1. 获取简历
+        resume = self.get(db, id=resume_id)
+        if not resume:
+            raise HTTPException(status_code=404, detail="简历不存在")
+        
+        # 2. 验证租户权限
+        if not current_user.is_superuser and resume.tenant_id != current_user.tenant_id:
+            raise HTTPException(status_code=403, detail="无权限访问此简历")
+        
+        # 3. 检查简历内容
+        if not resume.content:
+            # 尝试重新解析简历
+            try:
+                from app.services.parser_service import parser_service
+                resume_text = await parser_service.parse_resume(resume.file_path)
+                resume.content = resume_text
+                db.commit()
+            except Exception as e:
+                logger.error(f"解析简历失败: {str(e)}")
+                raise HTTPException(status_code=500, detail="简历内容解析失败，请重试")
+        
+        # 4. 构建AI分析的输入数据
+        resume_info = {
+            "姓名": resume.name,
+            "年龄": calculate_age(resume.birthdate) if resume.birthdate else "未知",
+            "性别": resume.gender or "未知",
+            "电话": resume.phone or "未知",
+            "邮箱": resume.email or "未知",
+            "当前公司": resume.current_company or "未知",
+            "当前职位": resume.current_position or "未知",
+            "工作年限": f"{resume.experience_years}年" if resume.experience_years is not None else "未知",
+            "最高学历": resume.highest_education or "未知",
+            "最高学历院校": resume.graduate_school or "未知",
+            "最高学历专业": resume.major or "未知",
+            "毕业时间": resume.graduation_date.strftime("%Y-%m-%d") if resume.graduation_date else "未知",
+            "期望职位": resume.expected_position or "未知",
+            "期望地点": resume.expected_location or "未知",
+            "期望薪资": resume.expected_salary or "未知",
+            "技能标签": ", ".join([skill.get("name", "") for skill in resume.skills]) if resume.skills and isinstance(resume.skills, list) else "未提供",
+            "自我评价": resume.other_info or "未提供",
+            "工作经历": work_history_to_text(resume.work_history if resume.work_history else []),
+            "教育经历": education_info_to_text(resume.edu_experience if resume.edu_experience else []),
+            "简历内容": resume.content,
+        }
+        
+        # 5. 构建 LLM 提示
+        job_requirements = analysis_request.get("job_requirements", "")
+        dimensions = analysis_request.get("dimensions", [])
+        
+        prompt = f"""
+        你是一位专业的招聘顾问，现在需要你对候选人简历进行深入分析，评估其与岗位的匹配程度。
+        
+        以下是候选人信息:
+        ------------------------
+        姓名: {resume_info['姓名']}
+        年龄: {resume_info['年龄']}
+        性别: {resume_info['性别']}
+        当前公司: {resume_info['当前公司']}
+        当前职位: {resume_info['当前职位']}
+        工作年限: {resume_info['工作年限']}
+        最高学历: {resume_info['最高学历']}
+        毕业院校: {resume_info['最高学历院校']}
+        专业: {resume_info['最高学历专业']}
+        期望职位: {resume_info['期望职位']}
+        期望地点: {resume_info['期望地点']}
+        期望薪资: {resume_info['期望薪资']}
+        技能标签: {resume_info['技能标签']}
+        
+        工作经历:
+        {resume_info['工作经历']}
+        
+        教育经历:
+        {resume_info['教育经历']}
+        
+        自我评价:
+        {resume_info['自我评价']}
+        
+        简历内容:
+        {resume_info['简历内容']}
+        ------------------------
+        
+        职位要求:
+        {job_requirements}
+        
+        请分析以下几个维度:
+        {', '.join(dimensions)}
+        """
+        
+        # 添加自定义问题
+        if analysis_request.get("questions"):
+            prompt += f"""
+            
+            请基于简历内容，回答以下问题:
+            {analysis_request.get("questions")}
+            """
+        
+        # 添加面试提示需求
+        if analysis_request.get("include_interview_tips", True):
+            prompt += """
+            
+            请提供针对此候选人的面试提示和建议问题。
+            """
+        
+        prompt += """
+        
+        请以JSON格式返回分析结果，包含以下字段:
+        1. summary: 候选人概要总结
+        2. match_score: 职位匹配度分数(0-100)
+        3. skill_analysis: 技能分析
+        4. skills: 技能匹配列表，每项包含name(技能名称)和match(匹配度0-100)
+        5. experience_analysis: 工作经验分析
+        6. education_analysis: 教育背景分析
+        7. career_analysis: 职业发展轨迹分析
+        8. strengths: 优势列表(字符串数组)
+        9. weaknesses: 劣势列表(字符串数组)
+        10. interview_tips: 面试建议
+        11. suggested_questions: 建议的面试问题列表(字符串数组)
+        12. conclusion: 结论
+        13. recommendation: 是否推荐("强烈推荐"/"推荐"/"谨慎推荐"/"不推荐")
+        """
+        
+        # 6. 调用LLM服务
+        try:
+            llm_config = await llm_service.get_default_config(db)
+            response = await llm_service.generate_completion(
+                prompt=prompt,
+                system_prompt=None,
+                db=db,
+                llm_config=llm_config
+            )
+            
+            # 验证response格式
+            if not isinstance(response, dict) or "content" not in response:
+                logger.error(f"LLM响应格式错误: {response}")
+                raise ValueError(f"LLM响应格式错误: {response}")
+            
+            # 7. 解析LLM响应
+            result = parse_llm_response(response["content"])
+            return result
+            
+        except Exception as e:
+            logger.error(f"AI分析简历失败: {str(e)}")
+            # 记录更多调试信息
+            if 'response' in locals():
+                logger.error(f"LLM响应: {response}")
+            raise HTTPException(status_code=500, detail=f"AI分析失败: {str(e)}")
+
 # 创建单例实例
 resume_service = ResumeService()
+
+# 辅助函数 - 从API层移到服务层
+def calculate_age(birthdate):
+    """计算年龄"""
+    if not birthdate:
+        return "未知"
+    today = datetime.now()
+    age = today.year - birthdate.year
+    # 如果今年的生日还没到，年龄减1
+    if today.month < birthdate.month or (today.month == birthdate.month and today.day < birthdate.day):
+        age -= 1
+    return f"{age}岁"
+
+
+def work_history_to_text(work_history):
+    """将工作经历转换为文本描述"""
+    if not work_history:
+        return "无工作经历记录"
+    
+    text = ""
+    for i, work in enumerate(work_history):
+        company = work.get('company', '未知公司')
+        position = work.get('position', '未知职位')
+        
+        # 处理duration字段可能不存在的情况
+        duration = work.get('duration', '')
+        if not duration and ('start_date' in work or 'end_date' in work):
+            start = work.get('start_date', '未知')
+            end = work.get('end_date', '至今')
+            duration = f"{start} - {end}"
+        
+        text += f"{i+1}. {company} | {position}"
+        if duration:
+            text += f" | {duration}"
+        text += "\n"
+        
+        if work.get('description'):
+            text += f"   描述: {work['description']}\n"
+    return text
+
+
+def education_info_to_text(education_info):
+    """将教育经历转换为文本描述"""
+    if not education_info:
+        return "无教育经历记录"
+    
+    text = ""
+    for i, edu in enumerate(education_info):
+        school = edu.get('school', '未知学校')
+        major = edu.get('major', '未知专业')
+        degree = edu.get('degree', '未知学位')
+        
+        # 处理duration字段可能不存在的情况
+        duration = edu.get('duration', '')
+        if not duration and ('start_date' in edu or 'end_date' in edu):
+            start = edu.get('start_date', '未知')
+            end = edu.get('end_date', '至今')
+            duration = f"{start} - {end}"
+        
+        text += f"{i+1}. {school} | {major} | {degree}"
+        if duration:
+            text += f" | {duration}"
+        text += "\n"
+    return text
+
+
+def parse_llm_response(content):
+    """解析LLM响应内容为结构化数据"""
+    try:
+        # 检查content是否已经是字典类型
+        if isinstance(content, dict):
+            result = content
+        else:
+            # 尝试将字符串解析为JSON
+            import json
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError:
+                # 如果字符串不是合法的JSON，尝试从中提取JSON部分
+                import re
+                json_match = re.search(r'(\{.*\})', content, re.DOTALL)
+                if json_match:
+                    result = json.loads(json_match.group(1))
+                else:
+                    raise ValueError("无法从响应中提取JSON")
+        
+        # 确保所有必要字段都存在（使用驼峰命名法）
+        required_fields = [
+            "summary", "matchScore", "skillAnalysis", "experienceAnalysis", 
+            "educationAnalysis", "careerAnalysis", "strengths", "weaknesses", 
+            "conclusion", "recommendation", "interviewTips", "suggestedQuestions"
+        ]
+        
+        for field in required_fields:
+            if field not in result:
+                result[field] = "未提供" if field not in ["strengths", "weaknesses", "skills", "suggestedQuestions"] else []
+        
+        # 强制转换matchScore为整数
+        try:
+            if isinstance(result["matchScore"], str):
+                result["matchScore"] = int(result["matchScore"].replace("%", ""))
+            elif isinstance(result["matchScore"], float):
+                result["matchScore"] = int(result["matchScore"])
+        except:
+            result["matchScore"] = 0
+            
+        # 确保skills字段的格式正确
+        if "skills" in result and result["skills"]:
+            # 标准化skills字段
+            standardized_skills = []
+            for skill in result["skills"]:
+                if isinstance(skill, dict):
+                    skill_item = {
+                        "name": skill.get("name", "未知技能"),
+                        "match": skill.get("match", 0) 
+                    }
+                    standardized_skills.append(skill_item)
+                elif isinstance(skill, str):
+                    # 尝试解析文本格式的技能
+                    parts = skill.split(":")
+                    if len(parts) >= 2:
+                        try:
+                            match = int(parts[1].strip().replace("%", ""))
+                        except:
+                            match = 0
+                        skill_item = {
+                            "name": parts[0].strip(),
+                            "match": match
+                        }
+                        standardized_skills.append(skill_item)
+            
+            result["skills"] = standardized_skills
+            
+        return result
+        
+    except Exception as e:
+        # 如果解析失败，构造一个基本响应
+        return {
+            "summary": "无法解析AI响应内容",
+            "matchScore": 0,
+            "skillAnalysis": "分析失败",
+            "skills": [],
+            "experienceAnalysis": "分析失败",
+            "educationAnalysis": "分析失败", 
+            "careerAnalysis": "分析失败",
+            "strengths": ["无法识别"],
+            "weaknesses": ["无法识别"],
+            "interviewTips": "无法提供",
+            "suggestedQuestions": [],
+            "conclusion": "由于技术原因，无法完成简历分析",
+            "recommendation": "待定"
+        }
 
 # 只导出实例
 __all__ = ["resume_service"] 
