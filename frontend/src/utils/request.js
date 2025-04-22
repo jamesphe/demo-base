@@ -7,7 +7,7 @@ import { getToken, formatToken } from '@/utils/auth'
 const service = axios.create({
   baseURL: process.env.VUE_APP_BASE_API || '/api/v1',
   withCredentials: true, // 允许跨域请求携带cookie
-  timeout: 5000, // request timeout
+  timeout: 60000, // request timeout
   headers: {
     'Content-Type': 'application/json'
   }

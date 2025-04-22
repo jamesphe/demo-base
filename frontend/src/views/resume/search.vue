@@ -903,6 +903,8 @@ import ResumeDetail from '@/components/ResumeDetail'
 import ResumePreview from '@/components/ResumePreview'
 import { mapState, mapGetters, mapActions } from 'vuex'
 import { searchResumes, getResumesByAIChat, analyzeResumeWithAI } from '@/api/resume'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 export default {
   name: 'ResumeSearch',
@@ -1547,8 +1549,239 @@ export default {
     },
     
     // 导出AI分析报告
-    exportAiAnalysis() {
-      this.$message.success('AI解读报告已导出，请到下载中心查看');
+    async exportAiAnalysis() {
+      try {
+        this.$message.info('正在生成PDF报告，请稍候...');
+        
+        // 获取要导出的内容元素
+        const contentElement = document.querySelector('.analysis-result');
+        if (!contentElement) {
+          this.$message.error('未找到要导出的内容');
+          return;
+        }
+        
+        // 创建一个专门用于打印的容器
+        const printContainer = document.createElement('div');
+        printContainer.className = 'print-container';
+        printContainer.style.cssText = `
+          position: fixed;
+          left: -9999px;
+          top: 0;
+          width: 210mm;
+          padding: 20mm;
+          background-color: white;
+          font-family: SimHei, Arial, sans-serif;
+          color: #303133;
+          font-size: 12pt;
+          box-sizing: border-box;
+          z-index: -9999;
+        `;
+        
+        // 创建打印友好的内容
+        const candidateName = this.currentAnalyzedResume?.name || '候选人';
+        printContainer.innerHTML = `
+          <div class="print-header">
+            <h1 style="text-align: center; font-size: 18pt; margin-bottom: 10px;">${candidateName} - AI简历解读报告</h1>
+            <p style="text-align: center; color: #666; margin-bottom: 20px;">
+              生成日期：${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
+            </p>
+          </div>
+          
+          <div class="print-content">
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                候选人概况
+              </h2>
+              <p style="line-height: 1.6;">${this.aiAnalysisResult.summary}</p>
+            </div>
+            
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                岗位匹配度
+              </h2>
+              <p style="font-weight: bold; font-size: 14pt; color: ${this.matchScoreColor}; margin: 10px 0;">
+                ${this.aiAnalysisResult.matchScore || this.aiAnalysisResult.match_score || 0}% 匹配
+              </p>
+            </div>
+            
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                技能分析
+              </h2>
+              <p style="line-height: 1.6;">${this.aiAnalysisResult.skillAnalysis || this.aiAnalysisResult.skill_analysis || ''}</p>
+              <div style="margin-top: 10px;">
+                ${(this.aiAnalysisResult.skills || []).map(skill => {
+                  let bgColor = '#F56C6C'; // 默认红色
+                  if (skill.match >= 85) bgColor = '#67C23A'; // 绿色
+                  else if (skill.match >= 70) bgColor = '#409EFF'; // 蓝色
+                  else if (skill.match >= 60) bgColor = '#E6A23C'; // 黄色
+                  
+                  return `<span style="display: inline-block; background-color: ${bgColor}; color: white; 
+                                     padding: 4px 8px; margin: 3px; border-radius: 4px;">
+                    ${skill.name}: ${Math.floor(skill.match)}%
+                  </span>`;
+                }).join('')}
+              </div>
+            </div>
+            
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                工作经验分析
+              </h2>
+              <p style="line-height: 1.6;">${this.aiAnalysisResult.experienceAnalysis || this.aiAnalysisResult.experience_analysis || ''}</p>
+            </div>
+            
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                教育背景评估
+              </h2>
+              <p style="line-height: 1.6;">${this.aiAnalysisResult.educationAnalysis || this.aiAnalysisResult.education_analysis || ''}</p>
+            </div>
+            
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                职业发展轨迹
+              </h2>
+              <p style="line-height: 1.6;">${this.aiAnalysisResult.careerAnalysis || this.aiAnalysisResult.career_analysis || ''}</p>
+            </div>
+            
+            ${this.aiAnalysisResult.strengths && this.aiAnalysisResult.strengths.length ? `
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                候选人优势
+              </h2>
+              <ul style="padding-left: 20px; line-height: 1.6;">
+                ${this.aiAnalysisResult.strengths.map(item => `<li>${item}</li>`).join('')}
+              </ul>
+            </div>
+            ` : ''}
+            
+            ${this.aiAnalysisResult.weaknesses && this.aiAnalysisResult.weaknesses.length ? `
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                需要改进的方面
+              </h2>
+              <ul style="padding-left: 20px; line-height: 1.6;">
+                ${this.aiAnalysisResult.weaknesses.map(item => `<li>${item}</li>`).join('')}
+              </ul>
+            </div>
+            ` : ''}
+            
+            ${this.aiAnalysisResult.interviewTips || this.aiAnalysisResult.interview_tips ? `
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                面试建议
+              </h2>
+              <p style="line-height: 1.6;">${this.aiAnalysisResult.interviewTips || this.aiAnalysisResult.interview_tips}</p>
+            </div>
+            ` : ''}
+            
+            ${this.aiAnalysisResult.suggestedQuestions && this.aiAnalysisResult.suggestedQuestions.length ? `
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                建议面试问题
+              </h2>
+              <ol style="padding-left: 20px; line-height: 1.6;">
+                ${this.aiAnalysisResult.suggestedQuestions.map(item => `<li>${item}</li>`).join('')}
+              </ol>
+            </div>
+            ` : ''}
+            
+            ${this.aiAnalysisResult.suggested_questions && this.aiAnalysisResult.suggested_questions.length ? `
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                建议面试问题
+              </h2>
+              <ol style="padding-left: 20px; line-height: 1.6;">
+                ${this.aiAnalysisResult.suggested_questions.map(item => `<li>${item}</li>`).join('')}
+              </ol>
+            </div>
+            ` : ''}
+            
+            <div class="print-section">
+              <h2 style="font-size: 14pt; color: #303133; border-bottom: 1px solid #eee; padding-bottom: 5px;">
+                综合结论
+              </h2>
+              <p style="line-height: 1.6;">${this.aiAnalysisResult.conclusion}</p>
+            </div>
+            
+            <div class="print-section" style="text-align: center; margin-top: 20px;">
+              <div style="display: inline-block; padding: 8px 16px; border-radius: 4px; font-size: 14pt; 
+                         background-color: ${this.getRecommendationType(this.aiAnalysisResult.recommendation) === 'success' ? '#67C23A' : 
+                                           this.getRecommendationType(this.aiAnalysisResult.recommendation) === 'primary' ? '#409EFF' :
+                                           this.getRecommendationType(this.aiAnalysisResult.recommendation) === 'warning' ? '#E6A23C' : '#F56C6C'};
+                         color: white;">
+                ${this.aiAnalysisResult.recommendation}
+              </div>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(printContainer);
+        
+        // 等待内容渲染
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // 创建PDF
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+        
+        // 使用html2canvas将重新排版的内容转为图像
+        const canvas = await html2canvas(printContainer, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          width: printContainer.offsetWidth,
+          height: printContainer.scrollHeight,
+          imageTimeout: 0,
+          windowWidth: printContainer.offsetWidth
+        });
+        
+        // 图像分页处理
+        const imgData = canvas.toDataURL('image/jpeg', 1.0);
+        const imgWidth = 210; // A4宽度(mm)
+        const pageHeight = 297; // A4高度(mm)
+        const imgHeight = canvas.height * imgWidth / canvas.width;
+        let heightLeft = imgHeight;
+        let position = 0;
+        let pageCount = 0;
+        
+        // 添加第一页
+        doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        pageCount++;
+        
+        // 如果内容超过一页，添加更多页面
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          doc.addPage();
+          doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+          pageCount++;
+        }
+        
+        // 添加页码
+        for (let i = 0; i < pageCount; i++) {
+          doc.setPage(i + 1);
+          doc.setFontSize(9);
+          doc.text(`第 ${i + 1} 页 / 共 ${pageCount} 页`, imgWidth / 2, pageHeight - 5, { align: 'center' });
+        }
+        
+        // 生成PDF文件并下载
+        doc.save(`${candidateName}_AI解读报告.pdf`);
+        
+        // 移除临时元素
+        document.body.removeChild(printContainer);
+        
+        this.$message.success('AI解读报告已成功导出');
+      } catch (error) {
+        console.error('导出报告失败:', error);
+        this.$message.error('导出报告失败，请重试');
+      }
     },
     
     // 获取技能匹配类型

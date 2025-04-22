@@ -163,7 +163,7 @@ class OllamaChatModel(BaseChatModel):
                         "content": message.content
                     })
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=180.0) as client:
                 response = await client.post(
                     f"{self.api_url}/api/chat",
                     json={
@@ -209,7 +209,7 @@ class OllamaChatModel(BaseChatModel):
                         "content": message.content
                     })
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=180.0) as client:
                 async with client.stream(
                     "POST",
                     f"{self.api_url}/api/chat",
@@ -252,7 +252,8 @@ class OpenAICompatibleChatModel(BaseChatModel):
         super().__init__(**kwargs)
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=self.api_url
+            base_url=self.api_url,
+            timeout=180
         )
         
     @property
