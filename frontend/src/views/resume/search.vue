@@ -330,7 +330,7 @@
         <!-- 列表视图 -->
         <template v-if="viewMode === 'list'">
           <el-table :data="resultList" style="width: 100%" :border="true" class="resume-table">
-            <el-table-column label="候选人信息" min-width="200">
+            <el-table-column label="候选人信息" min-width="240">
               <template slot-scope="{row}">
                 <div class="candidate-info">
                   <div class="primary-info">
@@ -341,7 +341,7 @@
                       <el-tag
                         size="small"
                         :type="getStatusType(row.status)"
-                        effect="plain"
+                        effect="dark"
                         class="status-tag"
                       >
                         {{ getStatusText(row.status) }}
@@ -356,8 +356,10 @@
                     </div>
                   </div>
                   <div class="contact-info">
-                    <i class="el-icon-phone" />{{ row.phone }}
-                    <i class="el-icon-message" style="margin-left: 10px" />{{ row.email }}
+                    <i class="el-icon-phone" />{{ row.phone || '未提供' }}
+                  </div>
+                  <div class="contact-info">
+                    <i class="el-icon-message" />{{ row.email || '未提供' }}
                   </div>
                   <div class="location-info">
                     <i class="el-icon-location" />{{ row.currentCity || '未提供' }}
@@ -366,7 +368,7 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="工作经历" min-width="280">
+            <el-table-column label="工作经历" min-width="240">
               <template slot-scope="{row}">
                 <div class="work-info">
                   <div class="current-job">
@@ -395,7 +397,7 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="求职意向" min-width="280">
+            <el-table-column label="求职意向" min-width="240">
               <template slot-scope="{row}">
                 <div class="intention-info">
                   <div class="intention-main">
@@ -419,6 +421,7 @@
                     <el-tag
                       :type="row.status === 'pending' ? 'success' : 'warning'"
                       size="mini"
+                      effect="dark"
                     >
                       {{ row.status === 'pending' ? '随时到岗' : row.status }}
                     </el-tag>
@@ -428,13 +431,19 @@
               </template>
             </el-table-column>
 
-            <el-table-column label="操作" width="200" fixed="right">
+            <el-table-column label="操作" width="150" fixed="right">
               <template slot-scope="{row}">
                 <div class="action-column">
                   <div class="action-buttons">
                     <el-tooltip content="查看简历" placement="top" effect="light">
                       <el-button type="primary" size="mini" plain circle @click="viewDetail(row)">
                         <i class="el-icon-view" />
+                      </el-button>
+                    </el-tooltip>
+
+                    <el-tooltip content="预览原件" placement="top" effect="light">
+                      <el-button type="warning" size="mini" plain circle @click="previewOriginalResume(row)">
+                        <i class="el-icon-document" />
                       </el-button>
                     </el-tooltip>
 
@@ -455,7 +464,8 @@
                         <i :class="row.starred ? 'el-icon-star-on' : 'el-icon-star-off'" />
                       </el-button>
                     </el-tooltip>
-
+                  </div>
+                  <div class="action-buttons" style="margin-top: 6px;">
                     <el-tooltip content="发送面试邀请" placement="top" effect="light">
                       <el-button type="success" size="mini" circle @click="sendInterviewInvite(row)">
                         <i class="el-icon-message" />
@@ -499,11 +509,15 @@
                     {{ item.gender === 'F' ? '女' : '男' }}
                   </span>
                   <span class="age-tag">{{ item.age }}岁</span>
+                  <el-tag size="mini" :type="getStatusType(item.status)" effect="dark" class="status-mini-tag">
+                    {{ getStatusText(item.status) }}
+                  </el-tag>
                 </div>
                 <div class="header-right">
                   <span class="education-tag">{{ item.education }}</span>
                 </div>
               </div>
+              
               <div class="card-content">
                 <div class="content-section">
                   <div class="section-title">
@@ -518,6 +532,7 @@
                     <span><i class="el-icon-money" />{{ item.currentSalary || '未提供' }}</span>
                   </div>
                 </div>
+                
                 <div class="content-section">
                   <div class="section-title">
                     <i class="el-icon-aim" />求职意向
@@ -537,36 +552,77 @@
                     </div>
                   </div>
                 </div>
+                
                 <div class="contact-info">
                   <div class="contact-item">
-                    <i class="el-icon-phone" />{{ item.phone }}
+                    <i class="el-icon-phone" />{{ item.phone || '未提供' }}
                   </div>
                   <div class="contact-item">
-                    <i class="el-icon-message" />{{ item.email }}
+                    <i class="el-icon-message" />{{ item.email || '未提供' }}
                   </div>
                 </div>
+                
                 <div class="status-bar">
                   <span class="update-time">更新于：{{ formatDate(item.updateTime) }}</span>
-                  <span :class="['status-tag', item.status === 'pending' ? 'status-ready' : 'status-processing']">
-                    {{ item.status === 'pending' ? '随时到岗' : item.status }}
+                  <span v-if="item.tags && item.tags.length > 0" class="candidate-tags">
+                    <el-tag v-for="tag in item.tags.slice(0, 2)" :key="tag" size="mini" type="info">{{ tag }}</el-tag>
                   </span>
                 </div>
               </div>
+              
               <div class="card-footer">
-                <el-button type="text" @click="viewDetail(item)">
-                  <i class="el-icon-view" />查看详情
-                </el-button>
-                <el-button type="text" @click="handleDownload(item)">
-                  <i class="el-icon-download" />下载简历
-                </el-button>
-                <el-button
-                  type="text"
-                  :class="{'starred': item.starred}"
-                  @click="toggleStar(item)"
-                >
-                  <i :class="item.starred ? 'el-icon-star-on' : 'el-icon-star-off'" />
-                  {{ item.starred ? '取消收藏' : '收藏' }}
-                </el-button>
+                <el-tooltip content="查看详情" placement="top">
+                  <el-button type="text" @click="viewDetail(item)">
+                    <i class="el-icon-view" />
+                  </el-button>
+                </el-tooltip>
+                
+                <el-tooltip content="预览原件" placement="top">
+                  <el-button type="text" @click="previewOriginalResume(item)">
+                    <i class="el-icon-document" />
+                  </el-button>
+                </el-tooltip>
+                
+                <el-tooltip content="下载简历" placement="top">
+                  <el-button type="text" @click="handleDownload(item)">
+                    <i class="el-icon-download" />
+                  </el-button>
+                </el-tooltip>
+                
+                <el-tooltip :content="item.starred ? '取消收藏' : '收藏'" placement="top">
+                  <el-button
+                    type="text"
+                    :class="{'starred': item.starred}"
+                    @click="toggleStar(item)"
+                  >
+                    <i :class="item.starred ? 'el-icon-star-on' : 'el-icon-star-off'" />
+                  </el-button>
+                </el-tooltip>
+                
+                <el-tooltip content="更多操作" placement="top">
+                  <el-dropdown trigger="click" @command="handleMoreActions($event, item)">
+                    <el-button type="text">
+                      <i class="el-icon-more" />
+                    </el-button>
+                    <el-dropdown-menu slot="dropdown">
+                      <el-dropdown-item command="sendInterviewInvite">
+                        <i class="el-icon-message" />发送面试邀请
+                      </el-dropdown-item>
+                      <el-dropdown-item command="addToPool">
+                        <i class="el-icon-folder-add" />加入人才库
+                      </el-dropdown-item>
+                      <el-dropdown-item command="addNote">
+                        <i class="el-icon-edit-outline" />添加备注
+                      </el-dropdown-item>
+                      <el-dropdown-item command="sendEmail">
+                        <i class="el-icon-message" />发送邮件
+                      </el-dropdown-item>
+                      <el-dropdown-item command="reject" divided>
+                        <i class="el-icon-close" />不合适
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </el-dropdown>
+                </el-tooltip>
               </div>
             </div>
           </div>
@@ -600,6 +656,14 @@
           :loading="detailLoading"
         />
       </el-dialog>
+
+      <!-- 原始简历预览对话框 -->
+      <resume-preview
+        :visible.sync="previewVisible"
+        :resume-id="currentResumeId"
+        :file-name="currentFileName"
+        @close="handlePreviewClose"
+      />
     </div>
   </basic-view>
 </template>
@@ -607,13 +671,15 @@
 <script>
 import BasicView from '@/components/BasicView'
 import ResumeDetail from '@/components/ResumeDetail'
+import ResumePreview from '@/components/ResumePreview'
 import { mapState, mapGetters, mapActions } from 'vuex'
 
 export default {
   name: 'ResumeSearch',
   components: {
     BasicView,
-    ResumeDetail
+    ResumeDetail,
+    ResumePreview
   },
   data() {
     return {
@@ -655,7 +721,10 @@ export default {
         current: 1,
         size: 12
       },
-      detailVisible: false
+      detailVisible: false,
+      previewVisible: false,
+      currentResumeId: null,
+      currentFileName: ''
     }
   },
   computed: {
@@ -799,12 +868,6 @@ export default {
         if (!detail) {
           throw new Error('获取简历详情失败：数据为空')
         }
-
-        // 添加查看记录
-        this.$message({
-          type: 'success',
-          message: '简历详情加载成功'
-        })
       } catch (error) {
         console.error('获取简历详情失败:', error)
         this.$message.error('获取简历详情失败，请稍后重试')
@@ -890,13 +953,14 @@ export default {
       }
     },
 
+    // 根据状态返回标签类型
     getStatusType(status) {
       const statusMap = {
-        pending: 'info',
+        pending: 'success',
         invited: 'warning',
-        interviewed: 'success',
+        interviewed: 'primary', 
         rejected: 'danger',
-        hired: 'success'
+        hired: 'info'
       }
       return statusMap[status] || 'info'
     },
@@ -944,6 +1008,30 @@ export default {
           message: '备注已添加'
         })
       }).catch(() => {})
+    },
+
+    // 预览原始简历
+    previewOriginalResume(row) {
+      console.log('预览原始简历:', row)
+      this.currentResumeId = row.id
+      this.currentFileName = row.fileName || ''
+      this.previewVisible = true
+    },
+
+    // 关闭预览
+    handlePreviewClose() {
+      this.previewVisible = false
+      this.currentResumeId = null
+      this.currentFileName = ''
+    },
+
+    tableSpanMethod({ row, column, rowIndex, columnIndex }) {
+      // 这个方法可以用来控制表格单元格的合并
+      // 这里返回默认值，不做特殊处理
+      return {
+        rowspan: 1,
+        colspan: 1
+      }
     }
   }
 }
@@ -1167,17 +1255,24 @@ export default {
     background-color: #fff;
     border-radius: 0 0 8px 8px;
     box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+    table-layout: fixed;
 
     &::before {
       display: none;
     }
 
-    .el-table__header-wrapper {
+    :deep(.el-table__header) {
       th {
         background-color: #f5f7fa;
         color: #606266;
         font-weight: 600;
-        height: 50px;
+        padding: 10px 0;
+      }
+    }
+
+    :deep(.el-table__body) {
+      td {
+        padding: 16px 8px;
       }
     }
 
@@ -1259,39 +1354,51 @@ export default {
   .resume-cards {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    margin-top: 20px;
+    gap: 16px;
+    margin-top: 16px;
   }
 
   .resume-card {
     background: #fff;
     border-radius: 8px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: all 0.25s ease;
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 
     &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.1);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+      border-color: #e6f2ff;
     }
 
     .card-header {
-      padding: 16px 20px;
+      padding: 14px 16px;
       border-bottom: 1px solid #f0f2f5;
-      background: #fafafa;
+      background: #f9fafc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
 
       .header-left {
         display: flex;
         align-items: center;
-        gap: 8px;
+        flex-wrap: wrap;
+        gap: 6px;
 
         .name {
-          font-size: 16px;
-          font-weight: 500;
+          font-size: 18px;
+          font-weight: 600;
           color: #303133;
           cursor: pointer;
-          transition: color 0.3s;
+          transition: color 0.2s;
+          max-width: 120px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
 
           &:hover {
             color: #409EFF;
@@ -1300,8 +1407,9 @@ export default {
 
         .gender-tag {
           padding: 2px 8px;
+          font-size: 13px;
           border-radius: 4px;
-          font-size: 12px;
+          line-height: 1.5;
 
           &.male {
             background-color: #e1f3ff;
@@ -1315,61 +1423,77 @@ export default {
         }
 
         .age-tag {
-          background-color: #f0f2f5;
-          color: #909399;
           padding: 2px 8px;
+          font-size: 13px;
+          background-color: #f0f2f5;
+          color: #606266;
           border-radius: 4px;
-          font-size: 12px;
+          line-height: 1.5;
         }
       }
 
       .header-right {
         .education-tag {
+          padding: 2px 8px;
+          font-size: 13px;
           background-color: #f0f9eb;
           color: #67c23a;
-          padding: 2px 8px;
           border-radius: 4px;
-          font-size: 12px;
+          font-weight: 500;
         }
       }
     }
 
     .card-content {
-      padding: 20px;
+      padding: 14px 16px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
 
       .content-section {
-        margin-bottom: 16px;
+        margin-bottom: 12px;
+        position: relative;
 
         &:last-child {
           margin-bottom: 0;
         }
 
         .section-title {
-          font-size: 13px;
-          color: #909399;
-          margin-bottom: 12px;
+          font-size: 15px;
+          font-weight: 600;
+          margin-bottom: 10px;
           display: flex;
           align-items: center;
+          font-weight: 500;
 
           i {
             margin-right: 4px;
-            font-size: 14px;
+            font-size: 16px;
+            color: #909399;
           }
         }
 
         .company-info {
-          margin-bottom: 8px;
+          margin-bottom: 6px;
 
           .company {
-            font-weight: 500;
+            font-size: 16px;
+            font-weight: 600;
             color: #303133;
-            font-size: 14px;
+            margin-bottom: 2px;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
 
           .position {
             color: #606266;
-            font-size: 13px;
-            margin-top: 4px;
+            font-size: 14px;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
           }
         }
 
@@ -1378,7 +1502,7 @@ export default {
           align-items: center;
           gap: 12px;
           color: #909399;
-          font-size: 12px;
+          font-size: 14px;
 
           span {
             display: flex;
@@ -1386,25 +1510,30 @@ export default {
 
             i {
               margin-right: 4px;
+              font-size: 16px;
             }
           }
         }
 
         .intention-info {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 8px;
+          grid-template-columns: repeat(1, 1fr);
+          gap: 6px;
 
           .info-item {
             display: flex;
             align-items: center;
-            font-size: 13px;
+            font-size: 14px;
             color: #606266;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
 
             i {
               margin-right: 4px;
               color: #909399;
-              font-size: 14px;
+              font-size: 16px;
+              flex-shrink: 0;
             }
           }
         }
@@ -1413,63 +1542,77 @@ export default {
       .contact-info {
         display: flex;
         justify-content: space-between;
-        padding-top: 16px;
-        margin-top: 16px;
+        padding-top: 12px;
+        margin-top: 12px;
         border-top: 1px dashed #ebeef5;
 
         .contact-item {
           display: flex;
           align-items: center;
-          font-size: 12px;
+          font-size: 14px;
           color: #606266;
+          max-width: 45%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
 
           i {
             margin-right: 4px;
             color: #909399;
+            font-size: 16px;
+            flex-shrink: 0;
           }
         }
       }
 
       .status-bar {
-        margin-top: 16px;
+        margin-top: 12px;
         display: flex;
         justify-content: space-between;
         align-items: center;
 
         .update-time {
-          font-size: 12px;
+          font-size: 13px;
           color: #909399;
         }
 
         .status-tag {
-          padding: 2px 8px;
+          font-size: 13px;
+          font-weight: 500; 
+          padding: 1px 8px;
           border-radius: 4px;
-          font-size: 12px;
+          line-height: 1.5;
+        }
 
-          &.status-ready {
-            background-color: #ecf5ff;
-            color: #409EFF;
-          }
+        .status-ready {
+          background-color: #f0f9eb;
+          color: #67c23a;
+        }
 
-          &.status-processing {
-            background-color: #f0f9eb;
-            color: #67c23a;
-          }
+        .status-processing {
+          background-color: #ecf5ff;
+          color: #409EFF;
         }
       }
     }
 
     .card-footer {
-      padding: 12px 20px;
+      padding: 10px 16px;
       border-top: 1px solid #f0f2f5;
-      background: #fafafa;
+      background: #f9fafc;
       display: flex;
-      justify-content: flex-end;
-      gap: 16px;
+      justify-content: space-around;
+      gap: 8px;
 
       .el-button {
         padding: 0;
-        font-size: 13px;
+        font-size: 15px;
+        min-width: fit-content;
+        flex: 1;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
 
         &.starred {
           color: #e6a23c;
@@ -1477,6 +1620,7 @@ export default {
 
         i {
           margin-right: 4px;
+          font-size: 16px;
         }
       }
     }
@@ -1496,6 +1640,21 @@ export default {
   :deep(.el-table__row) {
     &:hover {
       background-color: #f5f7fa;
+    }
+  }
+
+  :deep(.el-table__header) {
+    th {
+      background-color: #f5f7fa;
+      color: #606266;
+      font-weight: 600;
+      padding: 10px 0;
+    }
+  }
+
+  :deep(.el-table__body) {
+    td {
+      padding: 16px 8px;
     }
   }
 
@@ -1525,6 +1684,7 @@ export default {
       .tags {
         display: flex;
         gap: 5px;
+        margin-bottom: 10px;
       }
     }
 
@@ -1532,6 +1692,9 @@ export default {
       font-size: 13px;
       color: #606266;
       margin-top: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
 
       i {
         margin-right: 5px;
@@ -1548,15 +1711,18 @@ export default {
         font-weight: 500;
         color: #2c3e50;
         margin-right: 8px;
+        display: block;
+        margin-bottom: 4px;
       }
 
       .position {
         color: #606266;
+        display: block;
       }
     }
 
     .experience-tags {
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       display: flex;
       gap: 5px;
     }
@@ -1565,6 +1731,7 @@ export default {
       display: flex;
       flex-wrap: wrap;
       gap: 5px;
+      margin-top: 8px;
 
       .skill-tag {
         background-color: #f0f9eb;
@@ -1577,7 +1744,7 @@ export default {
   .intention-info {
     .intention-main {
       > div {
-        margin-bottom: 6px;
+        margin-bottom: 8px;
         display: flex;
         align-items: center;
 
@@ -1590,10 +1757,14 @@ export default {
         .label {
           color: #909399;
           margin-right: 5px;
+          min-width: 70px;
         }
 
         .value {
           color: #2c3e50;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
 
           &.highlight {
             color: #f56c6c;
@@ -1616,21 +1787,17 @@ export default {
     }
   }
 
-  .operation-btns {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  .action-column {
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
 
-    .note-btn {
-      padding: 0;
-      margin: 0;
-
-      &:hover {
-        color: #409EFF;
-      }
-
-      i {
-        margin-right: 4px;
+      .el-button {
+        margin: 0;
+        padding: 6px;
       }
     }
   }
@@ -1639,6 +1806,48 @@ export default {
 .resume-detail-dialog {
   :deep(.el-dialog__body) {
     padding: 20px 30px;
+  }
+}
+
+.status-tag {
+  margin-left: 8px;
+  font-size: 12px;
+  padding: 0 8px;
+  height: 24px;
+  line-height: 22px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.status-ready {
+  background-color: #f0f9eb;
+  color: #67c23a;
+}
+
+.status-processing {
+  background-color: #ecf5ff;
+  color: #409EFF;
+}
+
+.status-mini-tag {
+  font-size: 13px;
+  padding: 1px 8px;
+  height: 22px;
+  line-height: 20px;
+}
+
+.candidate-tags {
+  display: flex;
+  gap: 4px;
+  
+  .el-tag {
+    background-color: #f5f7fa;
+    color: #909399;
+    border-color: #e4e7ed;
+    font-size: 13px;
   }
 }
 </style>
