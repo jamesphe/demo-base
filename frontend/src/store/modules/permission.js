@@ -6,13 +6,13 @@ import { asyncRoutes, constantRoutes } from '@/router'
  * @param route
  */
 function hasPermission(roles, route) {
-  console.log('Checking permission for route:', route.path, 'roles:', roles)
+  //console.log('Checking permission for route:', route.path, 'roles:', roles)
   if (route.meta && route.meta.roles) {
     const hasRole = roles.some(role => route.meta.roles.includes(role))
-    console.log('Route requires roles:', route.meta.roles, 'Has permission:', hasRole)
+    //console.log('Route requires roles:', route.meta.roles, 'Has permission:', hasRole)
     return hasRole
   } else {
-    console.log('Route has no role requirements')
+    //console.log('Route has no role requirements')
     return true
   }
 }

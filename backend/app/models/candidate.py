@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 from datetime import datetime
 from app.db.base_class import Base
 
@@ -42,4 +43,13 @@ class Candidate(Base):
         foreign_keys=[resume_id],
         backref="primary_for_candidate"
     )
+    
+    # 添加混合属性获取职位名称和简历名称
+    @hybrid_property
+    def job_title(self):
+        return self.job.title if self.job else None
+    
+    @hybrid_property
+    def resume_name(self):
+        return self.primary_resume.file_name if self.primary_resume else None
  

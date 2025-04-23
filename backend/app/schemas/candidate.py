@@ -29,6 +29,10 @@ class Candidate(CandidateBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    
+    # 添加职位名称和简历名称字段
+    job_title: Optional[str] = None
+    resume_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -44,4 +48,10 @@ class CandidateWithInterviews(Candidate):
 
 class CandidateListResponse(ListResponse[CandidateWithInterviews]):
     """候选人列表响应模型"""
-    pass 
+    pass
+
+
+class CandidateBatchUpdate(BaseModel):
+    """批量更新候选人状态的请求模型"""
+    candidate_ids: List[int]
+    status: int 

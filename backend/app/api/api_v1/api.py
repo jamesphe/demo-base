@@ -84,7 +84,7 @@ api_router.include_router(
 # 候选人管理
 api_router.include_router(
     candidates.router, 
-    prefix="/candidates", 
+    prefix="/candidate", 
     tags=["候选人管理"]
 )
 

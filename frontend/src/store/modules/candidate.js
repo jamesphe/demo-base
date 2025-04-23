@@ -1,11 +1,18 @@
-import request from '@/utils/request'
+import { 
+  getCandidateList, 
+  createCandidate,
+  updateCandidate,
+  deleteCandidate,
+  updateCandidateStatus,
+  getCandidateDetail
+} from '@/api/candidate'
 
 // 初始状态
 const state = {
   candidates: [],
   total: 0,
   loading: false,
-  currentCandidate: null
+  currentCandidate: {}
 }
 
 // getters
@@ -22,35 +29,57 @@ const actions = {
   getCandidateList({ commit }, params) {
     commit('SET_LOADING', true)
     return new Promise((resolve, reject) => {
-      request({
-        url: '/api/candidates',
-        method: 'get',
-        params
-      }).then(response => {
-        commit('SET_CANDIDATES', response.data.data)
-        commit('SET_TOTAL', response.data.total)
-        resolve(response.data)
-      }).catch(error => {
-        reject(error)
-      }).finally(() => {
-        commit('SET_LOADING', false)
-      })
+      getCandidateList(params)
+        .then(response => {
+          // 检查返回数据结构
+          console.log('候选人列表API响应:', response)
+          // 根据实际API响应结构调整
+          if (response.data && Array.isArray(response.data)) {
+            // 如果数据直接是数组
+            commit('SET_CANDIDATES', response.data)
+            // 检查meta是否存在
+            if (response.meta && typeof response.meta.total === 'number') {
+              commit('SET_TOTAL', response.meta.total)
+            } else {
+              // 如果没有total信息，则默认为数组长度
+              commit('SET_TOTAL', response.data.length)
+            }
+          } else if (response.data && response.data.items) {
+            // 如果数据是标准的items格式
+            commit('SET_CANDIDATES', response.data.items)
+            commit('SET_TOTAL', response.data.total || 0)
+          } else {
+            // 兜底处理
+            commit('SET_CANDIDATES', [])
+            commit('SET_TOTAL', 0)
+          }
+          resolve(response)
+        })
+        .catch(error => {
+          reject(error)
+        })
+        .finally(() => {
+          commit('SET_LOADING', false)
+        })
     })
   },
 
   // 添加候选人
   addCandidate({ commit }, data) {
     return new Promise((resolve, reject) => {
-      request({
-        url: '/api/candidates',
-        method: 'post',
-        data
-      }).then(response => {
-        resolve(response.data)
-      }).catch(error => {
-        reject(error)
-      })
+      createCandidate(data)
+        .then(response => {
+          resolve(response.data)
+        })
+        .catch(error => {
+          reject(error)
+        })
     })
+  },
+
+  // createCandidate作为addCandidate的别名
+  createCandidate({ dispatch }, data) {
+    return dispatch('addCandidate', data)
   },
 
   // 从职位申请添加候选人
@@ -78,15 +107,39 @@ const actions = {
   // 更新候选人状态
   updateCandidateStatus({ commit }, { id, data }) {
     return new Promise((resolve, reject) => {
-      request({
-        url: `/api/candidates/${id}/status`,
-        method: 'put',
-        data
-      }).then(response => {
-        resolve(response.data)
-      }).catch(error => {
-        reject(error)
-      })
+      updateCandidateStatus(id, data)
+        .then(response => {
+          resolve(response.data)
+        })
+        .catch(error => {
+          reject(error)
+        })
+    })
+  },
+
+  // 更新候选人信息
+  updateCandidate({ commit }, data) {
+    return new Promise((resolve, reject) => {
+      updateCandidate(data)
+        .then(response => {
+          resolve(response.data)
+        })
+        .catch(error => {
+          reject(error)
+        })
+    })
+  },
+
+  // 删除候选人
+  deleteCandidate({ commit }, id) {
+    return new Promise((resolve, reject) => {
+      deleteCandidate(id)
+        .then(response => {
+          resolve(response.data)
+        })
+        .catch(error => {
+          reject(error)
+        })
     })
   },
 
@@ -94,17 +147,17 @@ const actions = {
   getCandidateDetail({ commit }, id) {
     commit('SET_LOADING', true)
     return new Promise((resolve, reject) => {
-      request({
-        url: `/api/candidates/${id}`,
-        method: 'get'
-      }).then(response => {
-        commit('SET_CURRENT_CANDIDATE', response.data)
-        resolve(response.data)
-      }).catch(error => {
-        reject(error)
-      }).finally(() => {
-        commit('SET_LOADING', false)
-      })
+      getCandidateDetail(id)
+        .then(response => {
+          commit('SET_CURRENT_CANDIDATE', response.data)
+          resolve(response.data)
+        })
+        .catch(error => {
+          reject(error)
+        })
+        .finally(() => {
+          commit('SET_LOADING', false)
+        })
     })
   }
 }

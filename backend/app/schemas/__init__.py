@@ -40,7 +40,8 @@ from .candidate import (  # noqa: F401
     CandidateCreate,
     CandidateUpdate,
     CandidateWithInterviews,
-    CandidateListResponse
+    CandidateListResponse,
+    CandidateBatchUpdate
 )
 from .interview import (  # noqa: F401
     Interview,
@@ -153,6 +154,7 @@ __all__ = [
     "CandidateCreate",
     "CandidateUpdate",
     "CandidateWithInterviews",
+    "CandidateBatchUpdate",
     "Interview",
     "InterviewCreate",
     "InterviewUpdate",

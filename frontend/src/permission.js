@@ -18,14 +18,14 @@ router.beforeEach(async(to, from, next) => {
   // 设置页面标题
   document.title = getPageTitle(to.meta.title)
 
-  console.log('全局路由守卫 - 目标路由:', to)
-  console.log('全局路由守卫 - 来源路由:', from)
-  console.log('全局路由守卫 - 当前路由匹配:', to.matched)
+  //console.log('全局路由守卫 - 目标路由:', to)
+  //console.log('全局路由守卫 - 来源路由:', from)
+  //console.log('全局路由守卫 - 当前路由匹配:', to.matched)
 
   // 添加更多调试日志
-  console.log('当前路由配置:', router.options.routes)
-  console.log('动态添加的路由:', store.state.permission.addRoutes)
-  console.log('用户角色:', store.getters.roles)
+  //console.log('当前路由配置:', router.options.routes)
+  //console.log('动态添加的路由:', store.state.permission.addRoutes)
+  //console.log('用户角色:', store.getters.roles)
 
   const hasToken = getToken()
 
@@ -84,9 +84,9 @@ router.afterEach(() => {
 // eslint-disable-next-line no-unused-vars
 async function getPermissionList() {
   try {
-    console.log('开始获取权限列表...')
+    //console.log('开始获取权限列表...')
     const res = await getUserPermissions() // 使用导入的函数
-    console.log('获取权限列表结果:', res)
+    //console.log('获取权限列表结果:', res)
     return res
   } catch (error) {
     console.error('获取权限列表详细错误:', {

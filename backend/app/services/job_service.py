@@ -247,7 +247,16 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
 
     def get_job(self, db: Session, *, job_id: int) -> Optional[models.Job]:
         """获取职位"""
-        return self.get(db, id=job_id)
+        job = db.query(models.Job).filter(models.Job.id == job_id).first()
+        if job:
+            # 添加tenant_name字段
+            tenant = db.query(models.Tenant).filter(
+                models.Tenant.id == job.tenant_id
+            ).first()
+            if tenant:
+                # 动态添加tenant_name属性
+                job.tenant_name = tenant.tenant_name
+        return job
 
     def get_job_by_id(self, db: Session, *, job_id: int) -> Optional[models.Job]:
         """根据ID获取职位"""

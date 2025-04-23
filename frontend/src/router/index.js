@@ -413,15 +413,15 @@ router.beforeEach((to, from, next) => {
   // 获取token
   const token = localStorage.getItem('token') || getToken()
 
-  console.log('路由守卫 - 目标路由:', to)
-  console.log('路由守卫 - 来源路由:', from)
+  //console.log('路由守卫 - 目标路由:', to)
+  //console.log('路由守卫 - 来源路由:', from)
 
   // 如果路由需要权限验证
   if (to.meta.requiresAuth) {
-    console.log('路由守卫 - 需要权限验证')
-    console.log('路由守卫 - Token状态:', token ? '存在' : '不存在')
+    //console.log('路由守卫 - 需要权限验证')
+    //console.log('路由守卫 - Token状态:', token ? '存在' : '不存在')
     if (!token) {
-      console.log('路由守卫 - 无Token，重定向到登录页')
+      //console.log('路由守卫 - 无Token，重定向到登录页')
       next({ name: 'login' })
       return
     }

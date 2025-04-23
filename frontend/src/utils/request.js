@@ -21,7 +21,6 @@ service.interceptors.request.use(
     // do something before request is sent
     const token = getToken()
     if (token) {
-      console.log('Current token in interceptor:', token)
       // 使用formatToken函数来确保令牌格式正确
       config.headers['Authorization'] = formatToken(token)
     }

@@ -6,9 +6,9 @@
       </div>
 
       <!-- 搜索栏 -->
-      <el-form :inline="true" :model="searchForm" class="demo-form-inline">
+      <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="申请状态">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable size="small">
             <el-option label="待处理" value="pending" />
             <el-option label="已审核" value="reviewed" />
             <el-option label="已面试" value="interviewed" />
@@ -18,13 +18,13 @@
           </el-select>
         </el-form-item>
         <el-form-item label="职位名称">
-          <el-input v-model="searchForm.jobTitle" placeholder="请输入职位名称" clearable />
+          <el-input v-model="searchForm.jobTitle" placeholder="请输入职位名称" clearable size="small" />
         </el-form-item>
         <el-form-item label="候选人">
-          <el-input v-model="searchForm.candidateName" placeholder="请输入候选人姓名" clearable />
+          <el-input v-model="searchForm.candidateName" placeholder="请输入候选人姓名" clearable size="small" />
         </el-form-item>
         <el-form-item label="学历要求">
-          <el-select v-model="searchForm.education" placeholder="请选择学历" clearable>
+          <el-select v-model="searchForm.education" placeholder="请选择学历" clearable size="small">
             <el-option label="大专" value="college" />
             <el-option label="本科" value="bachelor" />
             <el-option label="硕士" value="master" />
@@ -32,7 +32,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="工作年限">
-          <el-select v-model="searchForm.experience" placeholder="请选择工作年限" clearable>
+          <el-select v-model="searchForm.experience" placeholder="请选择工作年限" clearable size="small">
             <el-option label="应届生" value="fresh" />
             <el-option label="1年以下" value="0-1" />
             <el-option label="1-3年" value="1-3" />
@@ -42,7 +42,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="匹配度">
-          <el-select v-model="searchForm.matchScore" placeholder="请选择匹配度" clearable>
+          <el-select v-model="searchForm.matchScore" placeholder="请选择匹配度" clearable size="small">
             <el-option label="优秀(80分以上)" value="80+" />
             <el-option label="良好(60-80分)" value="60-80" />
             <el-option label="一般(60分以下)" value="0-60" />
@@ -57,23 +57,32 @@
             end-placeholder="结束日期"
             value-format="yyyy-MM-dd"
             clearable
+            size="small"
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="resetSearch">重置</el-button>
+          <el-button type="primary" size="small" icon="el-icon-search" @click="handleSearch">查询</el-button>
+          <el-button size="small" icon="el-icon-refresh" @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
 
-      <!-- 批量操作工具栏 -->
-      <div v-if="selectedApplications.length > 0" class="batch-operations">
-        <el-button-group>
-          <el-button size="small" type="primary" @click="handleBatchUpdateStatus('reviewed')">批量标记为已审核</el-button>
-          <el-button size="small" type="success" @click="handleBatchUpdateStatus('interviewed')">批量标记为已面试</el-button>
-          <el-button size="small" type="warning" @click="handleBatchUpdateStatus('rejected')">批量标记为已拒绝</el-button>
-          <el-button size="small" type="success" icon="el-icon-plus" @click="handleAddToCandidates">添加为候选人</el-button>
-        </el-button-group>
-        <span class="selected-count">已选择 {{ selectedApplications.length }} 项</span>
+      <!-- 批量操作和工具栏区域 -->
+      <div class="toolbar-container">
+        <!-- 批量操作工具栏 -->
+        <div class="batch-operations">
+          <el-button-group>
+            <el-button size="small" type="primary" :disabled="selectedApplications.length === 0" @click="handleBatchUpdateStatus('reviewed')">批量标记为已审核</el-button>
+            <el-button size="small" type="success" :disabled="selectedApplications.length === 0" @click="handleBatchUpdateStatus('interviewed')">批量标记为已面试</el-button>
+            <el-button size="small" type="warning" :disabled="selectedApplications.length === 0" @click="handleBatchUpdateStatus('rejected')">批量标记为已拒绝</el-button>
+            <el-button size="small" type="success" icon="el-icon-plus" :disabled="selectedApplications.length === 0" @click="handleAddToCandidates">添加为候选人</el-button>
+          </el-button-group>
+          <span class="selected-count" v-if="selectedApplications.length > 0">已选择 {{ selectedApplications.length }} 项</span>
+        </div>
+        
+        <!-- 可以在这里添加其他操作按钮，如导出等 -->
+        <div class="operation-container">
+          <el-button class="filter-item" type="info" size="small" icon="el-icon-download">导出数据</el-button>
+        </div>
       </div>
 
       <!-- 申请列表 -->
@@ -87,6 +96,7 @@
         class="application-table"
         @sort-change="handleSortChange"
         @selection-change="handleSelectionChange"
+        :header-cell-style="{background:'#f5f7fa', color:'#606266', fontWeight: 'bold'}"
       >
         <el-table-column type="selection" width="55" align="center" />
         <!-- 申请ID列 -->
@@ -379,110 +389,6 @@
       @close="handlePreviewClose"
     />
 
-    <!-- 职位详情弹窗 -->
-    <el-dialog
-      title="职位详情"
-      :visible.sync="jobDetailVisible"
-      width="65%"
-      class="job-detail-dialog"
-    >
-      <div v-loading="jobDetailLoading">
-        <el-card class="box-card">
-          <div slot="header" class="card-header">
-            <span>基本信息</span>
-          </div>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <div class="info-item">
-                <label>职位名称：</label>
-                {{ currentJob.title || '-' }}
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>职位类型：</label>
-                <el-tag :type="currentJob.type === 'fulltime' ? 'primary' : currentJob.type === 'parttime' ? 'success' : 'warning'">
-                  {{ currentJob.type === 'fulltime' ? '全职' : currentJob.type === 'parttime' ? '兼职' : '实习' }}
-                </el-tag>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>所属部门：</label>
-                {{ currentJob.department || '-' }}
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>工作地点：</label>
-                {{ currentJob.location || '-' }}
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>薪资范围：</label>
-                <span class="salary-text">{{ currentJob.salaryMin }}-{{ currentJob.salaryMax }}K/{{ currentJob.salaryUnit === 'month' ? '月' : '年' }}</span>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>招聘人数：</label>
-                {{ currentJob.headcount || '-' }} 人
-              </div>
-            </el-col>
-          </el-row>
-        </el-card>
-
-        <el-card class="box-card">
-          <div slot="header" class="card-header">
-            <span>要求与职责</span>
-          </div>
-          <el-row :gutter="20">
-            <el-col :span="12">
-              <div class="info-item">
-                <label>学历要求：</label>
-                <el-tag size="mini" type="info">
-                  {{ getEducationText(currentJob.educationRequired) }}
-                </el-tag>
-              </div>
-            </el-col>
-            <el-col :span="12">
-              <div class="info-item">
-                <label>经验要求：</label>
-                {{ currentJob.experienceRequired || '-' }}
-              </div>
-            </el-col>
-          </el-row>
-          <div class="info-section">
-            <h4>职位描述</h4>
-            <p class="description-text">{{ currentJob.description || '-' }}</p>
-          </div>
-          <div class="info-section">
-            <h4>任职要求</h4>
-            <p class="description-text">{{ currentJob.requirements || '-' }}</p>
-          </div>
-        </el-card>
-
-        <el-card v-if="currentJob.benefits && currentJob.benefits.length" class="box-card">
-          <div slot="header" class="card-header">
-            <span>福利待遇</span>
-          </div>
-          <div class="benefits-list">
-            <el-tag
-              v-for="(benefit, index) in currentJob.benefits"
-              :key="index"
-              size="small"
-              type="success"
-              effect="plain"
-              class="benefit-tag"
-            >
-              {{ getBenefitLabel(benefit) }}
-            </el-tag>
-          </div>
-        </el-card>
-      </div>
-    </el-dialog>
-
     <!-- 添加候选人对话框 -->
     <el-dialog title="添加为候选人" :visible.sync="candidateDialogVisible" width="500px">
       <el-form :model="candidateForm" label-width="100px">
@@ -518,6 +424,7 @@ import Pagination from '@/components/Pagination'
 import { getToken } from '@/utils/auth'
 import ResumeDetail from '@/components/ResumeDetail'
 import ResumePreview from '@/components/ResumePreview'
+import JobDetail, { showJobDetail } from '@/components/JobDetail'
 import { convertApplicationsToCandidates } from '@/api/job-application'
 
 export default {
@@ -525,7 +432,8 @@ export default {
   components: {
     Pagination,
     ResumeDetail,
-    ResumePreview
+    ResumePreview,
+    JobDetail
   },
   data() {
     return {
@@ -559,9 +467,6 @@ export default {
       resumePreviewVisible: false,
       currentPreviewId: null,
       currentPreviewFileName: '',
-      jobDetailVisible: false,
-      jobDetailLoading: false,
-      currentJob: {},
       selectedApplications: [],
       candidateDialogVisible: false,
       candidateForm: {
@@ -879,65 +784,18 @@ export default {
     },
     async handleViewJob(job) {
       console.log('handleViewJob called with job:', job)
-      if (!job) {
-        console.warn('No job data provided')
+      if (!job || !job.id) {
+        console.warn('No job data or job ID provided')
         return
       }
-      this.jobDetailVisible = true
-      this.jobDetailLoading = true
+      
+      // 使用新的帮助函数显示职位详情
       try {
-        // 通过 store 获取职位详情
-        const jobDetail = await this.getPositionDetail(job.id)
-        console.log('Job detail from API:', jobDetail)
-        // 转换数据格式
-        this.currentJob = {
-          title: jobDetail.title,
-          type: jobDetail.jobType,
-          department: jobDetail.department,
-          location: jobDetail.location,
-          salaryMin: jobDetail.salaryMin,
-          salaryMax: jobDetail.salaryMax,
-          salaryUnit: jobDetail.salaryType === '月薪' ? 'month' : 'year',
-          description: jobDetail.description,
-          requirements: jobDetail.requirements,
-          benefits: jobDetail.benefits ? jobDetail.benefits.split(',') : [],
-          experienceRequired: jobDetail.experienceRequired,
-          educationRequired: jobDetail.educationRequired,
-          headcount: jobDetail.headcount || 1
-        }
-        console.log('Transformed job data:', this.currentJob)
+        await showJobDetail(this, job.id)
       } catch (error) {
-        console.error('Error fetching job detail:', error)
+        console.error('获取职位详情失败:', error)
         this.$message.error('获取职位详情失败')
-      } finally {
-        this.jobDetailLoading = false
       }
-    },
-    getEducationText(education) {
-      const educationMap = {
-        'bachelor': '本科',
-        'master': '硕士',
-        'phd': '博士',
-        'college': '大专',
-        'highschool': '高中',
-        'other': '其他'
-      }
-      return educationMap[education?.toLowerCase()] || education || '-'
-    },
-    getBenefitLabel(value) {
-      const benefitMap = {
-        'insurance': '五险一金',
-        'annual_bonus': '年终奖',
-        'overtime_pay': '加班补助',
-        'meal': '餐补',
-        'transportation': '交通补助',
-        'communication': '通讯补贴',
-        'holiday_benefits': '节日福利',
-        'paid_leave': '带薪年假',
-        'health_check': '定期体检',
-        'travel': '员工旅游'
-      }
-      return benefitMap[value] || value
     },
     handleSortChange({ prop, order }) {
       this.listQuery.sortField = prop
@@ -1061,164 +919,126 @@ export default {
 </script>
 
 <style lang="scss" scoped>
-.application-table {
-  margin-top: 20px;
+.app-container {
+  padding: 20px;
+}
+
+.search-form {
+  padding: 18px 0;
+  margin-bottom: 15px;
+  background-color: #f5f7fa;
   border-radius: 4px;
+  padding-left: 15px;
+  
+  .el-form-item {
+    margin-bottom: 18px;
+    margin-right: 18px;
+  }
+}
 
-  ::v-deep {
-    .el-table__header-wrapper {
-      th.el-table__cell {
-        background-color: #f5f7fa;
-        color: #606266;
-        font-weight: 600;
-        height: 50px;
-        border-right: 1px solid #ebeef5;
-        border-bottom: 1px solid #ebeef5;
-        padding: 0 !important;
+.toolbar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
 
-        .cell {
-          white-space: nowrap;
-          line-height: 50px;
-          padding: 0 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+.operation-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  
+  .filter-item {
+    padding: 8px 15px;
+  }
+}
 
-          .caret-wrapper {
-            margin-left: 4px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-          }
-        }
+.batch-operations {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  
+  .el-button-group {
+    margin-right: 15px;
+  }
+  
+  .selected-count {
+    color: #606266;
+    font-size: 14px;
+  }
+}
 
-        &.is-leaf {
-          border-bottom: 1px solid #ebeef5;
-        }
-
-        &:last-child {
-          border-right: none;
-        }
-      }
-    }
-
-    .el-table__fixed-right {
-      height: 100% !important;
-      background-color: #fff;
-
-      .el-table__fixed-header-wrapper {
-        th.el-table__cell {
-          background-color: #f5f7fa;
-          color: #606266;
-          font-weight: 600;
-          height: 50px;
-          border-right: 1px solid #ebeef5;
-          border-bottom: 1px solid #ebeef5;
-          padding: 0 !important;
-
-          .cell {
-            white-space: nowrap;
-            line-height: 50px;
-            padding: 0 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-
-            .caret-wrapper {
-              margin-left: 4px;
-              height: 50px;
-              display: flex;
-              align-items: center;
-            }
-          }
-        }
-      }
+.application-table {
+  margin-bottom: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+  
+  ::v-deep .el-table__header-wrapper {
+    th {
+      height: 50px;
+      padding: 4px 0;
     }
   }
-
-  .candidate-info {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-
-    .candidate-name {
-      font-weight: 500;
-    }
-
-    .el-tag {
-      transform: scale(0.9);
-    }
+  
+  ::v-deep .el-table__row {
+    height: 55px;
   }
-
-  .job-title {
-    color: #409EFF;
+  
+  .job-title,
+  .candidate-name,
+  .resume-name {
+    display: block;
+    margin-bottom: 5px;
     font-weight: 500;
   }
-
-  .resume-name {
-    font-size: 13px;
+  
+  .candidate-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    .el-tag {
+      margin-top: 5px;
+    }
   }
-
-  .experience-years {
-    color: #606266;
-  }
-
-  .apply-time {
-    color: #909399;
-    font-size: 13px;
-  }
-
-  .status-tag {
-    text-align: center;
-    min-width: 65px;
-
-    &.pending { background-color: #f4f4f5; }
-    &.reviewed { background-color: #fdf6ec; }
-    &.interviewed { background-color: #ecf5ff; }
-    &.offered { background-color: #f0f9eb; }
-    &.rejected { background-color: #fef0f0; }
-    &.withdrawn { background-color: #f4f4f5; color: #909399; }
-  }
-
+  
   .match-score-wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-
+    
     .match-progress {
-      width: 85%;
+      width: 80%;
     }
-
+    
     .match-reason-btn {
-      padding: 2px;
-
-      .el-icon-info {
-        font-size: 16px;
-        color: #909399;
-        transition: color 0.2s;
-
-        &:hover {
-          color: #409EFF;
-        }
-      }
+      margin-left: 5px;
     }
   }
-
+  
   .action-buttons {
     display: flex;
     justify-content: center;
     gap: 8px;
-
+    
     .action-btn {
       padding: 5px 8px;
-
+      
       i {
         margin-right: 3px;
-        font-size: 14px;
       }
     }
+  }
+  
+  .apply-time, 
+  .experience-years {
+    color: #606266;
+    font-size: 13px;
+  }
+  
+  .status-tag {
+    min-width: 65px;
   }
 }
 
@@ -1486,85 +1306,5 @@ export default {
   white-space: pre-line;
   line-height: 1.6;
   color: #666;
-}
-
-.job-detail-dialog {
-  .box-card {
-    margin-bottom: 20px;
-    border-radius: 8px;
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      font-size: 16px;
-      font-weight: 500;
-    }
-  }
-
-  .info-item {
-    margin-bottom: 15px;
-    display: flex;
-    align-items: center;
-
-    label {
-      min-width: 80px;
-      color: #606266;
-      font-weight: 500;
-      margin-right: 10px;
-    }
-  }
-
-  .info-section {
-    margin-top: 20px;
-
-    h4 {
-      margin: 0 0 10px;
-      color: #303133;
-      font-size: 15px;
-      font-weight: 500;
-    }
-
-    .description-text {
-      margin: 0;
-      color: #606266;
-      line-height: 1.8;
-      white-space: pre-line;
-    }
-  }
-
-  .benefits-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-
-    .benefit-tag {
-      margin-right: 5px;
-    }
-  }
-
-  .salary-text {
-    color: #f56c6c;
-    font-weight: 500;
-    background: #fef0f0;
-    padding: 2px 8px;
-    border-radius: 4px;
-  }
-}
-
-.batch-operations {
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  .el-button-group {
-    display: flex;
-    gap: 8px;
-  }
-
-  .selected-count {
-    color: #909399;
-    font-size: 14px;
-  }
 }
 </style>
