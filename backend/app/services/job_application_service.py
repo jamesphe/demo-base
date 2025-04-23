@@ -289,6 +289,7 @@ class JobApplicationService:
                 "created_at": application.JobApplication.created_at,
                 "updated_at": application.JobApplication.updated_at,
                 "apply_time": application.JobApplication.apply_time,
+                "tenant_id": application.JobApplication.tenant_id,
                 "resume_name": application.Resume.file_name,
                 "candidate_name": application.Resume.name,
                 "resume_phone": application.Resume.phone,

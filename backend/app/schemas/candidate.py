@@ -13,6 +13,8 @@ class CandidateBase(BaseModel):
     status: Optional[str] = None
     tenant_id: Optional[int] = None
     job_id: Optional[int] = None
+    resume_id: Optional[int] = None
+    notes: Optional[str] = None
 
 
 class CandidateCreate(CandidateBase):

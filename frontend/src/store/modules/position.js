@@ -105,9 +105,17 @@ const actions = {
   }
 }
 
+const getters = {
+  positions: state => state.positions,
+  total: state => state.total,
+  loading: state => state.loading,
+  currentPosition: state => state.currentPosition
+}
+
 export default {
   namespaced: true,
   state,
   mutations,
-  actions
+  actions,
+  getters
 }

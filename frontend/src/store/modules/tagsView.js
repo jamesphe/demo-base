@@ -152,9 +152,15 @@ const actions = {
   }
 }
 
+const getters = {
+  visitedViews: state => state.visitedViews,
+  cachedViews: state => state.cachedViews
+}
+
 export default {
   namespaced: true,
   state,
   mutations,
-  actions
+  actions,
+  getters
 }

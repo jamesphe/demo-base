@@ -1,6 +1,8 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 import getters from './getters'
+import app from './modules/app'
+import settings from './modules/settings'
 import user from './modules/user'
 import route from './modules/route'
 import permission from './modules/permission'
@@ -8,7 +10,8 @@ import trial from './modules/trial'
 import tenant from './modules/tenant'
 import position from './modules/position'
 import resume from './modules/resume'
-import jobApplication from './modules/job-application'
+import jobApplication from './modules/jobApplication'
+import candidate from './modules/candidate'
 
 Vue.use(Vuex)
 
@@ -27,6 +30,8 @@ const modulesList = modulesFiles.keys().reduce((modules, modulePath) => {
 
 const store = new Vuex.Store({
   modules: {
+    app,
+    settings,
     user,
     route,
     trial,
@@ -35,7 +40,8 @@ const store = new Vuex.Store({
     tenant,
     position,
     resume,
-    jobApplication
+    jobApplication,
+    candidate
   },
   getters
 })

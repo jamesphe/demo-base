@@ -1,6 +1,7 @@
 from typing import Any, List, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app import crud, models, schemas
 from app.api import deps
@@ -98,14 +99,17 @@ def read_all_job_applications(
     }
     
     # 获取数据和总数
-    applications, total = job_application_service.get_applications_by_tenant_with_resume_info_and_count(
-        db=db,
-        tenant_id=current_tenant_id,
-        skip=skip,
-        limit=per_page,
-        filters=filters,
-        sort_field=sort_field,
-        sort_order=sort_order
+    applications, total = (
+        job_application_service
+        .get_applications_by_tenant_with_resume_info_and_count(
+            db=db,
+            tenant_id=current_tenant_id,
+            skip=skip,
+            limit=per_page,
+            filters=filters,
+            sort_field=sort_field,
+            sort_order=sort_order
+        )
     )
     
     # 计算总页数
@@ -164,12 +168,14 @@ def read_applications_by_status(
     skip = (page - 1) * per_page
     
     # 获取数据和总数
-    applications, total = job_application_service.get_applications_by_status_and_count(
-        db=db, 
-        status=status,
-        tenant_id=current_tenant_id,
-        skip=skip,
-        limit=per_page
+    applications, total = (
+        job_application_service.get_applications_by_status_and_count(
+            db=db, 
+            status=status,
+            tenant_id=current_tenant_id,
+            skip=skip,
+            limit=per_page
+        )
     )
     
     # 计算总页数
@@ -431,4 +437,210 @@ async def analyze_application_match(
         "success": True,
         "match_score": result["match_score"],
         "match_reason": result["match_reason"]
-    } 
+    }
+
+
+@router.post("/add-candidates", response_model=schemas.BatchActionResponse)
+def add_candidates_from_applications(
+    *,
+    db: Session = Depends(deps.get_db),
+    candidates_data: List[schemas.CandidateCreate],
+    current_user: models.User = Depends(deps.get_current_active_user)
+):
+    """将职位申请转为候选人"""
+    if len(candidates_data) == 0:
+        raise HTTPException(status_code=400, detail="不能提交空列表")
+    
+    # 检查租户权限
+    tenant_id = candidates_data[0].tenant_id
+    if tenant_id:
+        if not deps.check_tenant_permission(db, current_user, tenant_id):
+            raise HTTPException(status_code=403, detail="无权访问该租户数据")
+    
+    result = {"successCount": 0, "failCount": 0, "errorMessages": []}
+    
+    for candidate_data in candidates_data:
+        try:
+            # 检查是否已经存在相同的候选人记录
+            existing = db.query(models.Candidate).filter(
+                models.Candidate.email == candidate_data.email,
+                models.Candidate.job_id == candidate_data.job_id
+            ).first()
+            
+            if existing:
+                result["failCount"] += 1
+                error_msg = (
+                    f"候选人 {candidate_data.name or candidate_data.email} 已存在"
+                )
+                result["errorMessages"].append(error_msg)
+                continue
+            
+            # 创建新候选人
+            new_candidate = models.Candidate(
+                tenant_id=candidate_data.tenant_id,
+                name=candidate_data.name,
+                email=candidate_data.email,
+                phone=candidate_data.phone,
+                resume_url=candidate_data.resume_url,
+                status=candidate_data.status,
+                job_id=candidate_data.job_id,
+                notes=candidate_data.notes,
+                resume_id=candidate_data.resume_id
+            )
+            
+            db.add(new_candidate)
+            db.commit()
+            result["successCount"] += 1
+            
+        except Exception as e:
+            db.rollback()
+            result["failCount"] += 1
+            error_msg = (
+                f"添加候选人 {candidate_data.name or candidate_data.email} "
+                f"失败: {str(e)}"
+            )
+            result["errorMessages"].append(error_msg)
+    
+    return result
+
+
+@router.put("/batch-status", response_model=schemas.BatchActionResponse)
+def batch_update_application_status(
+    *,
+    db: Session = Depends(deps.get_db),
+    data: schemas.ApplicationBatchUpdateRequest,
+    current_user: models.User = Depends(deps.get_current_active_user)
+):
+    """批量更新职位申请状态"""
+    if not data.ids or len(data.ids) == 0:
+        raise HTTPException(status_code=400, detail="未提供申请ID列表")
+    
+    result = {"successCount": 0, "failCount": 0, "errorMessages": []}
+    
+    for app_id in data.ids:
+        try:
+            # 获取申请记录
+            application = db.query(models.JobApplication).filter(
+                models.JobApplication.id == app_id
+            ).first()
+            
+            if not application:
+                result["failCount"] += 1
+                result["errorMessages"].append(f"申请ID {app_id} 不存在")
+                continue
+            
+            # 检查租户权限
+            if not deps.check_tenant_permission(
+                db, current_user, application.tenant_id
+            ):
+                result["failCount"] += 1
+                result["errorMessages"].append(f"无权更新申请 {app_id}")
+                continue
+            
+            # 更新状态
+            application.status = data.status
+            if data.reviewNotes:
+                application.review_notes = data.reviewNotes
+            
+            # 设置审核时间
+            if data.status == "reviewed" and not application.review_time:
+                application.review_time = datetime.utcnow()
+            
+            db.commit()
+            result["successCount"] += 1
+            
+        except Exception as e:
+            db.rollback()
+            result["failCount"] += 1
+            result["errorMessages"].append(f"更新申请 {app_id} 失败: {str(e)}")
+    
+    return result
+
+
+@router.post("/convert-to-candidates", response_model=schemas.BatchActionResponse)
+def convert_applications_to_candidates(
+    *,
+    db: Session = Depends(deps.get_db),
+    request_data: schemas.ConvertToCandidatesRequest,
+    current_user: models.User = Depends(deps.get_current_active_user)
+):
+    """
+    将职位申请转为候选人并更新申请状态（一步完成）
+    
+    此接口将在一个事务中完成两个操作：
+    1. 将申请者添加为候选人
+    2. 更新申请状态为指定状态
+    
+    如果任一步骤失败，整个事务会回滚
+    """
+    if len(request_data.applications) == 0:
+        raise HTTPException(status_code=400, detail="不能提交空列表")
+    
+    # 检查租户权限
+    tenant_id = request_data.tenant_id
+    if tenant_id:
+        if not deps.check_tenant_permission(db, current_user, tenant_id):
+            raise HTTPException(status_code=403, detail="无权访问该租户数据")
+    
+    result = {"successCount": 0, "failCount": 0, "errorMessages": []}
+    
+    for app_info in request_data.applications:
+        # 开始数据库事务
+        try:
+            # 1. 创建候选人记录
+            existing = db.query(models.Candidate).filter(
+                models.Candidate.email == app_info.email,
+                models.Candidate.job_id == app_info.job_id
+            ).first()
+            
+            if existing:
+                result["failCount"] += 1
+                candidate_name = app_info.candidate_name or app_info.email
+                error_msg = f"候选人 {candidate_name} 已存在"
+                result["errorMessages"].append(error_msg)
+                continue
+            
+            # 创建新候选人
+            new_candidate = models.Candidate(
+                tenant_id=app_info.tenant_id,
+                name=app_info.candidate_name,
+                email=app_info.email,
+                phone=app_info.phone,
+                resume_url=app_info.resume_url,
+                status=request_data.status,
+                job_id=app_info.job_id,
+                notes=request_data.notes,
+                resume_id=app_info.resume_id
+            )
+            
+            db.add(new_candidate)
+            
+            # 2. 更新申请状态
+            application = db.query(models.JobApplication).filter(
+                models.JobApplication.id == app_info.id
+            ).first()
+            
+            if not application:
+                db.rollback()
+                result["failCount"] += 1
+                result["errorMessages"].append(f"申请ID {app_info.id} 不存在")
+                continue
+            
+            # 更新申请状态为已审核
+            application.status = "reviewed"
+            application.review_notes = f"已添加为候选人: {request_data.status}"
+            application.review_time = datetime.utcnow()
+            
+            # 提交事务
+            db.commit()
+            result["successCount"] += 1
+            
+        except Exception as e:
+            db.rollback()
+            result["failCount"] += 1
+            error_msg = (
+                f"处理申请 {app_info.id} 失败: {str(e)}"
+            )
+            result["errorMessages"].append(error_msg)
+    
+    return result 

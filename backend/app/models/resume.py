@@ -119,7 +119,11 @@ class Resume(Base):
     repository = relationship("ResumeRepository", back_populates="resumes")
     
     candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=True)
-    candidate = relationship("Candidate", back_populates="resumes")
+    candidate = relationship(
+        "Candidate", 
+        back_populates="resumes",
+        foreign_keys=[candidate_id]
+    )
     
     talent_id = Column(Integer, ForeignKey("talent.talent_id"))
     talent = relationship("Talent", back_populates="resumes")

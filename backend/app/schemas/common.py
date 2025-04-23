@@ -44,3 +44,9 @@ class ListResponse(BaseModel, Generic[T]):
     """通用列表响应格式"""
     data: List[T]
     meta: Meta
+    
+class BatchActionResponse(BaseModel):
+    """批量操作响应模型"""
+    successCount: int
+    failCount: int
+    errorMessages: List[str] = []

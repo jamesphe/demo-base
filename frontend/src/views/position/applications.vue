@@ -71,6 +71,7 @@
           <el-button size="small" type="primary" @click="handleBatchUpdateStatus('reviewed')">批量标记为已审核</el-button>
           <el-button size="small" type="success" @click="handleBatchUpdateStatus('interviewed')">批量标记为已面试</el-button>
           <el-button size="small" type="warning" @click="handleBatchUpdateStatus('rejected')">批量标记为已拒绝</el-button>
+          <el-button size="small" type="success" icon="el-icon-plus" @click="handleAddToCandidates">添加为候选人</el-button>
         </el-button-group>
         <span class="selected-count">已选择 {{ selectedApplications.length }} 项</span>
       </div>
@@ -481,6 +482,33 @@
         </el-card>
       </div>
     </el-dialog>
+
+    <!-- 添加候选人对话框 -->
+    <el-dialog title="添加为候选人" :visible.sync="candidateDialogVisible" width="500px">
+      <el-form :model="candidateForm" label-width="100px">
+        <el-form-item label="初始状态">
+          <el-select v-model="candidateForm.status" placeholder="请选择状态">
+            <el-option label="待筛选" value="待筛选" />
+            <el-option label="初筛通过" value="初筛通过" />
+            <el-option label="待面试" value="待面试" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input 
+            type="textarea" 
+            :rows="3" 
+            placeholder="请输入备注信息" 
+            v-model="candidateForm.notes">
+          </el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="candidateDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="confirmAddToCandidates" :loading="addingCandidates">
+          确 认
+        </el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -490,6 +518,7 @@ import Pagination from '@/components/Pagination'
 import { getToken } from '@/utils/auth'
 import ResumeDetail from '@/components/ResumeDetail'
 import ResumePreview from '@/components/ResumePreview'
+import { convertApplicationsToCandidates } from '@/api/job-application'
 
 export default {
   name: 'PositionApplications',
@@ -533,7 +562,13 @@ export default {
       jobDetailVisible: false,
       jobDetailLoading: false,
       currentJob: {},
-      selectedApplications: []
+      selectedApplications: [],
+      candidateDialogVisible: false,
+      candidateForm: {
+        status: '待筛选',
+        notes: ''
+      },
+      addingCandidates: false
     }
   },
   computed: {
@@ -548,8 +583,7 @@ export default {
       'currentDetail'
     ]),
     ...mapGetters('position', [
-      'currentPosition',
-      'loading'
+      'currentPosition'
     ]),
     baseApiUrl() {
       return process.env.VUE_APP_BASE_API || ''
@@ -949,6 +983,77 @@ export default {
           console.error('批量更新状态失败:', error)
           this.$message.error('批量更新状态失败')
         }
+      }
+    },
+    handleAddToCandidates() {
+      if (this.selectedApplications.length === 0) {
+        this.$message.warning('请先选择要添加的申请')
+        return
+      }
+      
+      // 重置表单
+      this.candidateForm = {
+        status: '待筛选',
+        notes: ''
+      }
+      
+      this.candidateDialogVisible = true
+    },
+    async confirmAddToCandidates() {
+      try {
+        this.addingCandidates = true
+        
+        // 准备要添加的候选人数据
+        const applicationData = {
+          applications: this.selectedApplications.map(app => ({
+            id: app.id,
+            resume_id: app.resumeId,
+            job_id: app.jobId,
+            tenant_id: app.tenantId,
+            candidate_name: app.candidateName,
+            email: app.resumeEmail || '',
+            phone: app.resumePhone || '',
+            resume_url: app.resumeUrl || ''
+          })),
+          status: this.candidateForm.status,
+          notes: this.candidateForm.notes,
+          tenant_id: this.$store.getters.tenantId
+        };
+        
+        console.log('准备转换申请为候选人，数据:', applicationData);
+        
+        // 调用新的API端点一步完成添加候选人和更新申请状态
+        const response = await convertApplicationsToCandidates(applicationData);
+        
+        console.log('转换结果:', response);
+        
+        // 处理结果
+        const successCount = response?.successCount || 0;
+        const failCount = response?.failCount || 0;
+        const errorMessages = Array.isArray(response?.errorMessages) ? response.errorMessages : [];
+        
+        this.$message.success(`成功添加 ${successCount} 个候选人，失败 ${failCount} 个`);
+        
+        if (failCount > 0 && errorMessages.length > 0) {
+          // 显示错误信息
+          this.$notify.warning({
+            title: '部分候选人添加失败',
+            message: errorMessages.join('<br>'),
+            dangerouslyUseHTMLString: true,
+            duration: 5000
+          });
+        }
+        
+        this.candidateDialogVisible = false;
+        
+        // 刷新列表
+        this.getList();
+        
+      } catch (error) {
+        console.error('添加候选人失败:', error);
+        this.$message.error('添加候选人失败: ' + (error.message || '未知错误'));
+      } finally {
+        this.addingCandidates = false;
       }
     }
   }

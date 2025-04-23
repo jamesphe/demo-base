@@ -20,9 +20,14 @@ const actions = {
   }
 }
 
+const getters = {
+  logs: state => state.logs
+}
+
 export default {
   namespaced: true,
   state,
   mutations,
-  actions
+  actions,
+  getters
 }

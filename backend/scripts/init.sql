@@ -113,9 +113,15 @@ CREATE TABLE candidates (
     resume_url VARCHAR(255),
     status VARCHAR(50) DEFAULT 'pending',
     job_id INTEGER REFERENCES jobs(id),
+    resume_id INTEGER REFERENCES resumes(id),
+    notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 添加对应的注释
+COMMENT ON COLUMN candidates.notes IS '候选人备注信息';
+COMMENT ON COLUMN candidates.resume_id IS '关联的简历ID';
 
 -- 6. 面试表 (依赖候选人表、用户表和职位表)
 CREATE TABLE interviews (
@@ -507,6 +513,7 @@ CREATE INDEX idx_jobs_tenant ON jobs(tenant_id);
 CREATE INDEX idx_jobs_publisher ON jobs(publisher_id);
 CREATE INDEX idx_candidates_job ON candidates(job_id);
 CREATE INDEX idx_candidates_tenant ON candidates(tenant_id);
+CREATE INDEX idx_candidates_resume ON candidates(resume_id);
 CREATE INDEX idx_interviews_candidate ON interviews(candidate_id);
 CREATE INDEX idx_interviews_job ON interviews(job_id);
 CREATE INDEX idx_skill_tenant ON skills(tenant_id);

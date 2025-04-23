@@ -91,7 +91,12 @@ from .skill import (  # noqa: F401
     SkillCreate,
     SkillUpdate
 )
-from .common import ResponseMsg, ResumeParseResponse, ListResponse
+from .common import (
+    ResponseMsg,
+    ResumeParseResponse,
+    ListResponse,
+    BatchActionResponse
+)
 from .trial_application import (
     TrialApplication,
     TrialApplicationCreate,
@@ -116,6 +121,7 @@ from .talent import (
     TalentResponse,
     TalentListResponse
 )
+from .application import ApplicationBatchUpdateRequest, ApplicationInfo, ConvertToCandidatesRequest
 
 __all__ = [
     "User",
@@ -193,5 +199,12 @@ __all__ = [
     "ResumeListResponse",
     "JobListResponse",
     "CertificationListResponse",
-    "TalentListResponse"
+    "CertificationCreate",
+    "Certification",
+    "CertificationUpdate",
+    "TalentListResponse",
+    "ApplicationBatchUpdateRequest",
+    "ApplicationInfo",
+    "ConvertToCandidatesRequest",
+    "BatchActionResponse"
 ] 
