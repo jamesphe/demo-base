@@ -18,6 +18,14 @@ import { Navbar, Sidebar, AppMain } from './components'
 import { mapState } from 'vuex'
 import variables from '@/styles/variables.scss'
 
+// 默认变量值
+const defaultVariables = {
+  menuBg: '#f5f7fa',
+  menuText: '#5a5a5a',
+  menuActiveText: '#1890ff',
+  sideBarWidth: '210px'
+}
+
 export default {
   name: 'Layout',
   components: {
@@ -37,7 +45,7 @@ export default {
       }
     },
     variables() {
-      return variables
+      return variables || defaultVariables
     },
     debugInfo() {
       return {

@@ -15,22 +15,25 @@ export default {
   data() {
     return {
       chalk: '', // content of theme-chalk css
-      theme: ''
+      theme: ORIGINAL_THEME
     }
   },
   computed: {
     defaultTheme() {
-      return this.$store.state.settings.theme
+      return this.$store && this.$store.state && this.$store.state.settings 
+        ? this.$store.state.settings.theme 
+        : ORIGINAL_THEME
     }
   },
   watch: {
     defaultTheme: {
       handler: function(val, oldVal) {
-        this.theme = val
+        this.theme = val || ORIGINAL_THEME
       },
       immediate: true
     },
     async theme(val) {
+      if (!val) return // 如果值为空，直接返回
       const oldVal = this.chalk ? this.theme : ORIGINAL_THEME
       if (typeof val !== 'string') return
       const themeCluster = this.getThemeCluster(val.replace('#', ''))

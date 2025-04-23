@@ -2,9 +2,10 @@ import variables from '@/styles/element-variables.scss'
 import defaultSettings from '@/settings'
 
 const { showSettings, tagsView, fixedHeader, sidebarLogo } = defaultSettings
+const defaultTheme = '#1890ff' // 添加默认主题颜色
 
 const state = {
-  theme: variables.theme,
+  theme: variables && variables.theme ? variables.theme : defaultTheme,
   showSettings: showSettings,
   tagsView: tagsView,
   fixedHeader: fixedHeader,

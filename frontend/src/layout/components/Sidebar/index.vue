@@ -5,10 +5,10 @@
       <el-menu
         :default-active="activeMenu"
         :collapse="isCollapse"
-        :background-color="variables.menuBg"
-        :text-color="variables.menuText"
+        :background-color="menuBgColor"
+        :text-color="menuTextColor"
         :unique-opened="false"
-        :active-text-color="variables.menuActiveText"
+        :active-text-color="menuActiveTextColor"
         :collapse-transition="false"
         mode="vertical"
       >
@@ -29,6 +29,13 @@ import Logo from './Logo'
 import SidebarItem from './SidebarItem'
 import variables from '@/styles/variables.scss'
 
+// 默认样式值
+const defaultVariables = {
+  menuBg: '#f5f7fa',
+  menuText: '#5a5a5a', 
+  menuActiveText: '#1890ff'
+}
+
 export default {
   components: { SidebarItem, Logo },
   computed: {
@@ -47,10 +54,19 @@ export default {
       return path
     },
     showLogo() {
-      return this.$store.state.settings.sidebarLogo
+      return this.$store.state.settings && this.$store.state.settings.sidebarLogo
+    },
+    menuBgColor() {
+      return variables && variables.menuBg ? variables.menuBg : defaultVariables.menuBg
+    },
+    menuTextColor() {
+      return variables && variables.menuText ? variables.menuText : defaultVariables.menuText
+    },
+    menuActiveTextColor() {
+      return variables && variables.menuActiveText ? variables.menuActiveText : defaultVariables.menuActiveText
     },
     variables() {
-      return variables
+      return variables || defaultVariables
     },
     isCollapse() {
       return !this.sidebar.opened
