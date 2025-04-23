@@ -1046,6 +1046,9 @@ export default {
           padding: 6px 12px;
           font-size: 13px;
           border-radius: 4px;
+          display: flex;
+          align-items: center;
+          height: 32px;
         }
       }
     }
@@ -1177,6 +1180,9 @@ export default {
         font-size: 14px;
         padding: 8px 16px;
         border-radius: 4px;
+        display: flex;
+        align-items: center;
+        height: 36px;
       }
     }
     
