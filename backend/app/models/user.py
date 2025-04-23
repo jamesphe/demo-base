@@ -30,6 +30,10 @@ class User(Base):
         onupdate=datetime.utcnow
     )
 
+    # 企业微信相关字段
+    qywx_userid = Column(String(100), comment='企业微信用户ID')
+    qywx_avatar = Column(String(255), comment='企业微信头像URL')
+
     # 关联关系
     tenant = relationship("Tenant", back_populates="users")
     interviews = relationship("Interview", back_populates="interviewer")

@@ -33,6 +33,11 @@ export const constantRoutes = [
     }
   },
   {
+    path: '/login/qywx-callback',
+    component: () => import('@/views/login/qywx-callback'),
+    hidden: true
+  },
+  {
     path: '/404',
     component: () => import('@/views/error-page/404'),
     hidden: true

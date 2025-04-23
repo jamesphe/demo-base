@@ -32,7 +32,7 @@
             <p class="login-tip">请登录您的账号继续使用</p>
           </div>
 
-          <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form">
+          <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" autocomplete="on" label-position="left">
             <el-form-item prop="username">
               <el-input
                 ref="username"
@@ -66,8 +66,23 @@
               <a href="#" class="forget-password">忘记密码?</a>
             </div>
 
-            <el-button :loading="loading" type="primary" class="login-button" @click.native.prevent="handleLogin">
-              {{ loading ? '登录中...' : '登录' }}
+            <el-button
+              :loading="loading"
+              type="primary"
+              style="width: 100%; margin-bottom: 30px"
+              @click.native.prevent="handleLogin"
+            >
+              {{ $t('login.logIn') }}
+            </el-button>
+
+            <!-- 企业微信登录按钮 -->
+            <el-button
+              type="primary"
+              style="width: 100%; margin-bottom: 30px; background-color: #2e75b5;"
+              @click.native.prevent="handleQyWxLogin"
+            >
+              <img src="@/assets/qywx-logo.svg" alt="企业微信" style="width: 20px; margin-right: 8px; vertical-align: middle;">
+              企业微信登录
             </el-button>
 
             <div class="other-login-methods">
@@ -100,9 +115,13 @@
 
 <script>
 import { validUsername } from '@/utils/validate'
+import LangSelect from '@/components/LangSelect'
+import SocialSign from './components/SocialSignin'
+import { getQyWxAuthUrl } from '@/utils/qywx-auth'
 
 export default {
   name: 'Login',
+  components: { LangSelect, SocialSign },
   data() {
     const validateUsername = (rule, value, callback) => {
       if (!validUsername(value)) {
@@ -112,8 +131,8 @@ export default {
       }
     }
     const validatePassword = (rule, value, callback) => {
-      if (value.length < 3) {
-        callback(new Error('密码不能少于3个字符'))
+      if (value.length < 6) {
+        callback(new Error('密码不能少于6位'))
       } else {
         callback()
       }
@@ -188,6 +207,28 @@ export default {
     },
     socialLogin(type) {
       this.$message.info(`${type}登录功能正在开发中`)
+    },
+    // 企业微信登录
+    async handleQyWxLogin() {
+      try {
+        // 加载中状态
+        this.loading = true;
+        
+        // 从后端获取企业微信登录URL
+        const { data } = await getQyWxAuthUrl();
+        
+        if (data.auth_url) {
+          // 跳转到企业微信授权页面
+          window.location.href = data.auth_url;
+        } else {
+          this.$message.error('获取企业微信登录链接失败');
+          this.loading = false;
+        }
+      } catch (error) {
+        console.error('企业微信登录错误:', error);
+        this.$message.error('企业微信登录失败');
+        this.loading = false;
+      }
     }
   }
 }

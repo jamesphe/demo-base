@@ -5,7 +5,7 @@ from app.api.api_v1.endpoints import (
     tenants, llm_configs, talents, skills,
     talent_pools, talent_certifications, certifications,
     talent_educations, talent_experiences, resume_reviews,
-    job_applications
+    job_applications, qywx_suite, qywx_auth
 )
 from app.api.api_v1.endpoints import trial_application
 
@@ -147,4 +147,17 @@ api_router.include_router(
     trial_application.router,
     prefix="/trial",
     tags=["试用管理"]
+)
+
+# 企业微信相关
+api_router.include_router(
+    qywx_suite.router,
+    prefix="/qywx",
+    tags=["企业微信回调"]
+)
+
+api_router.include_router(
+    qywx_auth.router,
+    prefix="/auth/qywx",
+    tags=["企业微信认证"]
 )
