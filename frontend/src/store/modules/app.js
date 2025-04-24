@@ -6,7 +6,8 @@ const state = {
     withoutAnimation: false
   },
   device: 'desktop',
-  size: Cookies.get('size') || 'medium'
+  size: Cookies.get('size') || 'medium',
+  language: Cookies.get('language') || 'zh'
 }
 
 const mutations = {
@@ -32,6 +33,10 @@ const mutations = {
   SET_SIZE: (state, size) => {
     state.size = size
     Cookies.set('size', size)
+  },
+  SET_LANGUAGE: (state, language) => {
+    state.language = language
+    Cookies.set('language', language)
   }
 }
 
@@ -48,6 +53,9 @@ const actions = {
   },
   setSize({ commit }, size) {
     commit('SET_SIZE', size)
+  },
+  setLanguage({ commit }, language) {
+    commit('SET_LANGUAGE', language)
   }
 }
 

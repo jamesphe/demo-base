@@ -308,3 +308,22 @@ def process_tenant_id(db: Session, user_in: schemas.UserCreate) -> Optional[int]
         return tenant.id
 
     return user_in.tenant_id if user_in.tenant_id else None
+
+# 添加独立的create_tenant函数，用于企业微信授权
+def create_tenant(db: Session, tenant_data: Dict[str, Any]) -> models.Tenant:
+    """
+    创建租户（用于企业微信授权）
+    
+    Args:
+        db: 数据库会话
+        tenant_data: 租户数据
+        
+    Returns:
+        models.Tenant: 创建的租户对象
+    """
+    # 创建租户
+    tenant = models.Tenant(**tenant_data)
+    db.add(tenant)
+    db.commit()
+    db.refresh(tenant)
+    return tenant

@@ -15,6 +15,7 @@ const getters = {
   positionList: state => state.position.list,
   positionTotal: state => state.position.total,
   positionLoading: state => state.position.loading,
-  currentPosition: state => state.position.currentPosition
+  currentPosition: state => state.position.currentPosition,
+  language: state => state.app.language
 }
 export default getters

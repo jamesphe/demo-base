@@ -9,6 +9,7 @@ import 'normalize.css/normalize.css' // a modern alternative to CSS resets
 import Element from 'element-ui'
 import './styles/element-variables.scss'
 import zhCN from 'element-ui/lib/locale/lang/zh-CN'
+import enUS from 'element-ui/lib/locale/lang/en'
 
 import '@/styles/index.scss' // global css
 
@@ -19,6 +20,10 @@ import router from './router'
 import './icons' // icon
 import './permission' // permission control
 import './utils/error-log' // error log
+
+// 引入i18n国际化
+import VueI18n from 'vue-i18n'
+import messages from './lang'
 
 import * as filters from './filters' // global filters
 
@@ -35,9 +40,16 @@ if (process.env.NODE_ENV === 'development') {
   mockXHR()
 }
 
+// 使用i18n
+Vue.use(VueI18n)
+const i18n = new VueI18n({
+  locale: store.getters.language, // 设置语言环境
+  messages // 设置语言环境信息
+})
+
 Vue.use(Element, {
   size: Cookies.get('size') || 'medium', // set element-ui default size
-  locale: zhCN
+  i18n: (key, value) => i18n.t(key, value) // 为Element-UI设置国际化
 })
 
 // register global utility filters
@@ -56,5 +68,6 @@ new Vue({
   el: '#app',
   router,
   store,
+  i18n,
   render: h => h(App)
 })

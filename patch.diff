@@ -1,0 +1,40 @@
+From 903b6e9e6ba127f22e7343f29a7c181d1861710c Mon Sep 17 00:00:00 2001
+From: james_phe <james_phe@126.com>
+Date: Wed, 23 Apr 2025 18:14:27 +0800
+Subject: [PATCH] =?UTF-8?q?AI=E8=A7=A3=E8=AF=BB=E9=A1=B5=E9=9D=A2=E4=BC=98?=
+ =?UTF-8?q?=E5=8C=96?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ frontend/src/components/Resume/AiAnalysisDialog.vue | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/frontend/src/components/Resume/AiAnalysisDialog.vue b/frontend/src/components/Resume/AiAnalysisDialog.vue
+index 701c1f8..e99ab83 100644
+--- a/frontend/src/components/Resume/AiAnalysisDialog.vue
++++ b/frontend/src/components/Resume/AiAnalysisDialog.vue
+@@ -1046,6 +1046,9 @@ export default {
+           padding: 6px 12px;
+           font-size: 13px;
+           border-radius: 4px;
++          display: flex;
++          align-items: center;
++          height: 32px;
+         }
+       }
+     }
+@@ -1177,6 +1180,9 @@ export default {
+         font-size: 14px;
+         padding: 8px 16px;
+         border-radius: 4px;
++        display: flex;
++        align-items: center;
++        height: 36px;
+       }
+     }
+     
+-- 
+2.39.5 (Apple Git-154)
+
