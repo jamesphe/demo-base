@@ -109,7 +109,7 @@ class Job(JobBase):
     """职位完整模型"""
     id: int
     tenant_id: int
-    tenant_name: str
+    tenant_name: Optional[str] = None
     publisher_id: int
     status: str
     created_at: datetime

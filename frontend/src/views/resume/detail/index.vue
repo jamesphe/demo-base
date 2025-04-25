@@ -143,6 +143,11 @@
           <h3>请配置AI解读参数</h3>
           <el-form :model="aiAnalysisForm" label-width="100px" class="ai-form">
             <el-form-item label="职位要求">
+              <div class="requirements-header">
+                <el-button type="text" size="small" @click="openPositionSelector">
+                  <i class="el-icon-plus"></i> 从现有职位导入
+                </el-button>
+              </div>
               <el-input
                 type="textarea"
                 v-model="aiAnalysisForm.job_requirements"
@@ -209,7 +214,7 @@
                 :type="getSkillMatchType(skill.match)"
                 class="skill-tag"
               >
-                {{ skill.name }}: {{ skill.match }}%
+                {{ skill.name }}: {{ skill.match && !isNaN(skill.match) ? Math.floor(skill.match) + '%' : '未知' }}
               </el-tag>
             </div>
           </div>
@@ -283,11 +288,50 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 职位选择器对话框 -->
+    <el-dialog
+      title="选择职位模板"
+      :visible.sync="showPositionSelector"
+      width="50%"
+      append-to-body
+    >
+      <div v-loading="positionsLoading" class="position-selector-container">
+        <div v-if="companyPositions.length === 0 && !positionsLoading" class="empty-data">
+          <i class="el-icon-document"></i>
+          <p>暂无职位数据</p>
+          <el-button type="primary" size="small" @click="fetchPositions">刷新</el-button>
+        </div>
+        
+        <el-table 
+          v-else 
+          :data="companyPositions" 
+          style="width: 100%" 
+          @row-click="importPositionRequirements"
+          border
+          stripe
+        >
+          <el-table-column prop="id" label="ID" width="80" align="center"></el-table-column>
+          <el-table-column prop="name" label="职位名称"></el-table-column>
+          <el-table-column label="操作" width="120" align="center">
+            <template slot-scope="{row}">
+              <el-button size="mini" type="primary" @click.stop="importPositionRequirements(row)">导入</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="showPositionSelector = false">取消</el-button>
+        <el-button type="primary" @click="fetchPositions" :loading="positionsLoading">刷新职位</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { getResumeDetail, downloadResume, toggleResumeStar, analyzeResumeWithAI } from '@/api/resume'
+import { getPositionList } from '@/api/position'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 
@@ -306,7 +350,10 @@ export default {
         dimensions: ['技能匹配度', '专业经验', '教育背景', '职业发展', '综合能力'],
         questions: '',
         include_interview_tips: true
-      }
+      },
+      showPositionSelector: false,
+      companyPositions: [],
+      positionsLoading: false,
     }
   },
 
@@ -361,21 +408,85 @@ export default {
       this.$router.back()
     },
 
-    // AI解读相关方法
     showAiAnalysis() {
       this.aiAnalysisVisible = true
       this.aiAnalysisResult = null
       
-      // 预填职位要求
-      if (this.resume.expectedPosition) {
-        this.aiAnalysisForm.job_requirements = `职位名称：${this.resume.expectedPosition}\n`
+      this.aiAnalysisForm.job_requirements = `职位名称：[请输入职位名称]\n技能要求：[请输入所需技能]\n工作经验：[请输入所需工作经验]\n学历要求：[请输入学历要求]\n其他要求：[请输入其他要求]`;
+      
+      if (this.companyPositions.length === 0) {
+        this.fetchPositions();
       }
+    },
+
+    async fetchPositions() {
+      this.positionsLoading = true;
+      try {
+        const response = await getPositionList({
+          page: 1,
+          per_page: 50,
+          status: 1
+        });
+        
+        if (response && response.data && Array.isArray(response.data)) {
+          this.companyPositions = response.data.map(position => ({
+            id: position.id,
+            name: position.title || '未命名职位',
+            requirements: this.formatPositionRequirements(position)
+          }));
+        } else {
+          console.warn('职位数据格式不符合预期:', response);
+          this.$message.warning('获取职位列表失败，请稍后重试');
+        }
+      } catch (error) {
+        console.error('获取职位列表失败:', error);
+        this.$message.error('获取职位列表失败: ' + (error.message || '未知错误'));
+      } finally {
+        this.positionsLoading = false;
+      }
+    },
+
+    formatPositionRequirements(position) {
+      let requirements = `职位名称：${position.title || '未命名职位'}\n`;
+      
+      if (position.requirements) {
+        requirements += `技能要求：${position.requirements}\n`;
+      } else if (position.required_skills && position.required_skills.length) {
+        const skillNames = position.required_skills.map(skill => skill.name || skill).join('、');
+        requirements += `技能要求：${skillNames}\n`;
+      } else {
+        requirements += `技能要求：无\n`;
+      }
+      
+      requirements += `工作经验：${position.experienceRequired || position.experience || '无要求'}\n`;
+      
+      let education = position.educationRequired || position.education || '无要求';
+      if (education === 'bachelor') education = '本科';
+      else if (education === 'master') education = '硕士';
+      else if (education === 'doctor') education = '博士';
+      else if (education === 'college') education = '大专';
+      else if (education === 'highschool') education = '高中';
+      requirements += `学历要求：${education}\n`;
+      
+      requirements += `其他要求：${position.description || '无'}`;
+      
+      return requirements;
+    },
+
+    openPositionSelector() {
+      this.showPositionSelector = true;
+    },
+
+    importPositionRequirements(position) {
+      this.aiAnalysisForm.job_requirements = position.requirements;
+      this.showPositionSelector = false;
     },
 
     closeAiAnalysis() {
       this.aiAnalysisVisible = false
       this.aiAnalysisResult = null
       this.aiAnalysisLoading = false
+      this.showPositionSelector = false
     },
 
     async startAiAnalysis() {
@@ -387,7 +498,6 @@ export default {
       this.aiAnalysisLoading = true
       
       try {
-        // 调用API获取AI分析结果
         const response = await analyzeResumeWithAI(
           this.resume.id,
           this.aiAnalysisForm
@@ -415,14 +525,12 @@ export default {
       try {
         this.$message.info('正在生成PDF报告，请稍候...')
         
-        // 获取要导出的内容元素
         const contentElement = document.querySelector('.analysis-result')
         if (!contentElement) {
           this.$message.error('未找到要导出的内容')
           return
         }
         
-        // 创建一个专门用于打印的容器
         const printContainer = document.createElement('div')
         printContainer.className = 'print-container'
         printContainer.style.cssText = `
@@ -439,7 +547,6 @@ export default {
           z-index: -9999;
         `
         
-        // 创建打印友好的内容
         const candidateName = this.resume?.name || '候选人'
         printContainer.innerHTML = `
           <div class="print-header">
@@ -473,14 +580,14 @@ export default {
               <p style="line-height: 1.6;">${this.aiAnalysisResult.skill_analysis || ''}</p>
               <div style="margin-top: 10px;">
                 ${(this.aiAnalysisResult.skills || []).map(skill => {
-                  let bgColor = '#F56C6C' // 默认红色
-                  if (skill.match >= 85) bgColor = '#67C23A' // 绿色
-                  else if (skill.match >= 70) bgColor = '#409EFF' // 蓝色
-                  else if (skill.match >= 60) bgColor = '#E6A23C' // 黄色
+                  let bgColor = '#F56C6C'
+                  if (skill.match >= 85) bgColor = '#67C23A'
+                  else if (skill.match >= 70) bgColor = '#409EFF'
+                  else if (skill.match >= 60) bgColor = '#E6A23C'
                   
                   return `<span style="display: inline-block; background-color: ${bgColor}; color: white; 
                                      padding: 4px 8px; margin: 3px; border-radius: 4px;">
-                    ${skill.name}: ${Math.floor(skill.match)}%
+                    ${skill.name}: ${skill.match && !isNaN(skill.match) ? Math.floor(skill.match) + '%' : '未知'}
                   </span>`
                 }).join('')}
               </div>
@@ -570,17 +677,14 @@ export default {
         
         document.body.appendChild(printContainer)
         
-        // 等待内容渲染
         await new Promise(resolve => setTimeout(resolve, 500))
         
-        // 创建PDF
         const doc = new jsPDF({
           orientation: 'portrait',
           unit: 'mm',
           format: 'a4'
         })
         
-        // 使用html2canvas将重新排版的内容转为图像
         const canvas = await html2canvas(printContainer, {
           scale: 2,
           useCORS: true,
@@ -592,21 +696,18 @@ export default {
           windowWidth: printContainer.offsetWidth
         })
         
-        // 图像分页处理
         const imgData = canvas.toDataURL('image/jpeg', 1.0)
-        const imgWidth = 210 // A4宽度(mm)
-        const pageHeight = 297 // A4高度(mm)
+        const imgWidth = 210
+        const pageHeight = 297
         const imgHeight = canvas.height * imgWidth / canvas.width
         let heightLeft = imgHeight
         let position = 0
         let pageCount = 0
         
-        // 添加第一页
         doc.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight)
         heightLeft -= pageHeight
         pageCount++
         
-        // 如果内容超过一页，添加更多页面
         while (heightLeft > 0) {
           position = heightLeft - imgHeight
           doc.addPage()
@@ -615,17 +716,14 @@ export default {
           pageCount++
         }
         
-        // 添加页码
         for (let i = 0; i < pageCount; i++) {
           doc.setPage(i + 1)
           doc.setFontSize(9)
           doc.text(`第 ${i + 1} 页 / 共 ${pageCount} 页`, imgWidth / 2, pageHeight - 5, { align: 'center' })
         }
         
-        // 生成PDF文件并下载
         doc.save(`${candidateName}_AI解读报告.pdf`)
         
-        // 移除临时元素
         document.body.removeChild(printContainer)
         
         this.$message.success('AI解读报告已成功导出')
@@ -636,6 +734,7 @@ export default {
     },
 
     getSkillMatchType(match) {
+      if (!match || isNaN(match)) return 'info'
       if (match >= 85) return 'success'
       if (match >= 70) return 'primary'
       if (match >= 60) return 'warning'
@@ -865,6 +964,35 @@ export default {
     justify-content: center;
     margin-top: 30px;
     gap: 15px;
+  }
+}
+
+.requirements-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 5px;
+}
+
+.position-selector-container {
+  min-height: 200px;
+  
+  .empty-data {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 0;
+    color: #909399;
+    
+    i {
+      font-size: 48px;
+      margin-bottom: 20px;
+    }
+    
+    p {
+      margin-bottom: 20px;
+      font-size: 16px;
+    }
   }
 }
 </style>
