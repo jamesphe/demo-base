@@ -1,6 +1,12 @@
 <template>
   <basic-view title="简历上传">
     <div class="upload-container">
+      <!-- 页面标题 -->
+      <div class="page-header">
+        <h2 class="page-title">简历上传</h2>
+        <p class="page-description">您可以在此上传简历文件，我们支持多种格式。上传后系统将自动处理您的简历。</p>
+      </div>
+      
       <!-- 职位选择 -->
       <div class="position-select">
         <el-form :model="form" label-width="80px">
@@ -23,38 +29,60 @@
       </div>
 
       <!-- 上传区域 -->
-      <div class="upload-wrapper">
-        <el-upload
-          class="upload-area"
-          drag
-          action="#"
-          :http-request="handleUpload"
-          :before-upload="beforeUpload"
-          :on-progress="handleProgress"
-          multiple
-          :file-list="fileList"
-          :on-remove="handleRemove"
-          :on-exceed="handleExceed"
-        >
-          <div class="upload-content">
-            <div class="upload-icon">
-              <i class="el-icon-upload" />
+      <div class="upload-section">
+        <!-- 文件选择区域 -->
+        <div class="upload-wrapper">
+          <el-upload
+            class="upload-area"
+            drag
+            action="#"
+            :http-request="handleUpload"
+            :before-upload="beforeUpload"
+            :on-progress="handleProgress"
+            multiple
+            :file-list="fileList"
+            :on-remove="handleRemove"
+            :on-exceed="handleExceed"
+            :auto-upload="false"
+            :on-change="handleFileChange"
+            ref="upload"
+          >
+            <div class="upload-content">
+              <div class="upload-icon">
+                <i class="el-icon-upload" />
+              </div>
+              <div class="el-upload__text">
+                将文件拖到此处，或<em>点击选择文件</em>
+              </div>
+              <div class="el-upload__tip animated-tip">
+                <i class="el-icon-document"></i>
+                支持上传PDF、Word、JPG等格式文件，单个文件不超过10MB
+              </div>
+              <div class="upload-tip">
+                <i class="el-icon-info" />
+                提示：可同时上传多个文件
+              </div>
+              <div class="upload-tip highlight-tip">
+                <i class="el-icon-warning" />
+                请选择文件后，点击下方"开始上传"按钮
+              </div>
             </div>
-            <div class="el-upload__text">
-              将文件拖到此处，或<em>点击上传</em>
-            </div>
-            <div class="el-upload__tip">
-              支持上传PDF、Word、JPG等格式文件，单个文件不超过10MB
-            </div>
-            <div class="upload-tip">
-              <i class="el-icon-info" />
-              提示：可同时上传多个文件
-            </div>
-          </div>
-        </el-upload>
+          </el-upload>
+        </div>
+
+        <!-- 上传按钮区域 -->
+        <div class="upload-buttons">
+          <el-button type="primary" size="large" @click="submitUpload" :loading="uploading" :disabled="!hasFiles" class="pulse-animation">
+            <i class="el-icon-upload2"></i> 开始上传
+          </el-button>
+          <el-button size="large" type="danger" plain @click="clearFiles" :disabled="!hasFiles">
+            <i class="el-icon-delete"></i> 清空文件
+          </el-button>
+        </div>
 
         <!-- 文件列表 -->
-        <div v-if="fileList.length > 0" class="file-list">
+        <div v-if="hasFiles" class="file-list">
+          <div class="file-list-header">已选择的文件</div>
           <div v-for="file in fileList" :key="file.id" class="file-item">
             <div class="file-info">
               <i :class="getFileIcon(file.name)" class="file-icon" />
@@ -89,14 +117,6 @@
               <el-button
                 type="text"
                 size="mini"
-                :disabled="file.status !== 'success'"
-                @click="previewFile(file)"
-              >
-                预览
-              </el-button>
-              <el-button
-                type="text"
-                size="mini"
                 @click="handleRemove(file)"
               >
                 删除
@@ -114,25 +134,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 预览对话框 -->
-    <el-dialog
-      title="文件预览"
-      :visible.sync="previewVisible"
-      width="80%"
-      :before-close="handlePreviewClose"
-      custom-class="preview-dialog"
-      top="5vh"
-    >
-      <div v-loading="previewLoading" class="preview-container">
-        <iframe v-if="previewUrl" :src="previewUrl" frameborder="0" />
-        <div v-else class="no-preview">
-          <i class="el-icon-document" />
-          <p>该文件类型暂不支持预览</p>
-          <el-button type="primary" size="small" @click="downloadFile">下载文件</el-button>
-        </div>
-      </div>
-    </el-dialog>
   </basic-view>
 </template>
 
@@ -152,12 +153,16 @@ export default {
       currentPreviewFile: null,
       form: {
         positionId: null
-      }
+      },
+      uploading: false
     }
   },
   computed: {
     ...mapState('resume', ['currentPreviewUrl']),
-    ...mapState('position', ['positions'])
+    ...mapState('position', ['positions']),
+    hasFiles() {
+      return this.fileList && this.fileList.length > 0;
+    }
   },
   created() {
     this.fetchPositions()
@@ -183,6 +188,7 @@ export default {
         this.$message.error('文件大小不能超过 10MB!')
         return false
       }
+
       return true
     },
 
@@ -198,46 +204,97 @@ export default {
     },
 
     async handleUpload({ file, onProgress }) {
+      // 首先检查是否已经上传过
+      const existingFile = this.fileList.find(f => 
+        f.uid === file.uid && f.status === 'success');
+      
+      if (existingFile) {
+        console.log('文件已上传过，跳过上传', file.name);
+        return;
+      }
+
+      if (!this.form.positionId) {
+        try {
+          await this.$confirm('您尚未选择职位，确定要继续上传吗？', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          });
+        } catch (error) {
+          // 用户点击取消
+          return;
+        }
+      }
+
       try {
+        // 更新文件状态为上传中
+        const fileIndex = this.fileList.findIndex(f => f.uid === file.uid);
+        if (fileIndex > -1) {
+          this.$set(this.fileList[fileIndex], 'status', 'uploading');
+          this.$set(this.fileList[fileIndex], 'processingStatus', 'pending');
+        }
+
         const response = await this.uploadResume({
           file,
           positionId: this.form.positionId,
           onProgress
-        })
+        });
+        
         if (response) {
-          this.handleSuccess(response, file)
+          this.handleSuccess(response, file);
         }
       } catch (error) {
-        this.handleError(error, file)
+        this.handleError(error, file);
+      } finally {
+        // 确保上传完成后，无论成功失败都设置uploading为false
+        if (this.fileList.every(f => f.status !== 'uploading')) {
+          this.uploading = false;
+        }
       }
     },
 
     handleSuccess(response, file) {
-      file.status = 'success'
-      this.fileList.push({
-        ...file,
-        id: response.id,
-        url: response.file_path,
-        processingStatus: response.processing_status || 'pending'
-      })
-      this.$message.success('上传成功')
+      // 找到对应的文件
+      const fileIndex = this.fileList.findIndex(f => f.uid === file.uid);
+      if (fileIndex > -1) {
+        // 使用Vue的响应式系统更新状态
+        this.$set(this.fileList[fileIndex], 'status', 'success');
+        this.$set(this.fileList[fileIndex], 'id', response.id);
+        this.$set(this.fileList[fileIndex], 'url', response.file_path);
+        this.$set(this.fileList[fileIndex], 'processingStatus', response.processing_status || 'pending');
+        
+        this.$message.success('上传成功');
 
-      // 显示上传成功后的操作提示
-      this.$notify({
-        title: '上传成功',
-        message: `文件 "${file.name}" 已成功上传，您可以预览或继续上传更多文件`,
-        type: 'success',
-        duration: 3000
-      })
+        // 显示上传成功后的操作提示
+        this.$notify({
+          title: '上传成功',
+          message: `文件 "${file.name}" 已成功上传`,
+          type: 'success',
+          duration: 3000
+        });
 
-      // 开始轮询处理状态
-      this.pollProcessingStatus(response.id)
+        // 开始轮询处理状态
+        this.pollProcessingStatus(response.id);
+        
+        // 检查是否所有文件都已上传完成
+        this.checkUploadingStatus();
+      } else {
+        console.error('找不到要更新的文件:', file.name);
+      }
     },
 
     handleError(err, file) {
-      file.status = 'error'
-      console.error('上传失败:', err)
-      this.$message.error('上传失败：' + (err.message || '未知错误'))
+      // 找到对应的文件
+      const fileIndex = this.fileList.findIndex(f => f.uid === file.uid);
+      if (fileIndex > -1) {
+        // 使用Vue的响应式系统更新状态
+        this.$set(this.fileList[fileIndex], 'status', 'error');
+      }
+      console.error('上传失败:', err);
+      this.$message.error('上传失败：' + (err.message || '未知错误'));
+      
+      // 检查是否所有文件都已上传完成
+      this.checkUploadingStatus();
     },
 
     handleProgress(event, file) {
@@ -297,26 +354,9 @@ export default {
       }
     },
 
-    clearAllFiles() {
-      this.$confirm('确定要清空所有已上传的文件吗？', '提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
-        // 删除所有已上传的文件
-        const deletePromises = this.fileList
-          .filter(file => file.id)
-          .map(file => this.deleteResume(file.id))
-
-        Promise.all(deletePromises)
-          .then(() => {
-            this.fileList = []
-            this.$message.success('已清空所有文件')
-          })
-          .catch(() => {
-            this.$message.error('清空文件失败')
-          })
-      }).catch(() => {})
+    clearFiles() {
+      this.$refs.upload.clearFiles()
+      this.fileList = []
     },
 
     getFileIcon(filename) {
@@ -373,64 +413,79 @@ export default {
     },
 
     async pollProcessingStatus(resumeId) {
-      // 模拟轮询处理状态
-      // 实际应用中，这里应该调用API获取最新的处理状态
-      const file = this.fileList.find(f => f.id === resumeId)
-      if (!file) return
+      // 找到对应的文件
+      const fileIndex = this.fileList.findIndex(f => f.id === resumeId);
+      if (fileIndex === -1) return;
 
       // 模拟处理过程
       setTimeout(() => {
+        const file = this.fileList[fileIndex];
+        if (!file) return; // 文件可能已被删除
+
         if (file.processingStatus === 'pending') {
-          file.processingStatus = 'processing'
+          this.$set(this.fileList[fileIndex], 'processingStatus', 'processing');
+          // 继续轮询
+          setTimeout(() => this.pollProcessingStatus(resumeId), 2000);
         } else if (file.processingStatus === 'processing') {
           // 随机决定处理结果
-          const random = Math.random()
+          const random = Math.random();
           if (random > 0.2) {
-            file.processingStatus = 'completed'
+            this.$set(this.fileList[fileIndex], 'processingStatus', 'completed');
             this.$notify({
               title: '处理完成',
               message: `文件 "${file.name}" 已处理完成`,
               type: 'success',
               duration: 3000
-            })
+            });
           } else {
-            file.processingStatus = 'failed'
+            this.$set(this.fileList[fileIndex], 'processingStatus', 'failed');
             this.$notify({
               title: '处理失败',
               message: `文件 "${file.name}" 处理失败，请重试`,
               type: 'error',
               duration: 3000
-            })
+            });
           }
         }
-      }, 3000)
+      }, 2000);
     },
 
     async retryProcessing(file) {
-      if (!file.id) return
+      if (!file.id) return;
 
       try {
-        this.$message.info('正在重新处理文件...')
-        // 使用Vue的响应式系统确保状态更新的原子性
-        this.$set(file, 'processingStatus', 'processing')
+        this.$message.info('正在重新处理文件...');
+        
+        // 找到对应的文件
+        const fileIndex = this.fileList.findIndex(f => f.id === file.id);
+        if (fileIndex > -1) {
+          // 使用Vue的响应式系统更新状态
+          this.$set(this.fileList[fileIndex], 'processingStatus', 'processing');
+        }
 
-        await this.retryResumeProcessing(file.id)
+        await this.retryResumeProcessing(file.id);
 
         // 模拟处理过程
         setTimeout(() => {
-          // 使用Vue的响应式系统更新状态
-          this.$set(file, 'processingStatus', 'completed')
-          this.$notify({
-            title: '处理完成',
-            message: `文件 "${file.name}" 已重新处理完成`,
-            type: 'success',
-            duration: 3000
-          })
-        }, 3000)
+          const fileIndex = this.fileList.findIndex(f => f.id === file.id);
+          if (fileIndex > -1) {
+            // 使用Vue的响应式系统更新状态
+            this.$set(this.fileList[fileIndex], 'processingStatus', 'completed');
+            this.$notify({
+              title: '处理完成',
+              message: `文件 "${file.name}" 已重新处理完成`,
+              type: 'success',
+              duration: 3000
+            });
+          }
+        }, 3000);
       } catch (error) {
-        // 使用Vue的响应式系统更新状态
-        this.$set(file, 'processingStatus', 'failed')
-        this.$message.error('重新处理失败：' + (error.message || '未知错误'))
+        const fileIndex = this.fileList.findIndex(f => f.id === file.id);
+        if (fileIndex > -1) {
+          // 使用Vue的响应式系统更新状态
+          this.$set(this.fileList[fileIndex], 'processingStatus', 'failed');
+        }
+        this.$message.error('重新处理失败：' + (error.message || '未知错误'));
       }
     },
 
@@ -442,6 +497,66 @@ export default {
       } else {
         return (size / 1024 / 1024).toFixed(2) + ' MB'
       }
+    },
+
+    async submitUpload() {
+      if (!this.form.positionId) {
+        try {
+          await this.$confirm('您尚未选择职位，确定要继续上传吗？', '提示', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            type: 'warning'
+          })
+        } catch (error) {
+          return;
+        }
+      }
+
+      if (this.fileList.length === 0) {
+        this.$message.warning('请先选择要上传的文件');
+        return;
+      }
+
+      this.uploading = true;
+      try {
+        // 使用 Element UI 的上传组件的 submit 方法
+        this.$refs.upload.submit();
+        // 注意：实际上传会由handleUpload方法处理
+      } catch (error) {
+        this.uploading = false;
+        this.$message.error('上传失败：' + (error.message || '未知错误'));
+      }
+    },
+
+    handleFileChange(file, fileList) {
+      // 将el-upload的fileList同步到组件的fileList
+      // 保留已有的状态信息
+      this.fileList = fileList.map(f => {
+        const existingFile = this.fileList.find(ef => ef.uid === f.uid);
+        if (existingFile) {
+          return {
+            ...f,
+            id: existingFile.id,
+            status: existingFile.status,
+            processingStatus: existingFile.processingStatus,
+            url: existingFile.url
+          };
+        }
+        // 为新添加的文件设置初始状态
+        return {
+          ...f,
+          processingStatus: 'pending'
+        };
+      });
+      console.log('文件列表更新:', this.fileList.length);
+    },
+
+    // 检查是否所有文件都已完成上传
+    checkUploadingStatus() {
+      // 如果没有文件正在上传中，将uploading设为false
+      if (!this.fileList.some(file => file.status === 'uploading')) {
+        this.uploading = false;
+      }
     }
   }
 }
@@ -452,73 +567,230 @@ export default {
   padding: 24px;
   background: #fff;
   min-height: calc(100vh - 120px);
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+
+  .page-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #ebeef5;
+    
+    .page-title {
+      font-size: 28px;
+      color: #303133;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+    
+    .page-description {
+      font-size: 16px;
+      color: #606266;
+      max-width: 800px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+  }
 
   .position-select {
-    margin-bottom: 24px;
+    margin-bottom: 30px;
+    max-width: 800px;
+    margin: 0 auto 30px;
 
     .el-form-item {
       margin-bottom: 0;
     }
   }
 
-  .upload-wrapper {
-    border: 1px dashed #c0c4cc;
+  /* 固定上传按钮样式 */
+  .fixed-buttons {
+    max-width: 800px;
+    margin: 0 auto 20px;
+    text-align: center;
+    padding: 20px;
+    background-color: #f0f9eb;
+    border: 1px solid #e1f3d8;
     border-radius: 4px;
-    padding: 24px;
-    background: #fafafa;
 
-    .upload-area {
-      width: 100%;
+    .el-button {
+      margin: 0 10px;
+      padding: 12px 30px;
+      font-size: 16px;
+      
+      i {
+        margin-right: 5px;
+      }
+    }
+  }
 
-      .upload-content {
-        padding: 32px 0;
-        text-align: center;
+  .upload-section {
+    max-width: 800px;
+    margin: 0 auto;
+    
+    .upload-wrapper {
+      border: 1px dashed #c0c4cc;
+      border-radius: 8px;
+      background: #f9fafc;
+      padding: 30px;
+      margin-bottom: 30px;
+      transition: all 0.3s;
+      
+      &:hover {
+        border-color: #409EFF;
+        background: #f0f7ff;
+        box-shadow: 0 0 10px rgba(64, 158, 255, 0.1);
+      }
 
-        .upload-icon {
-          font-size: 48px;
-          color: #909399;
-          margin-bottom: 16px;
-        }
+      .upload-area {
+        width: 100%;
 
-        .el-upload__text {
-          font-size: 16px;
-          color: #606266;
-          margin-bottom: 12px;
+        .upload-content {
+          padding: 40px 0;
+          text-align: center;
 
-          em {
+          .upload-icon {
+            font-size: 64px;
             color: #409EFF;
-            font-style: normal;
-            cursor: pointer;
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+            animation: float 3s ease-in-out infinite;
+            
+            &:hover {
+              transform: scale(1.1);
+            }
           }
-        }
 
-        .el-upload__tip {
-          font-size: 13px;
-          color: #909399;
-          margin-bottom: 8px;
-        }
+          .el-upload__text {
+            font-size: 18px;
+            color: #606266;
+            margin-bottom: 16px;
 
-        .upload-tip {
-          font-size: 13px;
-          color: #909399;
+            em {
+              color: #409EFF;
+              font-style: normal;
+              cursor: pointer;
+              font-weight: bold;
+              text-decoration: underline;
+              transition: color 0.3s;
+              
+              &:hover {
+                color: #66b1ff;
+              }
+            }
+          }
 
-          i {
-            margin-right: 4px;
+          .el-upload__tip {
+            font-size: 14px;
+            color: #909399;
+            margin-bottom: 12px;
+          }
+          
+          .animated-tip {
+            animation: fadeIn 0.5s ease-in-out;
+            padding: 8px 16px;
+            background-color: #f0f7ff;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 10px auto;
+            border-left: 3px solid #409EFF;
+            
+            i {
+              margin-right: 6px;
+              color: #409EFF;
+            }
+          }
+
+          .upload-tip {
+            font-size: 14px;
+            color: #909399;
+            line-height: 1.5;
+            margin-top: 8px;
+
+            i {
+              margin-right: 4px;
+            }
+          }
+          
+          .highlight-tip {
+            color: #e6a23c;
+            margin-top: 15px;
+            padding: 8px 16px;
+            background-color: #fdf6ec;
+            border-radius: 4px;
+            border-left: 3px solid #e6a23c;
+            display: inline-block;
+            font-weight: 500;
+            
+            i {
+              color: #e6a23c;
+            }
           }
         }
       }
     }
 
+    .upload-buttons {
+      text-align: center;
+      margin: 30px 0;
+      padding: 20px;
+      background-color: #f0f9eb;
+      border: 1px solid #e1f3d8;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      
+      .el-button {
+        margin: 0 10px;
+        padding: 15px 40px;
+        font-size: 16px;
+        font-weight: bold;
+        border-radius: 6px;
+        transition: all 0.3s;
+        
+        &:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        i {
+          margin-right: 8px;
+        }
+      }
+      
+      .pulse-animation:not(:disabled) {
+        animation: pulse 2s infinite;
+      }
+    }
+
     .file-list {
-      margin-top: 24px;
-      border-top: 1px solid #ebeef5;
-      padding-top: 16px;
+      background: #fff;
+      border-radius: 8px;
+      border: 1px solid #ebeef5;
+      margin-top: 20px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+      animation: slideDown 0.5s ease-in-out;
+
+      .file-list-header {
+        padding: 16px 20px;
+        font-size: 16px;
+        font-weight: 500;
+        color: #303133;
+        border-bottom: 1px solid #ebeef5;
+        background: #f5f7fa;
+        border-radius: 8px 8px 0 0;
+      }
 
       .file-item {
         display: flex;
         align-items: center;
-        padding: 12px 0;
+        padding: 16px 20px;
         border-bottom: 1px solid #ebeef5;
+        transition: background-color 0.3s;
+        animation: fadeIn 0.5s ease-in-out;
+
+        &:hover {
+          background-color: #f5f7fa;
+        }
 
         &:last-child {
           border-bottom: none;
@@ -531,9 +803,9 @@ export default {
           min-width: 0;
 
           .file-icon {
-            font-size: 16px;
+            font-size: 24px;
             color: #909399;
-            margin-right: 8px;
+            margin-right: 12px;
           }
 
           .file-name {
@@ -542,12 +814,13 @@ export default {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            font-weight: 500;
           }
         }
 
         .file-status {
           width: 240px;
-          padding: 0 16px;
+          padding: 0 20px;
           display: flex;
           align-items: center;
 
@@ -557,6 +830,9 @@ export default {
 
           .status-tag {
             margin-right: 8px;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 12px;
 
             &:last-child {
               margin-right: 0;
@@ -565,15 +841,68 @@ export default {
         }
 
         .file-actions {
-          width: 180px;
+          width: 120px;
           text-align: right;
 
           .el-button {
-            padding: 0 8px;
+            padding: 6px 10px;
+            transition: all 0.3s;
+            
+            &:hover {
+              color: #409EFF;
+              background: #ecf5ff;
+              border-radius: 4px;
+            }
           }
         }
       }
     }
+  }
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(64, 158, 255, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(64, 158, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(64, 158, 255, 0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -622,5 +951,15 @@ export default {
 
 .el-upload {
   width: 100%;
+}
+
+.el-select {
+  .el-input__inner {
+    border-radius: 6px;
+  }
+}
+
+.el-form-item__label {
+  font-weight: 500;
 }
 </style>

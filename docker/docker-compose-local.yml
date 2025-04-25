@@ -1,6 +1,6 @@
 version: '3.8'
 
-name: resume-system
+name: resume-system-local
 services:
   resume-backend:
     build:
@@ -86,11 +86,11 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=demo
+      - POSTGRES_DB=recruitment
     ports:
       - "5420:5432"
     volumes:
-      - resume_postgres_data:/var/lib/postgresql/data
+      - resume_postgres_data_local:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -102,7 +102,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - resume_redis_data:/data
+      - resume_redis_data_local:/data
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -111,5 +111,5 @@ services:
       retries: 5
 
 volumes:
-  resume_postgres_data:
-  resume_redis_data:
+  resume_postgres_data_local:
+  resume_redis_data_local:

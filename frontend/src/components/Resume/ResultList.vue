@@ -54,7 +54,7 @@
                 class="skill-tag"
               >
                 {{ skill.name }}
-                <span class="match-rate">{{ Math.floor(skill.match) }}%</span>
+                <span class="match-rate">{{ skill.match && !isNaN(skill.match) ? Math.floor(skill.match) + '%' : '' }}</span>
               </el-tag>
               <el-tag v-if="row.skills.length > 5" size="mini" type="info">
                 +{{ row.skills.length - 5 }}
@@ -235,6 +235,13 @@ export default {
         hired: '已录用'
       }
       return textMap[status] || status
+    },
+    getSkillMatchType(match) {
+      if (!match || isNaN(match)) return 'info'
+      if (match >= 85) return 'success'
+      if (match >= 70) return 'primary'
+      if (match >= 60) return 'warning'
+      return 'danger'
     }
   }
 }

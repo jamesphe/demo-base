@@ -257,32 +257,69 @@
         <el-table-column
           label="操作"
           align="center"
-          width="160"
+          width="280"
           fixed="right"
           class-name="action-column"
           header-align="center"
         >
           <template slot-scope="scope">
             <div class="action-buttons">
-              <el-button
-                size="mini"
-                type="primary"
-                plain
-                class="action-btn"
-                @click="handleView(scope.row)"
-              >
-                <i class="el-icon-view" />查看
-              </el-button>
-              <el-button
-                size="mini"
-                type="success"
-                plain
-                :disabled="scope.row.status === 'withdrawn'"
-                class="action-btn"
-                @click="handleUpdateStatus(scope.row)"
-              >
-                <i class="el-icon-edit" />更新
-              </el-button>
+              <el-tooltip content="查看详情" placement="top">
+                <el-button
+                  size="mini"
+                  type="primary"
+                  plain
+                  class="action-btn"
+                  @click="handleView(scope.row)"
+                >
+                  <i class="el-icon-view" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="更新状态" placement="top">
+                <el-button
+                  size="mini"
+                  type="success"
+                  plain
+                  :disabled="scope.row.status === 'withdrawn'"
+                  class="action-btn"
+                  @click="handleUpdateStatus(scope.row)"
+                >
+                  <i class="el-icon-edit" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="添加为候选人" placement="top">
+                <el-button
+                  size="mini"
+                  type="warning"
+                  plain
+                  class="action-btn"
+                  @click="handleAddSingleCandidate(scope.row)"
+                >
+                  <i class="el-icon-user-solid" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="预览简历" placement="top">
+                <el-button
+                  size="mini"
+                  type="info"
+                  plain
+                  class="action-btn"
+                  @click="handlePreviewResume(scope.row)"
+                >
+                  <i class="el-icon-document" />
+                </el-button>
+              </el-tooltip>
+              <el-dropdown trigger="click" @command="(command) => handleMoreActions(command, scope.row)">
+                <el-button size="mini" type="primary" plain class="action-btn">
+                  <i class="el-icon-more"></i>
+                </el-button>
+                <el-dropdown-menu slot="dropdown">
+                  <el-dropdown-item command="download">下载简历</el-dropdown-item>
+                  <el-dropdown-item command="send_email">发送邮件</el-dropdown-item>
+                  <el-dropdown-item command="add_note">添加备注</el-dropdown-item>
+                  <el-dropdown-item command="view_history" divided>查看处理记录</el-dropdown-item>
+                </el-dropdown-menu>
+              </el-dropdown>
             </div>
           </template>
         </el-table-column>
@@ -913,6 +950,66 @@ export default {
       } finally {
         this.addingCandidates = false;
       }
+    },
+    async handleAddSingleCandidate(row) {
+      this.selectedApplications = [row];
+      this.handleAddToCandidates();
+    },
+    async handleMoreActions(command, row) {
+      switch (command) {
+        case 'download':
+          this.handleDownloadResume(row);
+          break;
+        case 'send_email':
+          this.handleSendEmail(row);
+          break;
+        case 'add_note':
+          this.handleAddNote(row);
+          break;
+        case 'view_history':
+          this.handleViewHistory(row);
+          break;
+      }
+    },
+    async handleDownloadResume(row) {
+      try {
+        // 这里添加下载简历的逻辑
+        this.$message.info('正在准备下载简历...');
+        // TODO: 实现实际的下载功能
+      } catch (error) {
+        console.error('下载简历失败:', error);
+        this.$message.error('下载简历失败');
+      }
+    },
+    async handleSendEmail(row) {
+      try {
+        // 这里添加发送邮件的逻辑
+        this.$message.info('正在打开邮件发送界面...');
+        // TODO: 实现实际的邮件发送功能
+      } catch (error) {
+        console.error('发送邮件失败:', error);
+        this.$message.error('发送邮件失败');
+      }
+    },
+    async handleAddNote(row) {
+      try {
+        // 这里添加备注的逻辑
+        this.$message.info('正在打开添加备注界面...');
+        // TODO: 实现实际的添加备注功能
+      } catch (error) {
+        console.error('添加备注失败:', error);
+        this.$message.error('添加备注失败');
+      }
+    },
+    async handleViewHistory(row) {
+      try {
+        // 这里添加查看处理记录的逻辑
+        this.$message.info('正在加载处理记录...');
+        // TODO: 实现实际的查看处理记录功能
+      } catch (error) {
+        console.error('查看处理记录失败:', error);
+        this.$message.error('查看处理记录失败');
+      }
     }
   }
 }
@@ -1024,9 +1121,24 @@ export default {
     
     .action-btn {
       padding: 5px 8px;
+      margin: 0 2px;
       
       i {
-        margin-right: 3px;
+        margin-right: 0;
+        font-size: 14px;
+      }
+      
+      &:hover {
+        transform: translateY(-1px);
+        transition: all 0.2s;
+      }
+    }
+    
+    .el-dropdown {
+      margin-left: 2px;
+      
+      .el-button {
+        padding: 5px 8px;
       }
     }
   }
@@ -1306,5 +1418,30 @@ export default {
   white-space: pre-line;
   line-height: 1.6;
   color: #666;
+}
+
+::v-deep .el-tooltip__popper {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+::v-deep .el-dropdown-menu {
+  padding: 5px 0;
+  
+  .el-dropdown-menu__item {
+    line-height: 32px;
+    padding: 0 15px;
+    font-size: 13px;
+    
+    i {
+      margin-right: 8px;
+    }
+    
+    &.divided {
+      border-top: 1px solid #ebeef5;
+      margin-top: 5px;
+      padding-top: 5px;
+    }
+  }
 }
 </style>

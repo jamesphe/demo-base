@@ -34,6 +34,9 @@ for var in "${required_vars[@]}"; do
     fi
 done
 
+echo "正在终止所有连接到数据库 $POSTGRES_DB 的会话..."
+PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_SERVER -p $POSTGRES_PORT -U $POSTGRES_USER -d postgres -c "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '$POSTGRES_DB' AND pid <> pg_backend_pid();"
+
 echo "正在删除数据库 $POSTGRES_DB ..."
 PGPASSWORD=$POSTGRES_PASSWORD psql -h $POSTGRES_SERVER -p $POSTGRES_PORT -U $POSTGRES_USER -d postgres -c "DROP DATABASE IF EXISTS $POSTGRES_DB;"
 
