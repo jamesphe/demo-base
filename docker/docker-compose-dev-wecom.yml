@@ -1,0 +1,36 @@
+version: '3.8'
+
+name: resume-system-dev-wecom
+services:
+  resume-db:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=recruitment
+    ports:
+      - "5420:5432"
+    volumes:
+      - resume_postgres_data_wecom:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  resume-redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - resume_redis_data_wecom:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  resume_postgres_data_wecom:
+  resume_redis_data_wecom: 
