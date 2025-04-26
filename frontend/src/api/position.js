@@ -82,3 +82,16 @@ export function updatePositionStatus(id, status) {
     data: { status }
   })
 }
+
+/**
+ * 发布职位
+ * @param {Object} data 职位数据
+ * @returns {Promise} 返回发布结果
+ */
+export function publishPosition(data) {
+  return request({
+    url: '/jobs',
+    method: 'post',
+    data
+  })
+}

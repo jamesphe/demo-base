@@ -80,7 +80,7 @@ services:
     ports:
       - "5420:5432"
     volumes:
-      - ./db/prod/postgres:/var/lib/postgresql/data
+      - resume_postgres_data-prod:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -90,9 +90,9 @@ services:
   resume-redis:
     image: redis:7
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
-      - ./db/prod/redis:/data
+      - resume_redis_data-prod:/data
     command: redis-server --appendonly yes
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

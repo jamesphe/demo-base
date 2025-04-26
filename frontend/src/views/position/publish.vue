@@ -61,7 +61,7 @@
               :min="1"
               :step="1"
               controls-position="right"
-              placeholder="最低薪资（单位：K）"
+              placeholder="最低薪资（单位：K，如10表示10K）"
             />
           </el-col>
           <el-col :span="1" class="salary-separator">
@@ -73,11 +73,11 @@
               :min="positionForm.salary_min || 1"
               :step="1"
               controls-position="right"
-              placeholder="最高薪资（单位：K）"
+              placeholder="最高薪资（单位：K，如20表示20K）"
             />
           </el-col>
           <el-col :span="6" :offset="1">
-            <el-select v-model="positionForm.salary_type" style="width: 100%">
+            <el-select v-model="positionForm.salary_type" placeholder="请选择薪资类型" style="width: 100%">
               <el-option label="月薪" value="month" />
               <el-option label="年薪" value="year" />
               <el-option label="面议" value="negotiate" />
@@ -228,7 +228,7 @@ export default {
         headcount: 1,
         location: '',
         salary_min: null,
-        salary_max: null,
+        salary_max: 10,
         salary_type: 'month',
         salary_structure: '',
         benefits: [],
