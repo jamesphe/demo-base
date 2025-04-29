@@ -149,6 +149,7 @@
               v-model="positionForm.description"
               type="textarea"
               :rows="6"
+              :disabled="generatingDescription"
               placeholder="请详细描述该职位的主要工作内容、职责范围等，建议包含：
 1. 主要工作内容
 2. 团队协作方式
@@ -156,15 +157,35 @@
 4. 项目类型
 5. 晋升空间"
             />
-            <el-button
-              class="ai-generate-btn"
-              type="primary"
-              icon="el-icon-magic-stick"
-              :loading="generatingDescription"
-              @click="generateDescription"
-            >
-              AI生成
-            </el-button>
+            <div v-if="generatingDescription" class="generating-tips">
+              <p v-for="(tip, index) in currentTips.description" :key="index" 
+                 :class="{
+                   'active-tip': currentTipIndex.description === index,
+                   'completed': index < currentTipIndex.description
+                 }">
+                {{ tip }}
+              </p>
+            </div>
+            <div class="button-container">
+              <el-button
+                class="ai-generate-btn"
+                type="primary"
+                icon="el-icon-magic-stick"
+                :loading="generatingDescription"
+                @click="generateDescription"
+              >
+                {{ generatingDescription ? '生成中...' : 'AI生成' }}
+              </el-button>
+              <el-button
+                v-if="generatingDescription"
+                class="ai-cancel-btn"
+                type="danger"
+                icon="el-icon-close"
+                @click="cancelGeneration('description')"
+              >
+                取消
+              </el-button>
+            </div>
           </div>
         </el-form-item>
 
@@ -174,6 +195,7 @@
               v-model="positionForm.requirements"
               type="textarea"
               :rows="6"
+              :disabled="generatingRequirements"
               placeholder="请详细描述该职位的任职要求，建议包含：
 1. 学历要求
 2. 工作经验
@@ -181,15 +203,35 @@
 4. 软技能要求
 5. 加分项"
             />
-            <el-button
-              class="ai-generate-btn"
-              type="primary"
-              icon="el-icon-magic-stick"
-              :loading="generatingRequirements"
-              @click="generateRequirements"
-            >
-              AI生成
-            </el-button>
+            <div v-if="generatingRequirements" class="generating-tips">
+              <p v-for="(tip, index) in currentTips.requirements" :key="index"
+                 :class="{
+                   'active-tip': currentTipIndex.requirements === index,
+                   'completed': index < currentTipIndex.requirements
+                 }">
+                {{ tip }}
+              </p>
+            </div>
+            <div class="button-container">
+              <el-button
+                class="ai-generate-btn"
+                type="primary"
+                icon="el-icon-magic-stick"
+                :loading="generatingRequirements"
+                @click="generateRequirements"
+              >
+                {{ generatingRequirements ? '生成中...' : 'AI生成' }}
+              </el-button>
+              <el-button
+                v-if="generatingRequirements"
+                class="ai-cancel-btn"
+                type="danger"
+                icon="el-icon-close"
+                @click="cancelGeneration('requirements')"
+              >
+                取消
+              </el-button>
+            </div>
           </div>
         </el-form-item>
 
@@ -286,6 +328,31 @@ export default {
           { required: true, message: '请输入任职要求', trigger: 'blur' },
           { min: 50, message: '任职要求不能少于50个字符', trigger: 'blur' }
         ]
+      },
+      // 生成提示语
+      currentTips: {
+        description: [
+          '1. 正在分析职位信息...',
+          '2. 正在整理工作内容...',
+          '3. 正在完善职责描述...',
+          '4. 正在优化表述方式...',
+          '5. 即将完成生成...'
+        ],
+        requirements: [
+          '1. 正在分析职位要求...',
+          '2. 正在整理技能需求...',
+          '3. 正在完善要求描述...',
+          '4. 正在优化表述方式...',
+          '5. 即将完成生成...'
+        ]
+      },
+      currentTipIndex: {
+        description: 0,
+        requirements: 0
+      },
+      tipIntervals: {
+        description: null,
+        requirements: null
       }
     }
   },
@@ -361,6 +428,32 @@ export default {
       return typeMap[type] || '月薪'
     },
 
+    startTipRotation(type) {
+      this.currentTipIndex[type] = 0
+      if (this.tipIntervals[type]) {
+        clearInterval(this.tipIntervals[type])
+      }
+      this.tipIntervals[type] = setInterval(() => {
+        if (this.currentTipIndex[type] < this.currentTips[type].length - 1) {
+          this.currentTipIndex[type]++
+        } else {
+          clearInterval(this.tipIntervals[type])
+        }
+      }, 2000)
+    },
+
+    stopTipRotation(type) {
+      if (this.tipIntervals[type]) {
+        clearInterval(this.tipIntervals[type])
+        this.tipIntervals[type] = null
+      }
+    },
+
+    async cancelGeneration(type) {
+      await this.$store.dispatch('job/cancelGeneration', { type })
+      this.stopTipRotation(type)
+    },
+
     async generateDescription() {
       // 检查必填字段
       const requiredFields = {
@@ -378,6 +471,7 @@ export default {
         }
       }
 
+      this.startTipRotation('description')
       const result = await this.$store.dispatch('job/generateDescription', {
         title: this.positionForm.title,
         job_type: this.getSalaryType(this.positionForm.job_type),
@@ -387,6 +481,7 @@ export default {
         current_description: this.positionForm.description
       })
 
+      this.stopTipRotation('description')
       if (result && result.success) {
         this.positionForm.description = result.description
         this.$message.success('职位描述生成成功')
@@ -412,6 +507,7 @@ export default {
         }
       }
 
+      this.startTipRotation('requirements')
       const result = await this.$store.dispatch('job/generateRequirements', {
         title: this.positionForm.title,
         job_type: this.getSalaryType(this.positionForm.job_type),
@@ -421,6 +517,7 @@ export default {
         current_requirements: this.positionForm.requirements
       })
 
+      this.stopTipRotation('requirements')
       if (result && result.success) {
         this.positionForm.requirements = result.requirements
         this.$message.success('任职要求生成成功')
@@ -428,6 +525,12 @@ export default {
         this.$message.error(result?.message || 'AI生成失败，请重试')
       }
     }
+  },
+  beforeDestroy() {
+    // 清理定时器
+    Object.keys(this.tipIntervals).forEach(type => {
+      this.stopTipRotation(type)
+    })
   }
 }
 </script>
@@ -440,6 +543,17 @@ export default {
   .position-form {
     max-width: 1200px;
     margin: 0 auto;
+
+    .el-form-item {
+      position: relative;
+      margin-bottom: 22px;
+      
+      &::after {
+        content: '';
+        display: table;
+        clear: both;
+      }
+    }
   }
 }
 
@@ -498,16 +612,100 @@ export default {
 
 .input-with-ai {
   position: relative;
+  padding-right: 120px;
   
-  .ai-generate-btn {
+  .el-textarea {
+    width: 100%;
+  }
+
+  .button-container {
     position: absolute;
-    right: -120px;
+    right: 0;
     top: 0;
     width: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    .ai-generate-btn, .ai-cancel-btn {
+      width: 100%;
+      padding: 8px 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      
+      i {
+        margin-right: 5px;
+      }
+    }
+  }
+
+  .generating-tips {
+    margin-top: 10px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #606266;
+    border: 1px solid #e4e7ed;
+
+    p {
+      margin: 8px 0;
+      padding-left: 24px;
+      position: relative;
+      opacity: 0.6;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid #dcdfe6;
+        background: #fff;
+        transition: all 0.3s ease;
+      }
+
+      &.active-tip {
+        opacity: 1;
+        color: #409EFF;
+        font-weight: 500;
+
+        &::before {
+          border-color: #409EFF;
+          background: #409EFF;
+        }
+
+        i {
+          color: #409EFF;
+        }
+      }
+
+      &.completed {
+        opacity: 0.8;
+        color: #67c23a;
+
+        &::before {
+          border-color: #67c23a;
+          background: #67c23a;
+        }
+      }
+    }
   }
 }
 
 ::v-deep .el-form-item__content {
-  margin-right: 120px;
+  margin-left: 120px !important;
+}
+
+.el-loading-mask {
+  background-color: rgba(255, 255, 255, 0.9);
 }
 </style>

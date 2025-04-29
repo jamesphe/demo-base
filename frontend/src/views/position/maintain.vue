@@ -706,16 +706,29 @@ export default {
 
     formatTime(time) {
       if (!time) return ''
-      const date = new Date(time)
-      if (isNaN(date.getTime())) return ''
+      
+      try {
+        // 尝试直接创建Date对象
+        let date = new Date(time)
+        
+        // 检查是否为有效日期
+        if (isNaN(date.getTime())) {
+          console.warn('无效的时间格式:', time)
+          return ''
+        }
 
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hour = String(date.getHours()).padStart(2, '0')
-      const minute = String(date.getMinutes()).padStart(2, '0')
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        const hour = String(date.getHours()).padStart(2, '0')
+        const minute = String(date.getMinutes()).padStart(2, '0')
+        const second = String(date.getSeconds()).padStart(2, '0')
 
-      return `${year}-${month}-${day} ${hour}:${minute}`
+        return `${year}-${month}-${day} ${hour}:${minute}:${second}`
+      } catch (error) {
+        console.error('时间格式化失败:', error)
+        return ''
+      }
     },
 
     handleFilter() {
@@ -1004,18 +1017,28 @@ export default {
       const option = this.syncEmailOptions.find(item => item.value === email)
       if (!option) return '未找到邮箱信息'
       
-      // 确保lastSyncTime存在
-      const syncTime = option.lastSyncTime || ''
-      return syncTime && syncTime !== '从未同步' 
-        ? `邮箱状态正常，上次同步时间: ${syncTime}` 
+      // 首先检查邮箱是否激活
+      if (!option.isActive) {
+        return '该邮箱未激活，请先在系统设置中激活邮箱'
+      }
+      
+      // 检查同步状态
+      const syncTime = option.lastSyncTime
+      return syncTime && syncTime !== '从未同步'
+        ? `邮箱状态正常，上次同步时间: ${syncTime}`
         : '该邮箱尚未同步过，请先在系统设置中进行测试'
     },
     getEmailStatusType(email) {
       const option = this.syncEmailOptions.find(item => item.value === email)
       if (!option) return 'warning'
       
-      // 确保lastSyncTime存在
-      const syncTime = option.lastSyncTime || ''
+      // 首先检查邮箱是否激活
+      if (!option.isActive) {
+        return 'error'
+      }
+      
+      // 检查同步状态
+      const syncTime = option.lastSyncTime
       return syncTime && syncTime !== '从未同步' ? 'success' : 'warning'
     },
     handleSyncChange(val) {
@@ -1068,19 +1091,28 @@ export default {
         console.log('原始邮箱API响应:', JSON.stringify(response.data[0]))
         
         // 将系统邮箱转换为下拉选项格式
-        this.syncEmailOptions = (response.data || []).map(email => ({
-          id: email.id, // 保存邮箱ID，用于JobKeyword模型
-          value: email.email,
-          label: email.email,
-          department: email.description || '未分类部门', // 使用邮箱描述作为部门
-          lastSyncTime: email.last_sync_time ? this.formatTime(email.last_sync_time) : '从未同步'
-        }))
+        this.syncEmailOptions = (response.data || []).map(email => {
+          // 打印原始数据，用于调试
+          console.log('处理邮箱数据:', {
+            email: email.email,
+            lastSyncTime: email.lastSyncTime,
+            isActive: email.isActive,
+            description: email.description
+          });
+          
+          return {
+            id: email.id,
+            value: email.email,
+            label: email.email,
+            department: email.description || '',
+            // 使用lastSyncTime字段
+            lastSyncTime: email.lastSyncTime ? this.formatTime(email.lastSyncTime) : '从未同步',
+            isActive: email.isActive
+          };
+        });
         
-        console.log('已加载系统同步邮箱:', this.syncEmailOptions)
-        // 打印邮箱ID信息，用于调试
-        this.syncEmailOptions.forEach(email => {
-          console.log(`邮箱: ${email.value}, ID: ${email.id}`)
-        })
+        // 打印转换后的数据，用于调试
+        console.log('转换后的邮箱选项:', JSON.stringify(this.syncEmailOptions, null, 2));
       } catch (error) {
         console.error('获取系统同步邮箱选项失败:', error)
         this.$message.error('获取同步邮箱选项失败，请刷新重试')
