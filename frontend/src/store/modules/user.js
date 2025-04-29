@@ -9,7 +9,8 @@ const state = {
   introduction: '',
   roles: [],
   trialStatus: null,
-  isTrialUser: false
+  isTrialUser: false,
+  isSuperuser: false
 }
 
 const mutations = {
@@ -33,6 +34,9 @@ const mutations = {
   },
   SET_IS_TRIAL_USER(state, isTrialUser) {
     state.isTrialUser = isTrialUser
+  },
+  SET_IS_SUPERUSER(state, isSuperuser) {
+    state.isSuperuser = isSuperuser
   }
 }
 
@@ -90,7 +94,7 @@ const actions = {
           reject('验证失败，请重新登录')
         }
 
-        const { roles, name, avatar, introduction } = data
+        const { roles, name, avatar, introduction, isSuperuser } = data
 
         // roles 必须是非空数组
         if (!roles || roles.length <= 0) {
@@ -101,6 +105,7 @@ const actions = {
         commit('SET_NAME', name)
         commit('SET_AVATAR', avatar)
         commit('SET_INTRODUCTION', introduction)
+        commit('SET_IS_SUPERUSER', !!isSuperuser)
         resolve(data)
       }).catch(error => {
         reject(error)

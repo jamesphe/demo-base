@@ -109,6 +109,21 @@
           sortable="custom"
         />
 
+        <!-- 租户列（仅超级管理员可见） -->
+        <el-table-column
+          v-if="isSuperuser"
+          label="租户"
+          prop="tenantName"
+          align="center"
+          min-width="120"
+          class-name="tenant-column"
+          sortable="custom"
+        >
+          <template slot-scope="scope">
+            <span>{{ scope.row.tenantName || '-' }}</span>
+          </template>
+        </el-table-column>
+
         <!-- 职位名称列 -->
         <el-table-column
           label="职位名称"
@@ -130,6 +145,34 @@
               </span>
               <span v-else>-</span>
             </el-link>
+          </template>
+        </el-table-column>
+
+        <!-- 部门列 -->
+        <el-table-column
+          label="部门"
+          prop="department_name"
+          align="center"
+          min-width="120"
+          class-name="department-column"
+          sortable="custom"
+        >
+          <template slot-scope="scope">
+            <span>{{ scope.row.department_name || '-' }}</span>
+          </template>
+        </el-table-column>
+
+        <!-- 发布人列 -->
+        <el-table-column
+          label="发布人"
+          prop="publisher_name"
+          align="center"
+          min-width="120"
+          class-name="publisher-column"
+          sortable="custom"
+        >
+          <template slot-scope="scope">
+            <span>{{ scope.row.publisher_name || '-' }}</span>
           </template>
         </el-table-column>
 
@@ -527,6 +570,9 @@ export default {
     ...mapGetters('position', [
       'currentPosition'
     ]),
+    ...mapGetters([
+      'isSuperuser'
+    ]),
     baseApiUrl() {
       return process.env.VUE_APP_BASE_API || ''
     },
@@ -602,9 +648,7 @@ export default {
           delete params.sortOrder
         }
 
-        console.log('Fetching applications with params:', params)
         const result = await this.getApplicationList(params)
-        console.log('API result:', result)
       } catch (error) {
         console.error('获取申请列表失败:', error)
         this.$message.error('获取申请列表失败')

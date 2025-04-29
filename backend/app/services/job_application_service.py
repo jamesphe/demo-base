@@ -164,8 +164,11 @@ class JobApplicationService:
                 models.Tenant,
                 models.Job.tenant_id == models.Tenant.id
             )
-            .filter(models.JobApplication.tenant_id == tenant_id)
         )
+
+        # 如果不是超级管理员，则添加租户过滤条件
+        if tenant_id is not None:
+            query = query.filter(models.JobApplication.tenant_id == tenant_id)
 
         # 应用搜索条件
         if filters:

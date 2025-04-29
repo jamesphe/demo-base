@@ -72,11 +72,13 @@ def read_all_job_applications(
     apply_time_end: Optional[str] = Query(None, description="申请结束时间"),
     sort_field: Optional[str] = Query(None, description="排序字段"),
     sort_order: Optional[str] = Query(None, description="排序方向(asc/desc)"),
-    current_tenant_id: int = Depends(deps.get_current_tenant_id)
+    current_tenant_id: int = Depends(deps.get_current_tenant_id),
+    current_user: models.User = Depends(deps.get_current_user)
 ) -> Any:
     """
     获取所有职位申请列表（跨职位，包含简历基本信息）
     - 返回当前租户下的所有职位申请
+    - 超级管理员可以查看所有租户的申请
     - 包含简历的基本信息（姓名、联系方式等）
     - 支持分页查询
     - 支持多条件搜索
@@ -87,7 +89,6 @@ def read_all_job_applications(
     
     # 构建搜索条件
     filters = {
-        "tenant_id": current_tenant_id,
         "status": status,
         "job_title": job_title,
         "candidate_name": candidate_name,
@@ -98,12 +99,16 @@ def read_all_job_applications(
         "apply_time_end": apply_time_end
     }
     
+    # 如果不是超级管理员，则只返回当前租户的数据
+    if not current_user.is_superuser:
+        filters["tenant_id"] = current_tenant_id
+    
     # 获取数据和总数
     applications, total = (
         job_application_service
         .get_applications_by_tenant_with_resume_info_and_count(
             db=db,
-            tenant_id=current_tenant_id,
+            tenant_id=None if current_user.is_superuser else current_tenant_id,
             skip=skip,
             limit=per_page,
             filters=filters,
