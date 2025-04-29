@@ -12,6 +12,7 @@ import position from './modules/position'
 import resume from './modules/resume'
 import jobApplication from './modules/jobApplication'
 import candidate from './modules/candidate'
+import job from './modules/job'
 
 Vue.use(Vuex)
 
@@ -41,7 +42,8 @@ const store = new Vuex.Store({
     position,
     resume,
     jobApplication,
-    candidate
+    candidate,
+    job
   },
   getters
 })

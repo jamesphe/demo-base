@@ -54,7 +54,7 @@
           <small class="text-muted">请设置薪资范围和福利待遇</small>
         </div>
 
-        <el-form-item label="薪资范围" prop="salary" class="salary-range">
+        <el-form-item label="薪资范围(K)" prop="salary" class="salary-range">
           <el-col :span="8">
             <el-input-number
               v-model="positionForm.salary_min"
@@ -144,31 +144,53 @@
         </el-row>
 
         <el-form-item label="职位描述" prop="description">
-          <el-input
-            v-model="positionForm.description"
-            type="textarea"
-            :rows="6"
-            placeholder="请详细描述该职位的主要工作内容、职责范围等，建议包含：
+          <div class="input-with-ai">
+            <el-input
+              v-model="positionForm.description"
+              type="textarea"
+              :rows="6"
+              placeholder="请详细描述该职位的主要工作内容、职责范围等，建议包含：
 1. 主要工作内容
 2. 团队协作方式
 3. 技术栈要求
 4. 项目类型
 5. 晋升空间"
-          />
+            />
+            <el-button
+              class="ai-generate-btn"
+              type="primary"
+              icon="el-icon-magic-stick"
+              :loading="generatingDescription"
+              @click="generateDescription"
+            >
+              AI生成
+            </el-button>
+          </div>
         </el-form-item>
 
         <el-form-item label="任职要求" prop="requirements">
-          <el-input
-            v-model="positionForm.requirements"
-            type="textarea"
-            :rows="6"
-            placeholder="请详细描述该职位的任职要求，建议包含：
+          <div class="input-with-ai">
+            <el-input
+              v-model="positionForm.requirements"
+              type="textarea"
+              :rows="6"
+              placeholder="请详细描述该职位的任职要求，建议包含：
 1. 学历要求
 2. 工作经验
 3. 专业技能
 4. 软技能要求
 5. 加分项"
-          />
+            />
+            <el-button
+              class="ai-generate-btn"
+              type="primary"
+              icon="el-icon-magic-stick"
+              :loading="generatingRequirements"
+              @click="generateRequirements"
+            >
+              AI生成
+            </el-button>
+          </div>
         </el-form-item>
 
         <el-form-item label="加分项" prop="preferences">
@@ -199,8 +221,7 @@
 </template>
 
 <script>
-// eslint-disable-next-line no-unused-vars
-import { mapGetters } from 'vuex'
+import { mapState } from 'vuex'
 
 export default {
   name: 'PositionPublish',
@@ -268,6 +289,12 @@ export default {
       }
     }
   },
+  computed: {
+    ...mapState('job', {
+      generatingDescription: state => state.loading.description,
+      generatingRequirements: state => state.loading.requirements
+    })
+  },
   methods: {
     resetForm() {
       this.$confirm('确定要重置表单吗？', '提示', {
@@ -332,6 +359,74 @@ export default {
         'negotiate': '面议'
       }
       return typeMap[type] || '月薪'
+    },
+
+    async generateDescription() {
+      // 检查必填字段
+      const requiredFields = {
+        title: '职位名称',
+        job_type: '职位类型',
+        department: '所属部门',
+        education_required: '学历要求',
+        experience_required: '工作经验'
+      }
+
+      for (const [field, label] of Object.entries(requiredFields)) {
+        if (!this.positionForm[field]) {
+          this.$message.warning(`请先填写${label}`)
+          return
+        }
+      }
+
+      const result = await this.$store.dispatch('job/generateDescription', {
+        title: this.positionForm.title,
+        job_type: this.getSalaryType(this.positionForm.job_type),
+        department: this.positionForm.department,
+        education_required: this.positionForm.education_required,
+        experience_required: this.positionForm.experience_required,
+        current_description: this.positionForm.description
+      })
+
+      if (result && result.success) {
+        this.positionForm.description = result.description
+        this.$message.success('职位描述生成成功')
+      } else {
+        this.$message.error(result?.message || 'AI生成失败，请重试')
+      }
+    },
+
+    async generateRequirements() {
+      // 检查必填字段
+      const requiredFields = {
+        title: '职位名称',
+        job_type: '职位类型',
+        department: '所属部门',
+        education_required: '学历要求',
+        experience_required: '工作经验'
+      }
+
+      for (const [field, label] of Object.entries(requiredFields)) {
+        if (!this.positionForm[field]) {
+          this.$message.warning(`请先填写${label}`)
+          return
+        }
+      }
+
+      const result = await this.$store.dispatch('job/generateRequirements', {
+        title: this.positionForm.title,
+        job_type: this.getSalaryType(this.positionForm.job_type),
+        department: this.positionForm.department,
+        education_required: this.positionForm.education_required,
+        experience_required: this.positionForm.experience_required,
+        current_requirements: this.positionForm.requirements
+      })
+
+      if (result && result.success) {
+        this.positionForm.requirements = result.requirements
+        this.$message.success('任职要求生成成功')
+      } else {
+        this.$message.error(result?.message || 'AI生成失败，请重试')
+      }
     }
   }
 }
@@ -399,5 +494,20 @@ export default {
 
 ::v-deep .el-card__body {
   padding: 20px;
+}
+
+.input-with-ai {
+  position: relative;
+  
+  .ai-generate-btn {
+    position: absolute;
+    right: -120px;
+    top: 0;
+    width: 100px;
+  }
+}
+
+::v-deep .el-form-item__content {
+  margin-right: 120px;
 }
 </style>

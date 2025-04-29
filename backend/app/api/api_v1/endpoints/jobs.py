@@ -1,4 +1,4 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
 from sqlalchemy.orm import Session
 
@@ -6,6 +6,7 @@ from app import crud, models, schemas
 from app.api import deps
 from app.services.job_service import job_service
 from app.services.job_application_service import job_application_service
+from app.services.llm_service import llm_service
 
 router = APIRouter()
 
@@ -622,5 +623,104 @@ def delete_job_application(
     
     return job_application_service.delete_application(
         db=db, application_id=application_id)
+
+
+@router.post("/generate-description", response_model=Dict[str, Any])
+async def generate_job_description(
+    *,
+    db: Session = Depends(deps.get_db),
+    title: str,
+    job_type: str,
+    department: str,
+    education_required: str,
+    experience_required: str,
+    current_description: str = None
+):
+    """生成职位描述"""
+    try:
+        prompt = f"""请为以下职位生成详细的职位描述：
+职位名称：{title}
+职位类型：{job_type}
+所属部门：{department}
+学历要求：{education_required}
+工作经验：{experience_required}
+当前描述：{current_description or '无'}
+
+请生成一个专业、详细的职位描述，包含以下方面：
+1. 主要工作内容和职责
+2. 团队协作方式
+3. 技术栈要求
+4. 项目类型
+5. 晋升空间和发展机会
+
+请用中文回答，直接返回描述内容，不要包含额外的格式或标题。"""
+
+        system_prompt = "你是一个专业的HR助手，擅长编写职位描述和要求。"
+        
+        response = await llm_service.generate_completion(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            db=db
+        )
+        
+        return {
+            "success": True,
+            "description": response["content"]
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"生成职位描述失败: {str(e)}"
+        )
+
+@router.post("/generate-requirements", response_model=Dict[str, Any])
+async def generate_job_requirements(
+    *,
+    db: Session = Depends(deps.get_db),
+    title: str,
+    job_type: str,
+    department: str,
+    education_required: str,
+    experience_required: str,
+    current_requirements: str = None
+):
+    """生成任职要求"""
+    try:
+        prompt = f"""请为以下职位生成详细的任职要求：
+职位名称：{title}
+职位类型：{job_type}
+所属部门：{department}
+学历要求：{education_required}
+工作经验：{experience_required}
+当前要求：{current_requirements or '无'}
+
+请生成专业、详细的任职要求，包含以下方面：
+1. 必备技能和经验
+2. 专业知识要求
+3. 软技能要求
+4. 个人素质要求
+5. 加分项和优先考虑项
+
+请用中文回答，直接返回要求内容，不要包含额外的格式或标题。"""
+
+        system_prompt = "你是一个专业的HR助手，擅长编写职位描述和要求。"
+        
+        response = await llm_service.generate_completion(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            db=db
+        )
+        
+        return {
+            "success": True,
+            "requirements": response["content"]
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"生成任职要求失败: {str(e)}"
+        )
 
 # ... 可能需要添加其他使用 external_id 的端点 ... 
