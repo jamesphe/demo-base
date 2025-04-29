@@ -7,7 +7,10 @@ celery_app = Celery(
     'resume_processor',
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
-    include=['app.services.resume_queue_service']  # 添加任务模块
+    include=[
+        'app.services.resume_queue_service',
+        'app.services.resume_sync_email_service'
+    ]  # 添加任务模块
 )
 
 # 配置Celery
@@ -21,6 +24,10 @@ celery_app.conf.update(
         'process-pending-resumes': {
             'task': 'app.services.resume_queue_service.process_pending_resumes',
             'schedule': crontab(minute='*/5'),  # 每5分钟执行一次
+        },
+        'sync-resume-emails': {
+            'task': 'app.services.resume_sync_email_service.sync_all_emails',
+            'schedule': crontab(minute='*/5'),  # 每15分钟执行一次
         },
     }
 ) 

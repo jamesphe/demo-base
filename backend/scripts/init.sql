@@ -735,3 +735,76 @@ CREATE INDEX idx_jobs_job_type ON jobs(job_type);
 CREATE INDEX idx_jobs_salary_type ON jobs(salary_type);
 CREATE INDEX idx_jobs_location ON jobs(location);
 
+-- 邮箱同步配置表
+CREATE TABLE resume_sync_emails (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES tenant(id),
+    email VARCHAR(255) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    imap_server VARCHAR(255) NOT NULL,
+    imap_port INTEGER DEFAULT 993,
+    smtp_server VARCHAR(255) NOT NULL,
+    smtp_port INTEGER DEFAULT 465,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_sync_time TIMESTAMP,
+    sync_interval INTEGER DEFAULT 15,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description TEXT,
+    CONSTRAINT unique_email_per_tenant UNIQUE (email, tenant_id)
+);
+
+-- 添加索引
+CREATE INDEX idx_resume_sync_emails_tenant_id ON resume_sync_emails(tenant_id);
+CREATE INDEX idx_resume_sync_emails_is_active ON resume_sync_emails(is_active);
+
+-- 添加更新时间触发器
+CREATE TRIGGER update_resume_sync_emails_updated_at
+    BEFORE UPDATE ON resume_sync_emails
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 职位关键字表
+CREATE TABLE job_keywords (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id),
+    sync_email_id INTEGER NOT NULL REFERENCES resume_sync_emails(id),
+    keyword VARCHAR(255) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    description TEXT,
+    CONSTRAINT unique_keyword_per_job UNIQUE (job_id, keyword)
+);
+
+-- 添加索引
+CREATE INDEX idx_job_keywords_job_id ON job_keywords(job_id);
+CREATE INDEX idx_job_keywords_sync_email_id ON job_keywords(sync_email_id);
+CREATE INDEX idx_job_keywords_is_active ON job_keywords(is_active);
+
+-- 添加更新时间触发器
+CREATE TRIGGER update_job_keywords_updated_at
+    BEFORE UPDATE ON job_keywords
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 添加注释
+COMMENT ON TABLE resume_sync_emails IS '简历同步邮箱配置表';
+COMMENT ON COLUMN resume_sync_emails.email IS '邮箱地址';
+COMMENT ON COLUMN resume_sync_emails.password IS '邮箱密码';
+COMMENT ON COLUMN resume_sync_emails.imap_server IS 'IMAP服务器地址';
+COMMENT ON COLUMN resume_sync_emails.imap_port IS 'IMAP服务器端口';
+COMMENT ON COLUMN resume_sync_emails.smtp_server IS 'SMTP服务器地址';
+COMMENT ON COLUMN resume_sync_emails.smtp_port IS 'SMTP服务器端口';
+COMMENT ON COLUMN resume_sync_emails.is_active IS '是否启用';
+COMMENT ON COLUMN resume_sync_emails.last_sync_time IS '上次同步时间';
+COMMENT ON COLUMN resume_sync_emails.sync_interval IS '同步间隔（分钟）';
+COMMENT ON COLUMN resume_sync_emails.description IS '描述信息';
+
+COMMENT ON TABLE job_keywords IS '职位关键字表';
+COMMENT ON COLUMN job_keywords.job_id IS '职位ID';
+COMMENT ON COLUMN job_keywords.sync_email_id IS '同步邮箱ID';
+COMMENT ON COLUMN job_keywords.keyword IS '匹配关键字';
+COMMENT ON COLUMN job_keywords.is_active IS '是否启用';
+COMMENT ON COLUMN job_keywords.description IS '描述信息';
+

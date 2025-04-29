@@ -40,8 +40,10 @@ def process_pending_resumes():
             
             process_resume_task.delay(
                 resume.id,
-                publisher_id=resume.publisher_id,
-                job_id=job_id
+                **{
+                    'publisher_id': resume.publisher_id,
+                    'job_id': job_id
+                }
             )
     except Exception as e:
         logger.error(f"处理待处理简历失败: {str(e)}")

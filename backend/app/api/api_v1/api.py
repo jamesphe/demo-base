@@ -5,9 +5,10 @@ from app.api.api_v1.endpoints import (
     tenants, llm_configs, talents, skills,
     talent_pools, talent_certifications, certifications,
     talent_educations, talent_experiences, resume_reviews,
-    job_applications
+    job_applications,
+    trial_application,
+    resume_sync_emails
 )
-from app.api.api_v1.endpoints import trial_application
 
 api_router = APIRouter()
 
@@ -147,4 +148,11 @@ api_router.include_router(
     trial_application.router,
     prefix="/trial",
     tags=["试用管理"]
+)
+
+# 新增的简历同步邮箱端点
+api_router.include_router(
+    resume_sync_emails.router,
+    prefix="/resume-sync-emails",
+    tags=["resume-sync-emails"]
 )

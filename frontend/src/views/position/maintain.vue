@@ -160,6 +160,62 @@
         </el-table-column>
 
         <el-table-column
+          label="邮件同步"
+          width="90"
+          align="center"
+        >
+          <template slot-scope="{row}">
+            <el-tag :type="row.emailSyncEnabled ? 'success' : 'info'" size="mini">
+              {{ row.emailSyncEnabled ? '已开启' : '已关闭' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column
+          label="接收邮箱"
+          min-width="150"
+          align="center"
+          show-overflow-tooltip
+        >
+          <template slot-scope="{row}">
+            <div v-if="row.emailSyncEnabled && row.receivingEmail">
+              <el-tag size="mini" type="primary">{{ row.receivingEmail }}</el-tag>
+              <div class="email-department">{{ getEmailDepartment(row.receivingEmail) }}</div>
+              <div class="email-sync-time" v-if="getEmailLastSyncTime(row.receivingEmail)">
+                <i class="el-icon-time"></i> 上次同步: {{ getEmailLastSyncTime(row.receivingEmail) }}
+              </div>
+            </div>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column
+          label="筛选关键字"
+          min-width="120"
+          align="center"
+          show-overflow-tooltip
+        >
+          <template slot-scope="{row}">
+            <div v-if="getPositionKeywords(row).length > 0">
+              <el-tag 
+                size="mini" 
+                type="warning" 
+                v-for="(keyword, index) in getPositionKeywords(row)" 
+                :key="index"
+                class="keyword-list-tag"
+                v-show="index < 3"
+              >
+                {{ keyword }}
+              </el-tag>
+              <el-tag size="mini" type="info" v-if="getPositionKeywords(row).length > 3">
+                +{{ getPositionKeywords(row).length - 3 }}
+              </el-tag>
+            </div>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column
           label="状态"
           width="80"
           align="center"
@@ -277,7 +333,7 @@
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="所属部门" prop="department">
-                <el-input v-model="positionForm.department" placeholder="请输入所属部门" />
+                <el-input v-model="positionForm.department" placeholder="请输入所属部门" @change="onDepartmentChange" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -403,10 +459,100 @@
             />
           </el-form-item>
         </el-card>
+
+        <el-card class="box-card">
+          <div slot="header" class="card-header">
+            <span>邮件设置</span>
+            <small class="text-muted">设置接收简历的邮件规则</small>
+            <el-button 
+              v-if="isAdmin"
+              type="text" 
+              size="mini" 
+              style="float: right; padding: 3px 0;" 
+              @click="goToEmailSettings"
+            >
+              <i class="el-icon-setting"></i> 管理邮箱设置
+            </el-button>
+          </div>
+
+          <el-form-item label="简历筛选关键字" prop="emailKeywords">
+            <el-input
+              v-model="keywordInput"
+              placeholder="请输入关键字后按回车添加，多个关键字用逗号分隔"
+              @keyup.enter.native="addKeyword"
+              class="keyword-input"
+            >
+              <el-button slot="append" icon="el-icon-plus" @click="addKeyword">添加</el-button>
+            </el-input>
+            <div class="keyword-tags">
+              <el-tag
+                v-for="(tag, index) in keywordList"
+                :key="index"
+                closable
+                @close="removeKeyword(index)"
+                class="keyword-tag"
+              >
+                {{ tag }}
+              </el-tag>
+              <div v-if="keywordList.length === 0" class="no-keywords">
+                暂无关键字，请添加
+              </div>
+            </div>
+            <div class="form-tip">系统将自动筛选包含以上关键字的简历邮件，未包含关键字的邮件将被过滤</div>
+          </el-form-item>
+
+          <el-form-item label="邮箱同步设置" prop="emailSyncEnabled">
+            <el-switch
+              v-model="positionForm.emailSyncEnabled"
+              active-text="开启邮箱同步"
+              inactive-text="关闭邮箱同步"
+              @change="handleSyncChange"
+            />
+            <div class="form-tip">
+              开启后，系统会根据关键字定期从选定邮箱中筛选简历并自动同步到招聘系统中。
+              <template v-if="isAdmin">如需配置更多邮箱，请前往<el-link type="primary" @click="goToEmailSettings">邮箱设置</el-link>页面。</template>
+            </div>
+          </el-form-item>
+
+          <el-form-item label="接收邮箱" prop="receivingEmail" v-if="positionForm.emailSyncEnabled" :rules="emailRules.receivingEmail">
+            <el-select 
+              v-model="positionForm.receivingEmail" 
+              placeholder="请选择接收简历的邮箱"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in syncEmailOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              >
+                <span style="float: left">{{ item.label }}</span>
+                <span style="float: right; color: #8492a6; font-size: 13px">{{ item.department }}</span>
+              </el-option>
+            </el-select>
+            <div class="form-tip">
+              <template v-if="syncEmailOptions.length === 0">
+                <i class="el-icon-warning"></i> 未找到可用的同步邮箱，请先在系统设置中配置邮箱。
+              </template>
+              <template v-else>
+                职位相关的简历将发送至此邮箱，请从系统已设置的同步邮箱中选择
+              </template>
+            </div>
+            <div class="email-status" v-if="positionForm.receivingEmail">
+              <el-alert
+                :title="getEmailStatusTitle(positionForm.receivingEmail)"
+                :type="getEmailStatusType(positionForm.receivingEmail)"
+                :closable="false"
+                size="mini"
+                show-icon
+              ></el-alert>
+            </div>
+          </el-form-item>
+        </el-card>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="updatePosition">确 定</el-button>
+        <el-button type="primary" @click="handleSavePosition">确 定</el-button>
       </div>
     </el-dialog>
   </div>
@@ -449,7 +595,10 @@ export default {
         experienceRequired: '',
         educationRequired: '',
         headcount: 1,
-        benefits: []
+        benefits: [],
+        emailKeywords: '',
+        emailSyncEnabled: false,
+        receivingEmail: ''
       },
       cityOptions: [
         {
@@ -486,7 +635,16 @@ export default {
         salaryMin: [{ required: true, message: '请输入最低薪资', trigger: 'blur' }],
         salaryMax: [{ required: true, message: '请输入最高薪资', trigger: 'blur' }]
       },
-      isAdmin: false
+      emailRules: {
+        receivingEmail: [
+          { required: true, message: '请输入接收邮箱', trigger: 'blur' },
+          { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
+        ]
+      },
+      isAdmin: false,
+      keywordInput: '',
+      keywordList: [],
+      syncEmailOptions: [],
     }
   },
   computed: {
@@ -498,14 +656,19 @@ export default {
   },
   created() {
     this.isAdmin = this.$store.getters.roles.includes('admin')
-    this.getList()
+    this.fetchList()
+    this.fetchSyncEmailOptions()
   },
   methods: {
     ...mapActions('position', [
       'getList',
       'updatePosition',
       'deletePosition',
-      'updatePositionStatus'
+      'updatePositionStatus',
+      'createPosition'
+    ]),
+    ...mapActions('resume-sync-email', [
+      'getEmailList'
     ]),
     getStatusType(status) {
       const statusMap = {
@@ -557,7 +720,7 @@ export default {
 
     handleFilter() {
       this.listQuery.page = 1
-      this.getList(this.listQuery)
+      this.fetchList()
     },
     resetQuery() {
       this.listQuery = {
@@ -567,7 +730,7 @@ export default {
         type: undefined,
         status: undefined
       }
-      this.getList(this.listQuery)
+      this.fetchList()
     },
     handleCreate() {
       this.dialogTitle = '新增职位'
@@ -586,9 +749,14 @@ export default {
         experienceRequired: '',
         educationRequired: '',
         headcount: 1,
-        benefits: []
+        benefits: [],
+        emailKeywords: '',
+        emailSyncEnabled: false,
+        receivingEmail: ''
       }
       this.dialogVisible = true
+      this.keywordInput = ''
+      this.keywordList = []
     },
     handleEdit(row) {
       console.log('编辑前的原始数据:', row)
@@ -622,9 +790,21 @@ export default {
         experienceRequired: row.experienceRequired || '',
         educationRequired: row.educationRequired || '',
         headcount: row.headcount || 1,
-        benefits: mappedBenefits
+        benefits: mappedBenefits,
+        emailSyncEnabled: row.emailSyncEnabled || false,
+        receivingEmail: row.receivingEmail || ''
       }
 
+      // 处理关键字 - 从keywords数组中提取关键字
+      this.keywordList = []
+      if (row.keywords && Array.isArray(row.keywords)) {
+        this.keywordList = row.keywords.map(item => item.keyword)
+      } else if (row.emailKeywords) {
+        // 兼容旧数据，如果存在emailKeywords字段
+        this.keywordList = row.emailKeywords.split(',').map(k => k.trim()).filter(k => k)
+      }
+      this.keywordInput = ''
+      
       console.log('表单数据:', this.positionForm)
       this.dialogTitle = '编辑职位'
       this.dialogVisible = true
@@ -632,9 +812,16 @@ export default {
     resetForm() {
       this.$refs.form && this.$refs.form.resetFields()
     },
-    async updatePosition() {
+    async handleSavePosition() {
       try {
         await this.$refs.form.validate()
+        
+        // 额外校验：如果开启了邮箱同步，接收邮箱必须选择
+        if (this.positionForm.emailSyncEnabled && !this.positionForm.receivingEmail) {
+          this.$message.error('开启邮箱同步后，必须选择接收邮箱')
+          return
+        }
+        
         const submitData = {
           id: this.positionForm.id,
           title: this.positionForm.title,
@@ -652,21 +839,63 @@ export default {
           experienceRequired: this.positionForm.experienceRequired,
           educationRequired: this.positionForm.educationRequired,
           headcount: Number(this.positionForm.headcount),
+          emailSyncEnabled: this.positionForm.emailSyncEnabled,
+          receivingEmail: this.positionForm.emailSyncEnabled ? this.positionForm.receivingEmail : '',
           status: 'published' // 修改为正确的状态值
         }
+
+        // 处理关键字 - 根据后端JobKeyword模型的结构
+        if (this.positionForm.emailSyncEnabled && this.keywordList.length > 0 && this.positionForm.receivingEmail) {
+          // 首先获取选中邮箱的ID
+          const syncEmailId = this.getSyncEmailIdByEmail(this.positionForm.receivingEmail);
+          
+          // 检查是否获取到有效的邮箱ID
+          if (!syncEmailId) {
+            console.warn('未能获取到邮箱ID，将使用默认值1')
+          }
+          
+          console.log(`使用邮箱ID: ${syncEmailId} 设置关键字`)
+          
+          // 将关键字列表转换为后端需要的格式
+          submitData.keywords = this.keywordList.map(keyword => ({
+            keyword: keyword,
+            sync_email_id: syncEmailId || 1 // 如果获取不到ID则使用默认值1
+          }))
+        } else {
+          submitData.keywords = [] // 传空数组表示清除关键字
+        }
+        
+        // 为向后兼容，同时也保留旧数据格式
+        submitData.emailKeywords = this.keywordList.join(',')
+        
         console.log('提交的数据:', submitData)
 
-        await this.updatePosition({
-          id: this.positionForm.id, 
-          data: submitData
-        })
-        
-        this.dialogVisible = false
-        this.$message.success(this.positionForm.id ? '更新成功' : '创建成功')
-        this.getList(this.listQuery)
+        try {
+          // 调用store的action来更新职位
+          if (this.positionForm.id) {
+            // 如果有ID，则是更新已有职位
+            await this.updatePosition({
+              id: this.positionForm.id,
+              data: submitData
+            })
+          } else {
+            // 如果没有ID，则是创建新职位
+            await this.createPosition(submitData)
+          }
+          
+          // 成功后关闭对话框并显示成功消息
+          this.dialogVisible = false
+          this.$message.success(this.positionForm.id ? '更新成功' : '创建成功')
+          
+          // 刷新列表
+          this.fetchList()
+        } catch (error) {
+          console.error('API调用失败:', error)
+          this.$message.error(`操作失败: ${error.message || '未知错误'}`)
+        }
       } catch (error) {
         console.error('保存职位失败:', error)
-        this.$message.error('保存失败，请重试')
+        this.$message.error('表单验证失败，请检查输入')
       }
     },
     async handleUpdateStatus(row, status) {
@@ -682,7 +911,7 @@ export default {
         )
         await this.updatePositionStatus({id: row.id, status})
         this.$message.success('操作成功')
-        this.getList(this.listQuery)
+        this.fetchList()
       } catch (error) {
         console.error('更新状态失败:', error)
       }
@@ -696,7 +925,7 @@ export default {
         })
         await this.deletePosition(row.id)
         this.$message.success('删除成功')
-        this.getList(this.listQuery)
+        this.fetchList()
       } catch (error) {
         console.error('删除职位失败:', error)
       }
@@ -717,7 +946,188 @@ export default {
     },
     getBenefitLabel(value) {
       return this.getBenefitMap()[value] || value
-    }
+    },
+    addKeyword() {
+      if (!this.keywordInput.trim()) return
+      
+      // 处理可能包含逗号的输入，分割成多个关键字
+      const keywords = this.keywordInput.split(',').map(k => k.trim()).filter(k => k)
+      
+      keywords.forEach(keyword => {
+        if (!this.keywordList.includes(keyword)) {
+          this.keywordList.push(keyword)
+        }
+      })
+      
+      this.keywordInput = ''
+    },
+    removeKeyword(index) {
+      this.keywordList.splice(index, 1)
+    },
+    getEmailDepartment(email) {
+      // 从预设的邮箱选项中查找对应的部门
+      const option = this.syncEmailOptions.find(item => item.value === email)
+      return option ? option.department : ''
+    },
+    getSyncEmailIdByEmail(email) {
+      // 通过邮箱地址获取邮箱ID
+      if (!email) {
+        console.warn('获取邮箱ID时传入的邮箱地址为空')
+        return null
+      }
+      
+      const option = this.syncEmailOptions.find(item => item.value === email)
+      if (!option) {
+        console.warn(`未找到邮箱 ${email} 对应的选项数据`)
+        return null
+      }
+      
+      if (!option.id) {
+        console.warn(`邮箱 ${email} 的选项数据中没有ID字段`)
+        // 尝试从email对象中获取ID
+        const emailData = (this.syncEmailOptions || []).find(e => e.email === email)
+        if (emailData && emailData.id) {
+          console.log(`从原始数据中找到ID: ${emailData.id}`)
+          return emailData.id
+        }
+      }
+      
+      console.log(`邮箱 ${email} 的ID: ${option.id || 'undefined'}`)
+      return option.id || null
+    },
+    getEmailLastSyncTime(email) {
+      // 从预设的邮箱选项中查找对应的最后同步时间
+      const option = this.syncEmailOptions.find(item => item.value === email)
+      return option ? option.lastSyncTime || '' : ''
+    },
+    getEmailStatusTitle(email) {
+      const option = this.syncEmailOptions.find(item => item.value === email)
+      if (!option) return '未找到邮箱信息'
+      
+      // 确保lastSyncTime存在
+      const syncTime = option.lastSyncTime || ''
+      return syncTime && syncTime !== '从未同步' 
+        ? `邮箱状态正常，上次同步时间: ${syncTime}` 
+        : '该邮箱尚未同步过，请先在系统设置中进行测试'
+    },
+    getEmailStatusType(email) {
+      const option = this.syncEmailOptions.find(item => item.value === email)
+      if (!option) return 'warning'
+      
+      // 确保lastSyncTime存在
+      const syncTime = option.lastSyncTime || ''
+      return syncTime && syncTime !== '从未同步' ? 'success' : 'warning'
+    },
+    handleSyncChange(val) {
+      if (val && !this.positionForm.receivingEmail) {
+        // 当开启邮箱同步时，尝试根据部门自动推荐邮箱
+        this.recommendEmailByDepartment()
+      }
+    },
+    recommendEmailByDepartment() {
+      const department = this.positionForm.department
+      if (!department) return
+
+      // 根据部门名称匹配邮箱
+      const matchedOptions = this.syncEmailOptions.filter(option => 
+        option.department.includes(department) || department.includes(option.department)
+      )
+
+      if (matchedOptions.length > 0) {
+        // 取第一个匹配的邮箱
+        this.positionForm.receivingEmail = matchedOptions[0].value
+        this.$message.success(`已自动选择 ${matchedOptions[0].department} 的邮箱`)
+      }
+    },
+    onDepartmentChange() {
+      // 如果已经开启了邮箱同步但还没选择邮箱，则根据部门推荐
+      if (this.positionForm.emailSyncEnabled && !this.positionForm.receivingEmail) {
+        this.recommendEmailByDepartment()
+      }
+    },
+    goToEmailSettings() {
+      // 跳转到邮箱设置页面
+      this.$router.push('/settings/email')
+    },
+    async fetchSyncEmailOptions() {
+      try {
+        // 从系统邮箱设置接口获取同步邮箱列表
+        const response = await this.getEmailList({
+          page: 1,
+          per_page: 100, // 获取足够多的邮箱
+          is_active: true // 只获取启用状态的邮箱
+        })
+        
+        // 确保response和data存在
+        if (!response || !response.data) {
+          console.error('邮箱API返回格式错误:', response)
+          throw new Error('获取邮箱数据格式错误')
+        }
+        
+        // 打印原始响应数据结构，用于调试
+        console.log('原始邮箱API响应:', JSON.stringify(response.data[0]))
+        
+        // 将系统邮箱转换为下拉选项格式
+        this.syncEmailOptions = (response.data || []).map(email => ({
+          id: email.id, // 保存邮箱ID，用于JobKeyword模型
+          value: email.email,
+          label: email.email,
+          department: email.description || '未分类部门', // 使用邮箱描述作为部门
+          lastSyncTime: email.last_sync_time ? this.formatTime(email.last_sync_time) : '从未同步'
+        }))
+        
+        console.log('已加载系统同步邮箱:', this.syncEmailOptions)
+        // 打印邮箱ID信息，用于调试
+        this.syncEmailOptions.forEach(email => {
+          console.log(`邮箱: ${email.value}, ID: ${email.id}`)
+        })
+      } catch (error) {
+        console.error('获取系统同步邮箱选项失败:', error)
+        this.$message.error('获取同步邮箱选项失败，请刷新重试')
+        
+        // 加载失败时提供一些默认选项以便测试
+        this.syncEmailOptions = [
+          { value: 'hr@company.com', label: 'hr@company.com', department: '人力资源部' },
+          { value: 'tech@company.com', label: 'tech@company.com', department: '技术部' }
+        ]
+      }
+    },
+    getPositionKeywords(row) {
+      // 获取职位的关键字列表，兼容新旧数据格式
+      if (row.keywords && Array.isArray(row.keywords)) {
+        console.log(`职位[${row.id}] 使用keywords数组格式，长度: ${row.keywords.length}`)
+        return row.keywords.map(item => item.keyword)
+      } else if (row.emailKeywords) {
+        console.log(`职位[${row.id}] 使用emailKeywords字符串格式，值: ${row.emailKeywords}`)
+        return row.emailKeywords.split(',').map(k => k.trim()).filter(k => k)
+      }
+      console.log(`职位[${row.id}] 没有关键字数据`)
+      return []
+    },
+    async fetchList() {
+      try {
+        // 添加调试输出
+        const response = await this.$store.dispatch('position/getList', this.listQuery);
+        console.log('获取职位列表成功，第一条数据:', response && response.length > 0 ? response[0] : '无数据');
+        
+        // 检查关键字数据结构
+        if (response && response.length > 0) {
+          const firstItem = response[0];
+          console.log('第一条职位数据的关键字结构:', {
+            hasKeywords: !!firstItem.keywords,
+            keywordsType: firstItem.keywords ? typeof firstItem.keywords : 'undefined',
+            isArray: firstItem.keywords ? Array.isArray(firstItem.keywords) : false,
+            keywordsLength: firstItem.keywords ? (Array.isArray(firstItem.keywords) ? firstItem.keywords.length : 'not array') : 0,
+            emailKeywords: firstItem.emailKeywords || '无'
+          });
+        }
+        return response;
+      } catch (error) {
+        console.error('获取职位列表失败:', error);
+        this.$message.error('获取职位列表失败，请刷新重试');
+        return [];
+      }
+    },
   }
 }
 </script>
@@ -827,6 +1237,57 @@ export default {
     display: flex;
     flex-wrap: wrap;
     gap: 15px;
+  }
+
+  .form-tip {
+    font-size: 12px;
+    color: #909399;
+    margin-top: 5px;
+    line-height: 1.4;
+  }
+
+  .keyword-input {
+    margin-bottom: 10px;
+  }
+
+  .keyword-tags {
+    margin-top: 5px;
+    min-height: 32px;
+    padding: 5px;
+    border: 1px dashed #dcdfe6;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+  }
+
+  .keyword-tag {
+    margin-right: 6px;
+    margin-bottom: 6px;
+  }
+
+  .no-keywords {
+    color: #909399;
+    font-size: 14px;
+    padding: 5px;
+  }
+
+  .keyword-list-tag {
+    margin-right: 3px;
+  }
+
+  .email-department {
+    margin-top: 5px;
+    font-size: 12px;
+    color: #909399;
+  }
+
+  .email-sync-time {
+    margin-top: 3px;
+    font-size: 12px;
+    color: #67c23a;
+  }
+
+  .email-status {
+    margin-top: 10px;
   }
 
   ::v-deep .el-card__header {

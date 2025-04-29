@@ -55,3 +55,4 @@ class Job(Base):
         back_populates="job"
     )
     applications = relationship("JobApplication", back_populates="job")
+    keywords = relationship("JobKeyword", back_populates="job", uselist=True, cascade="all, delete-orphan")

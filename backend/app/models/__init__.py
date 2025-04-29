@@ -20,8 +20,10 @@ from .skill import Skill  # noqa: F401
 from .talent_skill import TalentSkill  # noqa: F401
 from .notification import Notification  # noqa: F401
 from .talent_pool import TalentPool, TalentPoolMember  # noqa: F401
-from .certification import Certification  # 添加这一行
-from .trial_application import TrialApplication  # 添加这一行
+from .certification import Certification  # noqa: F401
+from .trial_application import TrialApplication  # noqa: F401
+from .resume_sync_email import ResumeSyncEmail  # noqa: F401
+from .job_keyword import JobKeyword  # noqa: F401
 
 __all__ = [
     "User",
@@ -49,5 +51,7 @@ __all__ = [
     "TalentPool",
     "TalentPoolMember",
     "Certification",
-    "TrialApplication"
+    "TrialApplication",
+    "ResumeSyncEmail",
+    "JobKeyword"
 ] 

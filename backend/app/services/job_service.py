@@ -3,13 +3,13 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from datetime import datetime
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import joinedload
 
-from app import models, schemas
+from app import models, schemas, crud
 from app.schemas.job import JobCreate, JobUpdate
 from app.services.base import BaseService
 from app.core.security import get_password_hash
 from app.core.config import settings
-from app import crud
 from app.services.job_requirement_service import JobRequirementService
 
 
@@ -246,8 +246,12 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         return job
 
     def get_job(self, db: Session, *, job_id: int) -> Optional[models.Job]:
-        """获取职位"""
-        job = db.query(models.Job).filter(models.Job.id == job_id).first()
+        """获取职位信息"""
+        # 使用 joinedload 优化关联查询
+        job = db.query(models.Job).options(
+            joinedload(models.Job.keywords)
+        ).filter(models.Job.id == job_id).first()
+        
         if job:
             # 添加tenant_name字段
             tenant = db.query(models.Tenant).filter(
@@ -256,6 +260,24 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
             if tenant:
                 # 动态添加tenant_name属性
                 job.tenant_name = tenant.tenant_name
+            
+            # 检查是否有邮箱同步配置
+            has_email_sync = len(job.keywords) > 0
+            receiving_email = None
+            
+            if has_email_sync and job.keywords:
+                # 获取第一个关键字的邮箱信息
+                sync_email = db.query(models.ResumeSyncEmail).filter(
+                    models.ResumeSyncEmail.id == job.keywords[0].sync_email_id
+                ).first()
+                
+                if sync_email:
+                    receiving_email = sync_email.email
+            
+            # 设置额外属性（不在模型定义中的属性）
+            job.emailSyncEnabled = has_email_sync
+            job.receivingEmail = receiving_email
+            
         return job
 
     def get_job_by_id(self, db: Session, *, job_id: int) -> Optional[models.Job]:
@@ -288,8 +310,27 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         if not job:
             raise HTTPException(status_code=404, detail="职位不存在")
 
+        # 从job_in中提取keywords
+        keywords_data = None
+        if hasattr(job_in, 'keywords'):
+            keywords_data = job_in.keywords
+        
+        # 创建更新数据字典，只包含非None值
+        update_data = {}
+        job_in_dict = job_in.dict(exclude_unset=True)
+        
+        # 移除keywords字段，手动处理
+        if 'keywords' in job_in_dict:
+            del job_in_dict['keywords']
+
+        # 只更新前端提交的非空字段  
+        for key, value in job_in_dict.items():
+            if value is not None:  # 只更新非None值
+                update_data[key] = value
+                
         # 更新职位基本信息
-        job = crud.job.update(db, db_obj=job, obj_in=job_in)
+        if update_data:  # 只有在有更新数据时才更新
+            job = crud.job.update(db, db_obj=job, obj_in=update_data)
 
         # 更新技能要求
         if hasattr(job_in, 'skills') and job_in.skills is not None:  # 允许清空技能要求
@@ -300,6 +341,26 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         if hasattr(job_in, 'certifications') and job_in.certifications is not None:  # 允许清空证书要求
             requirement_service = JobRequirementService(db)
             requirement_service.update_job_certifications(job.id, job_in.certifications)
+
+        # 更新关键字
+        if keywords_data is not None:
+            # 首先删除该职位的所有现有关键字
+            db.query(models.JobKeyword).filter(
+                models.JobKeyword.job_id == job_id
+            ).delete()
+            
+            # 添加新的关键字
+            for keyword_data in keywords_data:
+                keyword = models.JobKeyword(
+                    job_id=job_id,
+                    keyword=keyword_data["keyword"],
+                    sync_email_id=keyword_data["sync_email_id"],
+                    description=keyword_data.get("description")
+                )
+                db.add(keyword)
+            
+            db.commit()
+            db.refresh(job)
 
         return job
 
@@ -401,6 +462,24 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         # 转换为字典列表
         job_list = []
         for job in jobs:
+            # 获取职位关键字信息
+            keywords = db.query(models.JobKeyword).filter(
+                models.JobKeyword.job_id == job.id
+            ).all()
+            
+            # 检查是否有邮箱同步配置
+            has_email_sync = len(keywords) > 0
+            receiving_email = None
+            
+            if has_email_sync and keywords:
+                # 获取第一个关键字的邮箱信息
+                sync_email = db.query(models.ResumeSyncEmail).filter(
+                    models.ResumeSyncEmail.id == keywords[0].sync_email_id
+                ).first()
+                
+                if sync_email:
+                    receiving_email = sync_email.email
+            
             job_dict = {
                 "id": job.id,
                 "external_id": job.external_id,
@@ -426,6 +505,19 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
                 "created_at": job.created_at,
                 "published_at": job.published_at,
                 "closed_at": job.closed_at,
+                # 添加关键字和邮箱配置信息
+                "keywords": [
+                    {
+                        "id": kw.id,
+                        "job_id": kw.job_id,
+                        "sync_email_id": kw.sync_email_id,
+                        "keyword": kw.keyword,
+                        "description": kw.description
+                    } for kw in keywords
+                ],
+                "emailKeywords": ",".join([kw.keyword for kw in keywords]) if keywords else "",
+                "emailSyncEnabled": has_email_sync,
+                "receivingEmail": receiving_email,
                 "tenant": {  # 添加完整的租户信息
                     "id": job.tenant.id,
                     "name": job.tenant.tenant_name,  # 使用 tenant_name 替代 company_name

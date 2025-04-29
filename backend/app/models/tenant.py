@@ -37,3 +37,8 @@ class Tenant(Base):
         back_populates="tenant",
         cascade="all, delete-orphan"
     )
+    resume_sync_emails = relationship(
+        "ResumeSyncEmail",
+        back_populates="tenant",
+        cascade="all, delete-orphan"
+    )

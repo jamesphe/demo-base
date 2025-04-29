@@ -384,6 +384,15 @@ export const asyncRoutes = [
           title: '权限管理',
           roles: ['admin']
         }
+      },
+      {
+        path: 'email',
+        component: () => import('@/views/settings/email'),
+        name: 'SettingsEmail',
+        meta: {
+          title: '邮箱设置',
+          roles: ['admin', 'tenant_admin']
+        }
       }
     ]
   }

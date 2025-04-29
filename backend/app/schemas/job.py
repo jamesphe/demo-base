@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 from pydantic import BaseModel, Field
 from .common import ListResponse
 
@@ -103,6 +103,12 @@ class JobUpdate(JobBase):
         None, 
         description="职位状态(draft/published/closed)"
     )
+    
+    # 添加关键字字段
+    keywords: Optional[List[Dict[str, Any]]] = Field(
+        None, 
+        description="职位关键字列表"
+    )
 
 
 class Job(JobBase):
@@ -117,6 +123,9 @@ class Job(JobBase):
     closed_at: Optional[datetime]
     required_skills: List[JobRequiredSkill] = []
     required_certifications: List[JobRequiredCertification] = []
+    keywords: List[Dict[str, Any]] = []
+    emailSyncEnabled: Optional[bool] = None
+    receivingEmail: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -85,6 +85,14 @@ INSERT INTO permission (name, description) VALUES
 ('llm_config_validate', '验证LLM配置')
 ON CONFLICT (name) DO NOTHING;
 
+-- 添加邮箱同步相关权限
+INSERT INTO permission (name, description) VALUES 
+('resume_sync_email_read', '读取简历同步邮箱配置'),
+('resume_sync_email_create', '创建简历同步邮箱配置'),
+('resume_sync_email_update', '更新简历同步邮箱配置'),
+('resume_sync_email_delete', '删除简历同步邮箱配置')
+ON CONFLICT (name) DO NOTHING;
+
 -- 创建基础角色
 INSERT INTO role (name, description) VALUES 
 ('admin', '管理员'),
@@ -192,7 +200,11 @@ AND p.name IN (
     'llm_config_create',
     'llm_config_update',
     'llm_config_delete',
-    'llm_config_validate'
+    'llm_config_validate',
+    'resume_sync_email_read',
+    'resume_sync_email_create',
+    'resume_sync_email_update',
+    'resume_sync_email_delete'
 )
 AND NOT EXISTS (
     SELECT 1 FROM role_permission rp 
@@ -215,7 +227,8 @@ AND p.name IN (
     'resume_read',
     'resume_review_read',
     'repository_read',
-    'llm_config_read'
+    'llm_config_read',
+    'resume_sync_email_read'
 )
 AND NOT EXISTS (
     SELECT 1 FROM role_permission rp 

@@ -4,6 +4,21 @@ from app.core.config import settings
 from app.api.api_v1.api import api_router
 from fastapi.exceptions import RequestValidationError
 from app.api.errors import validation_exception_handler
+import logging
+import sys
+
+# 配置全局日志设置
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+
+# 控制某些第三方库的日志级别
+logging.getLogger("uvicorn").setLevel(logging.INFO)
+logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

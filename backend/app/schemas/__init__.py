@@ -123,6 +123,15 @@ from .talent import (
     TalentListResponse
 )
 from .application import ApplicationBatchUpdateRequest, ApplicationInfo, ConvertToCandidatesRequest
+from .resume_sync_email import (
+    ResumeSyncEmail,
+    ResumeSyncEmailCreate,
+    ResumeSyncEmailUpdate,
+    ResumeSyncEmailListResponse,
+    JobKeyword,
+    JobKeywordCreate,
+    JobKeywordUpdate
+)
 
 __all__ = [
     "User",
@@ -208,5 +217,12 @@ __all__ = [
     "ApplicationBatchUpdateRequest",
     "ApplicationInfo",
     "ConvertToCandidatesRequest",
-    "BatchActionResponse"
+    "BatchActionResponse",
+    "ResumeSyncEmail",
+    "ResumeSyncEmailCreate",
+    "ResumeSyncEmailUpdate",
+    "ResumeSyncEmailListResponse",
+    "JobKeyword",
+    "JobKeywordCreate",
+    "JobKeywordUpdate"
 ] 
