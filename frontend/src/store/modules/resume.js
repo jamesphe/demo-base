@@ -106,11 +106,29 @@ const mutations = {
     state.uploadedFiles = state.uploadedFiles.filter(file => file.id !== fileId)
   },
   SET_PREVIEW_URL: (state, url) => {
+    console.log(`开始设置预览URL: ${url}`);
     const token = getToken()
+    console.log(`获取到的token: ${token}`);
     const separator = url.includes('?') ? '&' : '?'
-    state.currentPreviewUrl = url.startsWith('http')
-      ? `${url}${separator}token=${token}`
-      : `${baseURL}${url}${separator}token=${token}`
+    
+    // 如果URL已经包含完整的域名，直接使用
+    if (url.startsWith('http')) {
+      console.log('URL已包含完整的域名，直接使用');
+      state.currentPreviewUrl = `${url}${separator}token=${token}`
+      return
+    }
+    
+    // 如果URL已经包含/api/v1前缀，移除前缀后使用
+    if (url.startsWith('/api/v1')) {
+      console.log('URL已包含/api/v1前缀，移除前缀后使用');
+      state.currentPreviewUrl = `${url.substring(7)}${separator}token=${token}`
+      return
+    }
+    
+    // 否则添加baseURL
+    console.log('URL不包含域名或/api/v1前缀，添加baseURL');
+    state.currentPreviewUrl = `${url}${separator}token=${token}`
+    console.log(`最终设置的预览URL: ${state.currentPreviewUrl}`);
   },
   SET_PREVIEW_LOADING: (state, loading) => {
     state.previewLoading = loading

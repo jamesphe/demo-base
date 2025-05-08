@@ -2367,15 +2367,27 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         job_external_id: Optional[str] = None
     ) -> None:
         """同步处理简历内容，用于 Celery 任务"""
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(
-            self.async_process_resume(
-                resume_id=resume_id,
-                publisher_id=publisher_id,
-                job_id=job_id,
-                job_external_id=job_external_id
+        try:
+            # 创建新的事件循环
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            # 在新的事件循环中运行异步任务
+            loop.run_until_complete(
+                self.async_process_resume(
+                    resume_id=resume_id,
+                    publisher_id=publisher_id,
+                    job_id=job_id,
+                    job_external_id=job_external_id
+                )
             )
-        )
+        except Exception as e:
+            logger.error(f"处理简历同步任务失败: {str(e)}")
+            raise
+        finally:
+            # 关闭事件循环
+            if 'loop' in locals() and loop.is_running():
+                loop.close()
 
     async def _parse_resume(self, file_path: str) -> str:
         """解析简历文件内容"""

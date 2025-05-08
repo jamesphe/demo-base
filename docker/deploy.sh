@@ -11,8 +11,24 @@ SERVICE_NAME=$1
 
 echo -e "${YELLOW}开始部署Resume系统...${NC}"
 
+# 检查是否需要重新部署除数据库外的所有服务
+if [ "$SERVICE_NAME" = "all-except-db" ] || [ "$SERVICE_NAME" = "-a" ] || [ "$SERVICE_NAME" = "--all-except-db" ]; then
+    echo -e "${YELLOW}将重新部署除数据库外的所有服务...${NC}"
+    SERVICES_TO_DEPLOY=("resume-backend" "resume-celery-worker" "resume-celery-beat" "resume-frontend")
+    
+    # 停止并删除要重新部署的服务
+    for service in "${SERVICES_TO_DEPLOY[@]}"; do
+        CONTAINER_ID=$(docker compose ps -q "$service")
+        if [ -n "$CONTAINER_ID" ]; then
+            echo -e "${YELLOW}检测到 $service 容器正在运行，将停止并删除旧容器...${NC}"
+            docker compose stop "$service"
+            docker compose rm -f "$service"
+        fi
+    done
+    
+    SERVICE_NAME=""  # 清空SERVICE_NAME以便后续代码正常处理
 # 检查容器是否在运行
-if [ -n "$SERVICE_NAME" ]; then
+elif [ -n "$SERVICE_NAME" ]; then
     CONTAINER_ID=$(docker compose ps -q "$SERVICE_NAME")
     if [ -n "$CONTAINER_ID" ]; then
         echo -e "${YELLOW}检测到 $SERVICE_NAME 容器正在运行，将停止并删除旧容器...${NC}"
@@ -42,6 +58,8 @@ for img in "${IMAGES[@]}"; do
     if [ -n "$SERVICE_NAME" ] && [[ ! "$img" =~ "$SERVICE_NAME" ]]; then
         continue
     fi
+    
+    # 如果是all-except-db模式，则加载所有非数据库的镜像（此时SERVICE_NAME已被清空）
     
     if [ -f "$img" ]; then
         echo -e "正在加载 $img..."
@@ -81,7 +99,12 @@ fi
 
 # 部署服务
 echo -e "${YELLOW}启动Docker容器...${NC}"
-if [ -n "$SERVICE_NAME" ]; then
+if [ "$1" = "all-except-db" ] || [ "$1" = "-a" ] || [ "$1" = "--all-except-db" ]; then
+    # 启动除数据库外的所有服务
+    for service in "${SERVICES_TO_DEPLOY[@]}"; do
+        docker compose up -d "$service"
+    done
+elif [ -n "$SERVICE_NAME" ]; then
     docker compose up -d "$SERVICE_NAME"
 else
     docker compose up -d

@@ -165,18 +165,55 @@ export default {
           
           // 检查API返回的previewUrl并使用正确的下载路径
           console.log('Store中的预览URL:', this.previewUrl)
+          console.log('baseApiUrl值:', this.baseApiUrl)
           
-          // 从store获取的预览URL可能是相对路径，需要拼接baseApiUrl
+          // 修复Docker环境下URL重复的问题
           if (this.previewUrl) {
-            // 提取路径中的关键部分
-            const urlPath = this.previewUrl.includes('/resumes/') 
-              ? `/resumes/${this.resumeId}/download` 
-              : `/resume/download/${this.resumeId}`
-              
-            this.downloadUrl = `${this.baseApiUrl}${urlPath}${tokenParam}`
+            // 解析原始URL，移除可能已有的token参数
+            let urlPath = this.previewUrl
+            if (urlPath.includes('?token=')) {
+              urlPath = urlPath.split('?token=')[0]
+              console.log('移除已有token后的路径:', urlPath)
+            }
+            
+            // 检查是否已经添加了/api/v1前缀
+            if (urlPath.startsWith('/api/v1/')) {
+              urlPath = urlPath.substring(7) // 去掉/api/v1前缀
+              console.log('移除/api/v1前缀后的路径:', urlPath)
+            }
+            
+            console.log('最终处理后的urlPath:', urlPath)
+            
+            // 构建完整URL
+            // 如果baseApiUrl为空，则使用相对路径
+            let finalUrl
+            if (!this.baseApiUrl || this.baseApiUrl === '/api/v1') {
+              finalUrl = urlPath.startsWith('/') ? urlPath : `/${urlPath}`
+            } else {
+              // 否则使用绝对路径
+              const baseUrl = this.baseApiUrl.endsWith('/api/v1') 
+                ? this.baseApiUrl.substring(0, this.baseApiUrl.length - 7) // 移除末尾的/api/v1
+                : this.baseApiUrl
+              finalUrl = `${baseUrl}${urlPath.startsWith('/') ? urlPath : `/${urlPath}`}`
+            }
+            
+            // 添加token参数
+            this.downloadUrl = finalUrl + (finalUrl.includes('?') ? '&' : '?') + `token=${cleanToken}`
+            console.log('最终构建的下载URL:', this.downloadUrl)
           } else {
             // 使用默认下载URL格式
-            this.downloadUrl = `${this.baseApiUrl}/resume/download/${this.resumeId}${tokenParam}`
+            const basePath = `/resume/download/${this.resumeId}`
+            
+            // 如果baseApiUrl为空，则使用相对路径
+            if (!this.baseApiUrl || this.baseApiUrl === '/api/v1') {
+              this.downloadUrl = `${basePath}${tokenParam}`
+            } else {
+              // 否则使用绝对路径
+              const baseUrl = this.baseApiUrl.endsWith('/api/v1') 
+                ? this.baseApiUrl.substring(0, this.baseApiUrl.length - 7) // 移除末尾的/api/v1
+                : this.baseApiUrl
+              this.downloadUrl = `${baseUrl}${basePath}${tokenParam}`
+            }
           }
           
           console.log('下载URL:', this.downloadUrl)
@@ -201,10 +238,27 @@ export default {
         
         // 确定正确的API路径
         const apiPath = `/resumes/${this.resumeId}/download`
-        console.log('请求Word文档路径:', `${this.baseApiUrl}${apiPath}`)
+        console.log('原始API路径:', apiPath)
+        console.log('baseApiUrl值:', this.baseApiUrl)
+        
+        // 构建请求URL
+        let requestUrl
+        
+        // 如果baseApiUrl为空或只是/api/v1，则使用相对路径
+        if (!this.baseApiUrl || this.baseApiUrl === '/api/v1') {
+          requestUrl = apiPath
+        } else {
+          // 否则使用绝对路径，避免重复的api/v1
+          const baseUrl = this.baseApiUrl.endsWith('/api/v1') 
+            ? this.baseApiUrl.substring(0, this.baseApiUrl.length - 7) // 移除末尾的/api/v1
+            : this.baseApiUrl
+          requestUrl = `${baseUrl}${apiPath}`
+        }
+        
+        console.log('请求Word文档路径:', requestUrl)
         
         // 发起下载请求获取文件内容
-        const response = await fetch(`${this.baseApiUrl}${apiPath}`, {
+        const response = await fetch(requestUrl, {
           headers: {
             'Authorization': `${this.authToken}`
           }
@@ -240,7 +294,18 @@ export default {
         
         // 设置下载URL（使用相同的路径）
         const cleanToken = this.authToken && this.authToken.startsWith('Bearer ') ? this.authToken.substring(7) : this.authToken
-        this.downloadUrl = `${this.baseApiUrl}${apiPath}?token=${cleanToken}`
+        
+        // 构建下载URL，确保不重复添加路径和token
+        if (!this.baseApiUrl || this.baseApiUrl === '/api/v1') {
+          this.downloadUrl = `${apiPath}?token=${cleanToken}`
+        } else {
+          const baseUrl = this.baseApiUrl.endsWith('/api/v1') 
+            ? this.baseApiUrl.substring(0, this.baseApiUrl.length - 7) // 移除末尾的/api/v1
+            : this.baseApiUrl
+          this.downloadUrl = `${baseUrl}${apiPath}?token=${cleanToken}`
+        }
+        
+        console.log('Word文档下载URL:', this.downloadUrl)
       } catch (error) {
         console.error('Word文档预览失败:', error)
         this.$message.error('文档预览失败：' + error.message)

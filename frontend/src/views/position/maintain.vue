@@ -772,20 +772,13 @@ export default {
       this.keywordList = []
     },
     handleEdit(row) {
-      console.log('编辑前的原始数据:', row)
-      console.log('职位类型:', row.jobType)
-
       // 检查福利待遇数据
-      console.log('原始福利待遇:', row.benefits)
       const benefitsArray = typeof row.benefits === 'string' ? row.benefits.split(',') : Array.isArray(row.benefits) ? row.benefits : []
-      console.log('转换为数组后的福利待遇:', benefitsArray)
 
       const mappedBenefits = benefitsArray.map(benefit => {
         const found = Object.entries(this.getBenefitMap()).find(([key, val]) => val === benefit)
-        console.log(`福利待遇映射: ${benefit} -> ${found ? found[0] : benefit}`)
         return found ? found[0] : benefit
       })
-      console.log('映射后的福利待遇:', mappedBenefits)
 
       this.positionForm = {
         id: row.id,
@@ -808,17 +801,22 @@ export default {
         receivingEmail: row.receivingEmail || ''
       }
 
-      // 处理关键字 - 从keywords数组中提取关键字
+      // 处理关键字 - 从各种可能的字段中提取关键字
       this.keywordList = []
-      if (row.keywords && Array.isArray(row.keywords)) {
+      // 首先检查keywordsList字段（API返回的格式）
+      if (row.keywordsList && Array.isArray(row.keywordsList) && row.keywordsList.length > 0) {
+        this.keywordList = row.keywordsList.map(item => item.keyword)
+      }
+      // 然后检查传统的keywords字段
+      else if (row.keywords && Array.isArray(row.keywords) && row.keywords.length > 0) {
         this.keywordList = row.keywords.map(item => item.keyword)
-      } else if (row.emailKeywords) {
-        // 兼容旧数据，如果存在emailKeywords字段
+      }
+      // 最后检查字符串格式的emailKeywords
+      else if (row.emailKeywords) {
         this.keywordList = row.emailKeywords.split(',').map(k => k.trim()).filter(k => k)
       }
       this.keywordInput = ''
       
-      console.log('表单数据:', this.positionForm)
       this.dialogTitle = '编辑职位'
       this.dialogVisible = true
     },
@@ -862,13 +860,6 @@ export default {
           // 首先获取选中邮箱的ID
           const syncEmailId = this.getSyncEmailIdByEmail(this.positionForm.receivingEmail);
           
-          // 检查是否获取到有效的邮箱ID
-          if (!syncEmailId) {
-            console.warn('未能获取到邮箱ID，将使用默认值1')
-          }
-          
-          console.log(`使用邮箱ID: ${syncEmailId} 设置关键字`)
-          
           // 将关键字列表转换为后端需要的格式
           submitData.keywords = this.keywordList.map(keyword => ({
             keyword: keyword,
@@ -880,8 +871,6 @@ export default {
         
         // 为向后兼容，同时也保留旧数据格式
         submitData.emailKeywords = this.keywordList.join(',')
-        
-        console.log('提交的数据:', submitData)
 
         try {
           // 调用store的action来更新职位
@@ -903,11 +892,9 @@ export default {
           // 刷新列表
           this.fetchList()
         } catch (error) {
-          console.error('API调用失败:', error)
           this.$message.error(`操作失败: ${error.message || '未知错误'}`)
         }
       } catch (error) {
-        console.error('保存职位失败:', error)
         this.$message.error('表单验证失败，请检查输入')
       }
     },
@@ -985,27 +972,22 @@ export default {
     getSyncEmailIdByEmail(email) {
       // 通过邮箱地址获取邮箱ID
       if (!email) {
-        console.warn('获取邮箱ID时传入的邮箱地址为空')
         return null
       }
       
       const option = this.syncEmailOptions.find(item => item.value === email)
       if (!option) {
-        console.warn(`未找到邮箱 ${email} 对应的选项数据`)
         return null
       }
       
       if (!option.id) {
-        console.warn(`邮箱 ${email} 的选项数据中没有ID字段`)
         // 尝试从email对象中获取ID
         const emailData = (this.syncEmailOptions || []).find(e => e.email === email)
         if (emailData && emailData.id) {
-          console.log(`从原始数据中找到ID: ${emailData.id}`)
           return emailData.id
         }
       }
       
-      console.log(`邮箱 ${email} 的ID: ${option.id || 'undefined'}`)
       return option.id || null
     },
     getEmailLastSyncTime(email) {
@@ -1083,23 +1065,11 @@ export default {
         
         // 确保response和data存在
         if (!response || !response.data) {
-          console.error('邮箱API返回格式错误:', response)
           throw new Error('获取邮箱数据格式错误')
         }
         
-        // 打印原始响应数据结构，用于调试
-        console.log('原始邮箱API响应:', JSON.stringify(response.data[0]))
-        
         // 将系统邮箱转换为下拉选项格式
         this.syncEmailOptions = (response.data || []).map(email => {
-          // 打印原始数据，用于调试
-          console.log('处理邮箱数据:', {
-            email: email.email,
-            lastSyncTime: email.lastSyncTime,
-            isActive: email.isActive,
-            description: email.description
-          });
-          
           return {
             id: email.id,
             value: email.email,
@@ -1110,11 +1080,7 @@ export default {
             isActive: email.isActive
           };
         });
-        
-        // 打印转换后的数据，用于调试
-        console.log('转换后的邮箱选项:', JSON.stringify(this.syncEmailOptions, null, 2));
       } catch (error) {
-        console.error('获取系统同步邮箱选项失败:', error)
         this.$message.error('获取同步邮箱选项失败，请刷新重试')
         
         // 加载失败时提供一些默认选项以便测试
@@ -1125,37 +1091,28 @@ export default {
       }
     },
     getPositionKeywords(row) {
-      // 获取职位的关键字列表，兼容新旧数据格式
-      if (row.keywords && Array.isArray(row.keywords)) {
-        console.log(`职位[${row.id}] 使用keywords数组格式，长度: ${row.keywords.length}`)
+      // 获取职位的关键字列表，兼容各种数据格式
+      // 首先检查是否有keywordsList数组（API返回的字段）
+      if (row.keywordsList && Array.isArray(row.keywordsList) && row.keywordsList.length > 0) {
+        return row.keywordsList.map(item => item.keyword)
+      }
+      // 然后检查其他可能的格式
+      else if (row.keywords_list && Array.isArray(row.keywords_list) && row.keywords_list.length > 0) {
+        return row.keywords_list.map(item => item.keyword)
+      } else if (row.keywords && Array.isArray(row.keywords) && row.keywords.length > 0) {
         return row.keywords.map(item => item.keyword)
+      } else if (row.keyword) {
+        return [row.keyword]
       } else if (row.emailKeywords) {
-        console.log(`职位[${row.id}] 使用emailKeywords字符串格式，值: ${row.emailKeywords}`)
         return row.emailKeywords.split(',').map(k => k.trim()).filter(k => k)
       }
-      console.log(`职位[${row.id}] 没有关键字数据`)
       return []
     },
     async fetchList() {
       try {
-        // 添加调试输出
         const response = await this.$store.dispatch('position/getList', this.listQuery);
-        console.log('获取职位列表成功，第一条数据:', response && response.length > 0 ? response[0] : '无数据');
-        
-        // 检查关键字数据结构
-        if (response && response.length > 0) {
-          const firstItem = response[0];
-          console.log('第一条职位数据的关键字结构:', {
-            hasKeywords: !!firstItem.keywords,
-            keywordsType: firstItem.keywords ? typeof firstItem.keywords : 'undefined',
-            isArray: firstItem.keywords ? Array.isArray(firstItem.keywords) : false,
-            keywordsLength: firstItem.keywords ? (Array.isArray(firstItem.keywords) ? firstItem.keywords.length : 'not array') : 0,
-            emailKeywords: firstItem.emailKeywords || '无'
-          });
-        }
         return response;
       } catch (error) {
-        console.error('获取职位列表失败:', error);
         this.$message.error('获取职位列表失败，请刷新重试');
         return [];
       }

@@ -123,12 +123,13 @@ class Job(JobBase):
     closed_at: Optional[datetime]
     required_skills: List[JobRequiredSkill] = []
     required_certifications: List[JobRequiredCertification] = []
-    keywords: List[Dict[str, Any]] = []
+    keywords: List[Dict[str, Any]] = Field([], alias="keywords_list")
     emailSyncEnabled: Optional[bool] = None
     receivingEmail: Optional[str] = None
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 # 添加带有候选人数量的 Job Schema

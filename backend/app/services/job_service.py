@@ -278,6 +278,21 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
             job.emailSyncEnabled = has_email_sync
             job.receivingEmail = receiving_email
             
+            # 创建一个新的动态属性来存储关键字字典列表，而不是修改原始的关联关系
+            keywords_list = []
+            for kw in job.keywords:
+                keywords_list.append({
+                    'id': kw.id,
+                    'job_id': kw.job_id,
+                    'sync_email_id': kw.sync_email_id,
+                    'keyword': kw.keyword,
+                    'description': kw.description,
+                    'is_active': kw.is_active,
+                    'created_at': kw.created_at,
+                    'updated_at': kw.updated_at
+                })
+            job.keywords_list = keywords_list
+            
         return job
 
     def get_job_by_id(self, db: Session, *, job_id: int) -> Optional[models.Job]:

@@ -31,34 +31,6 @@ services:
       - REDIS_PORT=6379
       - REDIS_DB=0
 
-  resume-celery-worker-1:
-    image: resume-celery-worker 
-    command: celery -A app.services.resume_queue_service worker --loglevel=info
-    depends_on:
-      - resume-db
-      - resume-redis
-    volumes:
-      - ./backend/.env:/app/.env
-      - ./backend/uploads:/app/uploads
-    environment:
-      - REDIS_HOST=resume-redis
-      - REDIS_PORT=6379
-      - REDIS_DB=0
-
-  resume-celery-worker-2:
-    image: resume-celery-worker 
-    command: celery -A app.services.resume_queue_service worker --loglevel=info
-    depends_on:
-      - resume-db
-      - resume-redis
-    volumes:
-      - ./backend/.env:/app/.env
-      - ./backend/uploads:/app/uploads
-    environment:
-      - REDIS_HOST=resume-redis
-      - REDIS_PORT=6379 
-      - REDIS_DB=0
-
   resume-celery-beat:
     image: resume-celery-beat
     command: celery -A app.services.resume_queue_service beat --loglevel=info
