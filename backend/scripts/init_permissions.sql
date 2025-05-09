@@ -145,7 +145,8 @@ AND p.name IN (
     'interview_create',
     'interview_update',
     'resume_read',
-    'job_application_read'
+    'job_application_read',
+    'resume_review_read'
 )
 AND NOT EXISTS (
     SELECT 1 FROM role_permission rp 

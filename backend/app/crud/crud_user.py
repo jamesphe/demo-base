@@ -7,6 +7,7 @@ from app.core.security import get_password_hash, verify_password
 from app.crud.base import CRUDBase
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
+from app.models.role import Role
 
 # 使用统一的日志配置
 logger = setup_logger(__name__)
@@ -132,6 +133,33 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     def count_by_tenant(self, db: Session, tenant_id: int) -> int:
         """获取指定租户的用户总数"""
         return db.query(User).filter(User.tenant_id == tenant_id).count()
+
+    def get_multi_by_role(self, db: Session, *, role: str) -> List[User]:
+        """根据角色获取用户列表"""
+        return (
+            db.query(User)
+            .join(User.roles)
+            .filter(Role.name == role)
+            .all()
+        )
+
+    def get_multi_by_role_and_tenant(
+        self,
+        db: Session,
+        *,
+        role: str,
+        tenant_id: int
+    ) -> List[User]:
+        """根据角色和租户获取用户列表"""
+        return (
+            db.query(User)
+            .join(User.roles)
+            .filter(
+                Role.name == role,
+                User.tenant_id == tenant_id
+            )
+            .all()
+        )
 
 user = CRUDUser(User)
 

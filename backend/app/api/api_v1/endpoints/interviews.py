@@ -205,4 +205,21 @@ def delete_interview(
         raise HTTPException(status_code=403, detail="无权删除该面试")
     
     interview = crud.interview.remove(db=db, id=interview_id)
-    return interview 
+    return interview
+
+
+@router.get("/interviewers", response_model=List[schemas.User])
+def read_interviewers(
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """获取面试官列表"""
+    if current_user.is_superuser:
+        interviewers = crud.user.get_multi_by_role(db, role="interviewer")
+    else:
+        interviewers = crud.user.get_multi_by_role_and_tenant(
+            db,
+            role="interviewer",
+            tenant_id=current_user.tenant_id
+        )
+    return interviewers 

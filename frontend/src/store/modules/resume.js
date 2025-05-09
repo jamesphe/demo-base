@@ -16,10 +16,22 @@ const educationMap = {
 const formatResumeData = (data) => {
   if (!data) return null
 
+  // 计算年龄
+  let age = data.age
+  if (!age && data.birthdate) {
+    const birthDate = new Date(data.birthdate)
+    const today = new Date()
+    age = today.getFullYear() - birthDate.getFullYear()
+    const m = today.getMonth() - birthDate.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--
+    }
+  }
+
   return {
     id: data.id,
     name: data.name,
-    age: data.age,
+    age: age,
     gender: data.gender,
     education: data.highestEducation || educationMap[data.education] || data.education,
     experience: data.experienceYears,

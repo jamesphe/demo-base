@@ -98,14 +98,14 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
     ) -> None:
         """检查创建用户权限"""
         if not current_user.is_superuser:
-            if (
-                current_user.user_type != 'tenant' or 
-                user_in.user_type not in ['tenant', 'candidate']
-            ):
+            # 租户管理员只能创建租户用户、HR和面试官
+            allowed_user_types = ['tenant_user', 'hr', 'interviewer']
+            if user_in.user_type not in allowed_user_types:
                 raise HTTPException(
                     status_code=403,
-                    detail="没有权限创建该类型用户"
+                    detail=f"租户管理员只能创建以下类型的用户: {', '.join(allowed_user_types)}"
                 )
+            # 设置用户所属租户为当前租户管理员的租户
             user_in.tenant_id = current_user.tenant_id
 
     def create_access_token(

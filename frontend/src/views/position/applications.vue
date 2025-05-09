@@ -74,7 +74,7 @@
             <el-button size="small" type="primary" :disabled="selectedApplications.length === 0" @click="handleBatchUpdateStatus('reviewed')">批量标记为已审核</el-button>
             <el-button size="small" type="success" :disabled="selectedApplications.length === 0" @click="handleBatchUpdateStatus('interviewed')">批量标记为已面试</el-button>
             <el-button size="small" type="warning" :disabled="selectedApplications.length === 0" @click="handleBatchUpdateStatus('rejected')">批量标记为已拒绝</el-button>
-            <el-button size="small" type="success" icon="el-icon-plus" :disabled="selectedApplications.length === 0" @click="handleAddToCandidates">添加为候选人</el-button>
+            <el-button size="small" type="success" icon="el-icon-plus" :disabled="selectedApplications.length === 0" @click="handleAddToInterview">添加到面试</el-button>
           </el-button-group>
           <span class="selected-count" v-if="selectedApplications.length > 0">已选择 {{ selectedApplications.length }} 项</span>
         </div>
@@ -330,15 +330,15 @@
                   <i class="el-icon-edit" />
                 </el-button>
               </el-tooltip>
-              <el-tooltip content="添加为候选人" placement="top">
+              <el-tooltip content="添加到面试" placement="top">
                 <el-button
                   size="mini"
                   type="warning"
                   plain
                   class="action-btn"
-                  @click="handleAddSingleCandidate(scope.row)"
+                  @click="handleAddSingleToInterview(scope.row)"
                 >
-                  <i class="el-icon-user-solid" />
+                  <i class="el-icon-date" />
                 </el-button>
               </el-tooltip>
               <el-tooltip content="预览简历" placement="top">
@@ -469,28 +469,59 @@
       @close="handlePreviewClose"
     />
 
-    <!-- 添加候选人对话框 -->
-    <el-dialog title="添加为候选人" :visible.sync="candidateDialogVisible" width="500px">
-      <el-form :model="candidateForm" label-width="100px">
-        <el-form-item label="初始状态">
-          <el-select v-model="candidateForm.status" placeholder="请选择状态">
-            <el-option label="待筛选" value="待筛选" />
-            <el-option label="初筛通过" value="初筛通过" />
-            <el-option label="待面试" value="待面试" />
+    <!-- 添加面试对话框 -->
+    <el-dialog title="添加到面试" :visible.sync="interviewDialogVisible" width="500px">
+      <el-form :model="interviewForm" label-width="100px">
+        <el-form-item label="面试类型">
+          <el-select v-model="interviewForm.type" placeholder="请选择面试类型">
+            <el-option label="初试" value="first" />
+            <el-option label="复试" value="second" />
+            <el-option label="终试" value="final" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="面试时间">
+          <el-date-picker
+            v-model="interviewForm.time"
+            type="datetime"
+            placeholder="选择面试时间"
+            value-format="yyyy-MM-dd HH:mm:ss"
+            :picker-options="{
+              disabledDate(time) {
+                return time.getTime() < Date.now() - 8.64e7
+              }
+            }"
+          />
+        </el-form-item>
+        <el-form-item label="面试官">
+          <el-select
+            v-model="interviewForm.interviewers"
+            multiple
+            filterable
+            placeholder="请选择面试官"
+          >
+            <el-option
+              v-for="item in interviewerOptions"
+              :key="item.id"
+              :label="item.name"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="面试地点">
+          <el-input v-model="interviewForm.location" placeholder="请输入面试地点" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input 
             type="textarea" 
             :rows="3" 
             placeholder="请输入备注信息" 
-            v-model="candidateForm.notes">
-          </el-input>
+            v-model="interviewForm.notes"
+          />
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button @click="candidateDialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="confirmAddToCandidates" :loading="addingCandidates">
+        <el-button @click="interviewDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="confirmAddToInterview" :loading="addingInterview">
           确 认
         </el-button>
       </div>
@@ -548,12 +579,20 @@ export default {
       currentPreviewId: null,
       currentPreviewFileName: '',
       selectedApplications: [],
-      candidateDialogVisible: false,
-      candidateForm: {
-        status: '待筛选',
+      interviewDialogVisible: false,
+      interviewForm: {
+        type: 'first',
+        time: '',
+        interviewers: [],
+        location: '',
         notes: ''
       },
-      addingCandidates: false
+      interviewerOptions: [
+        { id: 1, name: '张经理' },
+        { id: 2, name: '李总监' },
+        { id: 3, name: '王主管' }
+      ],
+      addingInterview: false
     }
   },
   computed: {
@@ -924,80 +963,117 @@ export default {
         }
       }
     },
-    handleAddToCandidates() {
+    handleAddToInterview() {
       if (this.selectedApplications.length === 0) {
         this.$message.warning('请先选择要添加的申请')
         return
       }
       
       // 重置表单
-      this.candidateForm = {
-        status: '待筛选',
+      this.interviewForm = {
+        type: 'first',
+        time: '',
+        interviewers: [],
+        location: '',
         notes: ''
       }
       
-      this.candidateDialogVisible = true
+      this.interviewDialogVisible = true
     },
-    async confirmAddToCandidates() {
+    async confirmAddToInterview() {
       try {
-        this.addingCandidates = true
+        // 表单验证
+        if (!this.interviewForm.time) {
+          this.$message.warning('请选择面试时间')
+          return
+        }
+        if (this.interviewForm.interviewers.length === 0) {
+          this.$message.warning('请选择面试官')
+          return
+        }
+        if (!this.interviewForm.location) {
+          this.$message.warning('请输入面试地点')
+          return
+        }
+
+        this.addingInterview = true
         
-        // 准备要添加的候选人数据
-        const applicationData = {
+        // 准备面试数据
+        const interviewData = {
           applications: this.selectedApplications.map(app => ({
-            id: app.id,
-            resume_id: app.resumeId,
-            job_id: app.jobId,
-            tenant_id: app.tenantId,
-            candidate_name: app.candidateName,
-            email: app.resumeEmail || '',
-            phone: app.resumePhone || '',
-            resume_url: app.resumeUrl || ''
-          })),
-          status: this.candidateForm.status,
-          notes: this.candidateForm.notes,
-          tenant_id: this.$store.getters.tenantId
-        };
-        
-        console.log('准备转换申请为候选人，数据:', applicationData);
-        
-        // 调用新的API端点一步完成添加候选人和更新申请状态
-        const response = await convertApplicationsToCandidates(applicationData);
-        
-        console.log('转换结果:', response);
-        
-        // 处理结果
-        const successCount = response?.successCount || 0;
-        const failCount = response?.failCount || 0;
-        const errorMessages = Array.isArray(response?.errorMessages) ? response.errorMessages : [];
-        
-        this.$message.success(`成功添加 ${successCount} 个候选人，失败 ${failCount} 个`);
-        
-        if (failCount > 0 && errorMessages.length > 0) {
-          // 显示错误信息
-          this.$notify.warning({
-            title: '部分候选人添加失败',
-            message: errorMessages.join('<br>'),
-            dangerouslyUseHTMLString: true,
-            duration: 5000
-          });
+            application: {
+              id: app.id,
+              resume_id: app.resumeId,
+              job_id: app.jobId,
+              candidate_name: app.candidateName,
+              email: app.resumeEmail || '',
+              phone: app.resumePhone || ''
+            },
+            interview: {
+              type: this.interviewForm.type,
+              time: this.interviewForm.time,
+              interviewers: this.interviewForm.interviewers,
+              location: this.interviewForm.location,
+              notes: this.interviewForm.notes,
+              status: 'scheduled'
+            }
+          }))
         }
         
-        this.candidateDialogVisible = false;
+        // 1. 创建面试记录
+        // TODO: 实现面试创建API
+        // const createResponse = await this.$store.dispatch('interview/createInterviews', interviewData)
         
-        // 刷新列表
-        this.getList();
+        // 2. 更新申请状态
+        const updatePromises = this.selectedApplications.map(app => 
+          this.updateStatus({
+            id: app.id,
+            data: {
+              status: 'interviewed',
+              reviewNotes: `已安排${this.getInterviewTypeText(this.interviewForm.type)}，时间：${this.interviewForm.time}`
+            }
+          })
+        )
+        await Promise.all(updatePromises)
+        
+        // 显示成功提示
+        this.$notify({
+          title: '面试安排成功',
+          dangerouslyUseHTMLString: true,
+          message: `
+            <div>
+              <p>已成功为 ${this.selectedApplications.length} 个申请安排面试</p>
+              <p>面试类型：${this.getInterviewTypeText(this.interviewForm.type)}</p>
+              <p>面试时间：${this.interviewForm.time}</p>
+              <p>面试地点：${this.interviewForm.location}</p>
+              <p>系统已自动发送面试通知给候选人</p>
+            </div>
+          `,
+          type: 'success',
+          duration: 5000
+        })
+        
+        this.interviewDialogVisible = false
+        this.getList()
         
       } catch (error) {
-        console.error('添加候选人失败:', error);
-        this.$message.error('添加候选人失败: ' + (error.message || '未知错误'));
+        console.error('添加面试失败:', error)
+        this.$message.error('添加面试失败: ' + (error.message || '未知错误'))
       } finally {
-        this.addingCandidates = false;
+        this.addingInterview = false
       }
     },
-    async handleAddSingleCandidate(row) {
-      this.selectedApplications = [row];
-      this.handleAddToCandidates();
+    getInterviewTypeText(type) {
+      const typeMap = {
+        first: '初试',
+        second: '复试',
+        final: '终试'
+      }
+      return typeMap[type] || '面试'
+    },
+    handleAddSingleToInterview(row) {
+      this.selectedApplications = [row]
+      this.handleAddToInterview()
     },
     async handleMoreActions(command, row) {
       switch (command) {

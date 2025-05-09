@@ -240,14 +240,7 @@ export default {
   },
   data() {
     return {
-      isAdmin() {
-        const userRoles = this.$store.getters.userRoles
-        console.log('当前用户角色:', userRoles)
-        const isAdmin = userRoles && userRoles.includes('admin') && !userRoles.includes('tenant_admin')
-        console.log('是否为管理员:', isAdmin)
-        return isAdmin
-      },
-
+      isAdmin: false,
       loading: false,
       submitLoading: false,
       userList: [],
@@ -309,11 +302,17 @@ export default {
     }
   },
   mounted() {
+    this.checkAdminStatus()
     this.fetchUserList()
     this.fetchTenantList()
     this.fetchRoleList()
   },
   methods: {
+    checkAdminStatus() {
+      const userRoles = this.$store.getters.userRoles
+      this.isAdmin = userRoles && userRoles.includes('admin') && !userRoles.includes('tenant_admin')
+    },
+
     async fetchUserList() {
       this.loading = true
       try {
@@ -340,7 +339,10 @@ export default {
     },
 
     async fetchTenantList() {
-      if (!this.isAdmin) return
+      if (!this.isAdmin) {
+        console.log('当前用户不是超级管理员，跳过获取租户列表')
+        return
+      }
 
       try {
         const { data } = await getTenantList({ page: 1, limit: 100 })
@@ -364,10 +366,25 @@ export default {
       try {
         const { data } = await getRoleList()
         console.log('获取到的角色列表:', data)
-        this.availableRoles = data.map(role => ({
-          id: role.id,
-          name: role.name
-        }))
+        
+        // 根据用户权限过滤可用角色
+        if (this.isAdmin) {
+          // 超级管理员可以看到所有角色
+          this.availableRoles = data.map(role => ({
+            id: role.id,
+            name: role.description || role.name // 优先使用description，如果没有则使用name
+          }))
+        } else {
+          // 租户管理员可以分配租户用户、HR和面试官角色
+          const allowedRoles = ['tenant_user', 'hr', 'interviewer']
+          this.availableRoles = data.filter(role => 
+            allowedRoles.includes(role.name)
+          ).map(role => ({
+            id: role.id,
+            name: role.description || role.name // 优先使用description，如果没有则使用name
+          }))
+        }
+        
         console.log('处理后的角色列表:', this.availableRoles)
       } catch (error) {
         console.error('获取角色列表失败:', error)
@@ -383,10 +400,12 @@ export default {
     roleTagType(roleName) {
       const typeMap = {
         '管理员': 'danger',
-        '普通用户': 'primary',
-        '访客': 'info'
+        '人力资源': 'success',
+        '面试官': 'warning',
+        '租户管理员': 'danger',
+        '租户用户': 'info'
       }
-      return typeMap[roleName] || 'success'
+      return typeMap[roleName] || 'primary'
     },
 
     handleSearch() {
@@ -516,9 +535,9 @@ export default {
       this.currentUser = row
       this.roleForm.userId = row.id
 
-      // 确保使用角色ID数组
+      // 确保使用角色ID数组，并转换为数字类型
       this.roleForm.roles = Array.isArray(row.roles)
-        ? row.roles.map(role => role.id)
+        ? row.roles.map(role => Number(role.id))
         : []
 
       console.log('角色分配 - 处理后数据:', {
@@ -542,7 +561,9 @@ export default {
       this.submitLoading = true
       try {
         // 确保发送的是数字数组
-        const roleIds = this.roleForm.roles.map(id => Number(id))
+        const roleIds = Array.isArray(this.roleForm.roles)
+          ? this.roleForm.roles.map(id => Number(id))
+          : []
 
         console.log('准备发送到API的数据:', {
           userId: this.roleForm.userId,
@@ -552,7 +573,7 @@ export default {
         })
 
         await updateUserRoles(this.roleForm.userId, roleIds)
-        Message.success('分配角色成功')
+        this.$message.success('分配角色成功')
         this.roleModalVisible = false
         this.fetchUserList()
       } catch (error) {
@@ -562,7 +583,7 @@ export default {
           statusText: error.response?.statusText,
           data: error.response?.data
         })
-        Message.error(error.response?.data?.message || '分配角色失败')
+        this.$message.error(error.response?.data?.message || '分配角色失败')
       } finally {
         this.submitLoading = false
       }

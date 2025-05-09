@@ -790,10 +790,15 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
 
     def _get_system_prompt(self) -> str:
         """获取系统提示词"""
-        return """你是一个专业的简历分析助手。请从简历文本中提取关键信息，并以JSON格式返回。
+        # 获取当前日期
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        
+        return f"""你是一个专业的简历分析助手。请从简历文本中提取关键信息，并以JSON格式返回。
+
+当前日期是: {current_date}，请在推断年龄和日期时将此作为参考。
 
 请严格按照以下字段结构解析并返回JSON：
-{
+{{
     "name": "姓名",
     "gender": "性别(M/F)",
     "birthdate": "出生日期(YYYY-MM-DD格式)",
@@ -825,36 +830,36 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     "title_rank": "职称等级",
     
     "edu_experience": [
-        {
+        {{
             "school": "学校名称",
             "degree": "学位",
             "major": "专业",
             "start_date": "开始时间",
             "end_date": "结束时间"
-        }
+        }}
     ],
     "awards": [
-        {
+        {{
             "name": "奖项名称",
             "level": "奖项级别",
             "date": "获奖时间"
-        }
+        }}
     ],
     
     "family_situation": "家庭情况",
     "other_info": "其他信息",
     "work_history": [
-        {
+        {{
             "company": "公司名称",
             "position": "职位",
             "start_date": "开始时间(YYYY-MM-DD)",
             "end_date": "结束时间(YYYY-MM-DD)",
             "description": "工作描述"
-        }
+        }}
     ],
     
     "project_experience": [
-        {
+        {{
             "name": "项目名称",
             "role": "担任角色",
             "company": "所属公司",
@@ -864,7 +869,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             "responsibilities": "主要职责",
             "technologies": "使用技术",
             "achievements": "项目成就"
-        }
+        }}
     ],
     
     "expected_position": "期望职位",
@@ -872,21 +877,21 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     "expected_location": "期望工作地点",
     
     "skills": [
-        {
+        {{
             "name": "技能名称",
             "level": "技能水平",
             "description": "技能描述"
-        }
+        }}
     ],
     "certificates": [
-        {
+        {{
             "name": "证书名称",
             "issuer": "发证机构",
             "issue_date": "发证日期",
             "expire_date": "到期日期"
-        }
+        }}
     ]
-}
+}}
 
 解析要求：
 1. 日期和年龄处理规则：
@@ -900,7 +905,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
    - 如果遇到两位数年份，根据上下文判断世纪（如"90年"可能是1990年）
    - 如果遇到模糊的日期（如"5月"），需要根据上下文推断年份
    - 对于直接标注年龄的情况（如"25岁"、"25周岁"）：
-     * 根据简历提交时间或当前时间推算出生年份
+     * 根据当前日期({current_date})推算出生年份
      * 默认将出生日期设置为该年的1月1日
      * 如果简历中有其他时间信息（如毕业时间、工作年限），可以结合这些信息更准确地推算出生年份
      * 如果年龄信息不明确（如"20多岁"），需要根据上下文推断最可能的年龄
@@ -915,7 +920,12 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
 
     def _get_analysis_prompt(self, resume_text: str) -> str:
         """生成分析提示词"""
+        # 获取当前日期
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        
         return f"""请分析以下简历文本，提取关键信息并以JSON格式返回：
+
+当前日期是: {current_date}，请在推断年龄和日期时将此作为参考。
 
 简历文本：
 {resume_text}
@@ -924,6 +934,22 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
 1. 技能信息需要包含 name、level、description 字段
 2. 证书信息需要包含 name、issuer、issue_date、expire_date 字段
 3. 如果某些字段信息不存在，使用 null 表示
+4. 对于年龄信息，请根据当前日期({current_date})准确推算出生年份
+
+请返回JSON格式，大致如下结构：
+{{
+    "name": "姓名",
+    "gender": "性别",
+    "birthdate": "出生日期",
+    // ... 其他字段
+    "skills": [
+        {{
+            "name": "技能名称",
+            "level": "技能水平",
+            "description": "技能描述"
+        }}
+    ]
+}}
 
 请确保返回的JSON包含所有必需字段，对于无法确定的字段请返回null。"""
 
@@ -2611,8 +2637,13 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         job_requirements = analysis_request.get("job_requirements", "")
         dimensions = analysis_request.get("dimensions", [])
         
+        # 获取当前日期
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        
         prompt = f"""
         你是一位专业的招聘顾问，现在需要你对候选人简历进行深入分析，评估其与岗位的匹配程度。
+        
+        当前日期是: {current_date}，请在分析中将此作为时间参考。
         
         以下是候选人信息:
         ------------------------
@@ -2648,6 +2679,28 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         
         请分析以下几个维度:
         {', '.join(dimensions)}
+        
+        请以JSON格式返回分析结果，包含以下字段:
+        {{
+          "summary": "候选人概要总结",
+          "matchScore": 分数(0-100),
+          "skillAnalysis": "技能分析",
+          "skills": [
+            {{
+              "name": "技能名称",
+              "match": 匹配度(0-100)
+            }}
+          ],
+          "experienceAnalysis": "工作经验分析",
+          "educationAnalysis": "教育背景分析",
+          "careerAnalysis": "职业发展轨迹分析",
+          "strengths": ["优势1", "优势2"],
+          "weaknesses": ["劣势1", "劣势2"],
+          "interviewTips": "面试建议",
+          "suggestedQuestions": ["问题1", "问题2"],
+          "conclusion": "结论",
+          "recommendation": "是否推荐"
+        }}
         """
         
         # 添加自定义问题

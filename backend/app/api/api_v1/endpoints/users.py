@@ -317,18 +317,35 @@ def update_user_roles(
     db: Session = Depends(deps.get_db),
     user_id: int,
     role_ids: List[int] = Body(..., description="角色ID列表"),
-    current_user: models.User = Depends(deps.get_current_active_superuser),
+    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     更新用户角色
+    超级管理员可以更新任何用户的角色
+    租户管理员只能更新其租户内用户的角色
     """
-    print("更新用户角色 - 接收到的参数:", {
-        "user_id": user_id,
-        "role_ids": role_ids,
-        "role_ids_type": type(role_ids),
-        "role_ids_items": [{"value": id, "type": type(id)} for id in role_ids] if isinstance(role_ids, list) else None,
-        "request_body": Body.get_default(),
-    })
+    # 获取目标用户
+    user = crud.user.get(db, id=user_id)
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="用户不存在"
+        )
+    
+    # 权限检查
+    if not current_user.is_superuser:
+        # 检查是否为租户管理员
+        if "tenant_admin" not in [role.name for role in current_user.roles]:
+            raise HTTPException(
+                status_code=403,
+                detail="只有超级管理员和租户管理员可以更新用户角色"
+            )
+        # 检查是否为同一租户
+        if user.tenant_id != current_user.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail="只能更新同一租户内用户的角色"
+            )
     
     try:
         result = user_service.update_user_roles(

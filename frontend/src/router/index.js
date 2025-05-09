@@ -135,6 +135,7 @@ export const asyncRoutes = [
         name: 'TenantManagement',
         meta: {
           title: '租户列表',
+          icon: 'el-icon-office-building',
           roles: ['admin']
         }
       },
@@ -144,6 +145,7 @@ export const asyncRoutes = [
         component: () => import('@/views/tenant/trial'),
         meta: {
           title: '试用管理',
+          icon: 'el-icon-time',
           roles: ['admin'],
           activeMenu: '/tenant/trial'
         }
@@ -158,7 +160,7 @@ export const asyncRoutes = [
     meta: {
       title: '职位管理',
       icon: 'el-icon-suitcase',
-      roles: ['admin', 'tenant_admin', 'tenant_hr']
+      roles: ['admin', 'tenant_admin', 'tenant_hr', 'tenant_viewer', 'interviewer']
     },
     children: [
       {
@@ -167,6 +169,7 @@ export const asyncRoutes = [
         name: 'PositionPublish',
         meta: {
           title: '职位发布',
+          icon: 'el-icon-position',
           roles: ['tenant_admin', 'tenant_hr']
         }
       },
@@ -176,6 +179,7 @@ export const asyncRoutes = [
         name: 'PositionMaintain',
         meta: {
           title: '职位维护',
+          icon: 'el-icon-edit',
           roles: ['tenant_admin', 'tenant_hr']
         }
       },
@@ -185,7 +189,8 @@ export const asyncRoutes = [
         name: 'PositionApplications',
         meta: {
           title: '职位申请',
-          roles: ['tenant_admin', 'tenant_hr']
+          icon: 'el-icon-s-order',
+          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer', 'interviewer']
         }
       }
     ]
@@ -197,7 +202,7 @@ export const asyncRoutes = [
     meta: {
       title: '简历管理',
       icon: 'el-icon-document',
-      roles: ['admin', 'tenant_admin', 'tenant_hr', 'tenant_viewer']
+      roles: ['admin', 'tenant_admin', 'tenant_hr', 'tenant_viewer', 'interviewer']
     },
     children: [
       {
@@ -206,6 +211,7 @@ export const asyncRoutes = [
         name: 'ResumeUpload',
         meta: {
           title: '简历上传',
+          icon: 'el-icon-upload',
           roles: ['tenant_admin', 'tenant_hr']
         }
       },
@@ -215,6 +221,7 @@ export const asyncRoutes = [
         name: 'ResumeParse',
         meta: {
           title: '简历解析',
+          icon: 'el-icon-reading',
           roles: ['tenant_admin', 'tenant_hr']
         }
       },
@@ -224,7 +231,8 @@ export const asyncRoutes = [
         name: 'ResumeSearch',
         meta: {
           title: '简历检索',
-          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer']
+          icon: 'el-icon-search',
+          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer', 'interviewer']
         }
       },
       {
@@ -233,6 +241,7 @@ export const asyncRoutes = [
         component: () => import('@/views/resume/ai-chat/index.vue'),
         meta: {
           title: 'AI简历助手',
+          icon: 'el-icon-chat-dot-round',
           roles: ['tenant_admin', 'tenant_hr']
         }
       },
@@ -242,49 +251,10 @@ export const asyncRoutes = [
         component: () => import('@/views/resume/detail/index.vue'),
         meta: {
           title: '简历详情',
-          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer']
+          icon: 'el-icon-document',
+          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer', 'interviewer']
         },
         hidden: true
-      }
-    ]
-  },
-  // 候选人管理
-  {
-    path: '/candidate',
-    component: Layout,
-    name: 'Candidate',
-    meta: {
-      title: '候选管理',
-      icon: 'el-icon-s-custom',
-      roles: ['admin', 'tenant_admin', 'tenant_hr', 'tenant_viewer']
-    },
-    children: [
-      {
-        path: 'profile',
-        component: () => import('@/views/candidate/profile'),
-        name: 'CandidateProfile',
-        meta: {
-          title: '候选人档案',
-          roles: ['tenant_admin', 'tenant_hr', 'tenant_viewer']
-        }
-      },
-      {
-        path: 'evaluation',
-        component: () => import('@/views/candidate/evaluation'),
-        name: 'CandidateEvaluation',
-        meta: {
-          title: '候选人评估',
-          roles: ['tenant_admin', 'tenant_hr']
-        }
-      },
-      {
-        path: 'recommendation',
-        component: () => import('@/views/candidate/recommendation'),
-        name: 'CandidateRecommendation',
-        meta: {
-          title: '候选人推荐',
-          roles: ['tenant_admin', 'tenant_hr']
-        }
       }
     ]
   },
@@ -295,7 +265,7 @@ export const asyncRoutes = [
     meta: {
       title: '面试管理',
       icon: 'el-icon-date',
-      roles: ['admin', 'tenant_admin', 'tenant_hr']
+      roles: ['admin', 'tenant_admin', 'tenant_hr', 'interviewer']
     },
     children: [
       {
@@ -304,7 +274,8 @@ export const asyncRoutes = [
         name: 'InterviewSchedule',
         meta: {
           title: '面试安排',
-          roles: ['tenant_admin', 'tenant_hr']
+          icon: 'el-icon-date',
+          roles: ['tenant_admin', 'tenant_hr', 'interviewer']
         }
       },
       {
@@ -313,8 +284,31 @@ export const asyncRoutes = [
         name: 'InterviewRecord',
         meta: {
           title: '面试记录',
-          roles: ['tenant_admin', 'tenant_hr']
+          icon: 'el-icon-notebook-2',
+          roles: ['tenant_admin', 'tenant_hr', 'interviewer']
         }
+      },
+      {
+        path: 'evaluation',
+        component: () => import('@/views/interview/evaluation'),
+        name: 'InterviewEvaluation',
+        meta: {
+          title: '面试评估',
+          icon: 'el-icon-s-marketing',
+          roles: ['tenant_admin', 'tenant_hr', 'interviewer']
+        }
+      },
+      {
+        path: 'preparation/:id',
+        component: () => import('@/views/interview/preparation'),
+        name: 'InterviewPreparation',
+        meta: {
+          title: '面试准备',
+          icon: 'el-icon-reading',
+          roles: ['tenant_admin', 'tenant_hr', 'interviewer'],
+          activeMenu: '/interview/schedule'
+        },
+        hidden: true
       }
     ]
   },
@@ -334,6 +328,7 @@ export const asyncRoutes = [
         name: 'AnalysisProgress',
         meta: {
           title: '招聘进度',
+          icon: 'el-icon-data-line',
           roles: ['tenant_admin']
         }
       },
@@ -343,6 +338,7 @@ export const asyncRoutes = [
         name: 'AnalysisEffect',
         meta: {
           title: '招聘效果',
+          icon: 'el-icon-pie-chart',
           roles: ['tenant_admin']
         }
       }
@@ -364,6 +360,7 @@ export const asyncRoutes = [
         name: 'SettingsUser',
         meta: {
           title: '用户管理',
+          icon: 'el-icon-user',
           roles: ['admin', 'tenant_admin']
         }
       },
@@ -373,6 +370,7 @@ export const asyncRoutes = [
         name: 'SettingsRole',
         meta: {
           title: '角色管理',
+          icon: 'el-icon-user-solid',
           roles: ['admin']
         }
       },
@@ -382,6 +380,7 @@ export const asyncRoutes = [
         name: 'SettingsPermission',
         meta: {
           title: '权限管理',
+          icon: 'el-icon-lock',
           roles: ['admin']
         }
       },
@@ -391,6 +390,7 @@ export const asyncRoutes = [
         name: 'SettingsEmail',
         meta: {
           title: '邮箱设置',
+          icon: 'el-icon-message',
           roles: ['admin', 'tenant_admin']
         }
       }
