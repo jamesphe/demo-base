@@ -11,6 +11,7 @@ from app.services.base import BaseService
 from app.core.security import get_password_hash
 from app.core.config import settings
 from app.services.job_requirement_service import JobRequirementService
+from app.crud import job as job_crud
 
 
 class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
@@ -76,7 +77,7 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
             
         return query.offset(skip).limit(limit).all()
 
-    async def get_job_statistics(
+    def get_job_stats(
         self,
         db: Session,
         *,
@@ -87,72 +88,64 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
         if not job:
             raise HTTPException(status_code=404, detail="职位不存在")
             
-        # 获取候选人统计
-        candidates = db.query(models.Candidate).filter(
-            models.Candidate.job_id == job_id
+        # 获取简历统计
+        resumes = db.query(models.Resume).filter(
+            models.Resume.id.in_(
+                db.query(models.JobApplication.resume_id)
+                .filter(models.JobApplication.job_id == job_id)
+            )
         ).all()
         
-        # 统计各状态候选人数量
+        # 统计简历状态
         status_counts = {}
-        for candidate in candidates:
-            status_counts[candidate.status] = status_counts.get(candidate.status, 0) + 1
+        for resume in resumes:
+            status = resume.matching_status
+            status_counts[status] = status_counts.get(status, 0) + 1
             
-        # 获取面试统计
-        interviews = db.query(models.Interview).filter(
-            models.Interview.job_id == job_id
-        ).all()
-        
-        # 统计面试情况
-        interview_stats = {
-            "total": len(interviews),
-            "scheduled": len([i for i in interviews if i.status == "scheduled"]),
-            "completed": len([i for i in interviews if i.status == "completed"]),
-            "cancelled": len([i for i in interviews if i.status == "cancelled"]),
-            "avg_score": sum(i.evaluation_score or 0 for i in interviews) / len(interviews) if interviews else 0
-        }
-        
         return {
-            "total_candidates": len(candidates),
-            "candidate_status": status_counts,
-            "interview_stats": interview_stats,
+            "job_id": job_id,
+            "title": job.title,
+            "total_resumes": len(resumes),
+            "resume_status": status_counts,
             "created_at": job.created_at,
-            "last_updated": job.updated_at
+            "status": job.status
         }
 
-    async def match_candidates(
+    async def match_resumes(
         self,
         db: Session,
         *,
         job_id: int,
-        min_score: float = 0.6
+        limit: int = 10
     ) -> List[Dict[str, Any]]:
-        """匹配合适的候选人"""
+        """匹配简历"""
         job = self.get(db, id=job_id)
         if not job:
             raise HTTPException(status_code=404, detail="职位不存在")
             
-        # 获取同一租户下的所有候选人
-        candidates = db.query(models.Candidate).filter(
-            models.Candidate.tenant_id == job.tenant_id,
-            models.Candidate.status.in_(["new", "pending", "interviewed"])
+        # 获取待匹配的简历
+        resumes = db.query(models.Resume).filter(
+            models.Resume.tenant_id == job.tenant_id,
+            models.Resume.matching_status.in_(["待匹配", "新人才"])
         ).all()
         
+        # 计算匹配度
         matches = []
-        for candidate in candidates:
-            # TODO: 实现匹配算法
-            match_score = 0.0  # 计算匹配度
+        for resume in resumes:
+            # TODO: 实现简历匹配算法
+            match_score = 0.0
+            match_reason = "基础匹配"
             
-            if match_score >= min_score:
-                matches.append({
-                    "candidate_id": candidate.id,
-                    "name": candidate.name,
-                    "match_score": match_score,
-                    "match_reasons": ["匹配原因..."],
-                    "current_status": candidate.status
-                })
-        
+            matches.append({
+                "resume_id": resume.id,
+                "name": resume.name,
+                "match_score": match_score,
+                "match_reason": match_reason
+            })
+            
         # 按匹配度排序
-        return sorted(matches, key=lambda x: x["match_score"], reverse=True)
+        matches.sort(key=lambda x: x["match_score"], reverse=True)
+        return matches[:limit]
 
     async def update_job_status(
         self,
@@ -570,6 +563,73 @@ class JobService(BaseService[models.Job, JobCreate, JobUpdate]):
             "total": total,
             "items": jobs
         }
+
+    async def get_job_detail(
+        self,
+        db: Session,
+        job_id: int
+    ) -> Optional[models.Job]:
+        """获取职位详情"""
+        try:
+            # 获取基本职位信息
+            job = job_crud.get(db, id=job_id)
+            if not job:
+                return None
+            
+            # 处理requirements字段
+            requirements_dict = {}
+            try:
+                if isinstance(job.requirements, dict):
+                    requirements_dict = job.requirements
+                elif isinstance(job.requirements, str):
+                    # 如果是字符串，尝试解析JSON
+                    import json
+                    try:
+                        requirements_dict = json.loads(job.requirements)
+                    except json.JSONDecodeError:
+                        # 如果无法解析JSON，将其作为description
+                        requirements_dict = {
+                            "description": job.requirements
+                        }
+                else:
+                    requirements_dict = {}
+            except Exception:
+                requirements_dict = {}
+            
+            # 直接从职位对象获取详细信息
+            job_detail = {
+                "id": job.id,
+                "title": job.title,
+                "department": job.department,
+                "job_type": job.job_type,
+                "headcount": job.headcount,
+                "salary_min": job.salary_min,
+                "salary_max": job.salary_max,
+                "salary_type": job.salary_type,
+                "location": job.location,
+                "requirements": {
+                    "experience": job.experience_required,
+                    "education": job.education_required,
+                    "description": job.description,
+                    "skills": requirements_dict.get("skills", [])
+                },
+                "benefits": job.benefits,
+                "preferences": job.preferences,
+                "status": job.status
+            }
+            
+            # 将详细信息添加到职位对象
+            for key, value in job_detail.items():
+                setattr(job, key, value)
+            
+            return job
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"获取职位详情失败: {str(e)}"
+            )
+
 
 # 创建服务实例
 job_service = JobService()

@@ -52,7 +52,7 @@ class CRUDResume(CRUDBase[Resume, ResumeCreate, ResumeUpdate]):
     ) -> List[Resume]:
         return (
             db.query(Resume)
-            .filter(Resume.candidate_id == candidate_id)
+            .filter(Resume.talent_id == candidate_id)
             .offset(skip)
             .limit(limit)
             .all()

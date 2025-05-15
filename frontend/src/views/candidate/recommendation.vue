@@ -67,14 +67,14 @@
 
     <el-dialog title="候选人详情" :visible.sync="dialogVisible" width="60%">
       <div v-loading="detailLoading">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="姓名">{{ detail.name }}</el-descriptions-item>
-          <el-descriptions-item label="工作年限">{{ detail.workYears }}年</el-descriptions-item>
-          <el-descriptions-item label="学历">{{ detail.education && detail.education.degree }}</el-descriptions-item>
-          <el-descriptions-item label="专业">{{ detail.education && detail.education.major }}</el-descriptions-item>
-          <el-descriptions-item label="毕业院校">{{ detail.education && detail.education.school }}</el-descriptions-item>
-          <el-descriptions-item label="期望薪资">{{ detail.salary && detail.salary.expected }}</el-descriptions-item>
-        </el-descriptions>
+        <description-list :column="2" :border="true">
+          <description-item label="姓名">{{ detail.name }}</description-item>
+          <description-item label="工作年限">{{ detail.workYears }}年</description-item>
+          <description-item label="学历">{{ detail.education && detail.education.degree }}</description-item>
+          <description-item label="专业">{{ detail.education && detail.education.major }}</description-item>
+          <description-item label="毕业院校">{{ detail.education && detail.education.school }}</description-item>
+          <description-item label="期望薪资">{{ detail.salary && detail.salary.expected }}</description-item>
+        </description-list>
 
         <div class="section-title">技能匹配</div>
         <el-table :data="detail.skillMatches" border size="small">
@@ -116,12 +116,12 @@
         </el-collapse>
 
         <div class="section-title">求职意向</div>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="期望职位">{{ detail.jobIntention && detail.jobIntention.positions ? detail.jobIntention.positions.join('、') : '' }}</el-descriptions-item>
-          <el-descriptions-item label="期望城市">{{ detail.jobIntention && detail.jobIntention.cities ? detail.jobIntention.cities.join('、') : '' }}</el-descriptions-item>
-          <el-descriptions-item label="到岗时间">{{ detail.jobIntention && detail.jobIntention.availableTime }}</el-descriptions-item>
-          <el-descriptions-item label="当前状态">{{ detail.jobIntention && detail.jobIntention.jobStatus }}</el-descriptions-item>
-        </el-descriptions>
+        <description-list :column="2" :border="true">
+          <description-item label="期望职位">{{ detail.jobIntention && detail.jobIntention.positions ? detail.jobIntention.positions.join('、') : '' }}</description-item>
+          <description-item label="期望城市">{{ detail.jobIntention && detail.jobIntention.cities ? detail.jobIntention.cities.join('、') : '' }}</description-item>
+          <description-item label="到岗时间">{{ detail.jobIntention && detail.jobIntention.availableTime }}</description-item>
+          <description-item label="当前状态">{{ detail.jobIntention && detail.jobIntention.jobStatus }}</description-item>
+        </description-list>
 
         <div class="section-title">加分项</div>
         <el-tag
@@ -139,11 +139,11 @@
 
     <el-dialog title="联系方式" :visible.sync="contactVisible" width="30%">
       <div v-loading="contactLoading">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="手机号码">{{ contactInfo.phone }}</el-descriptions-item>
-          <el-descriptions-item label="电子邮箱">{{ contactInfo.email }}</el-descriptions-item>
-          <el-descriptions-item label="微信号">{{ contactInfo.wechat }}</el-descriptions-item>
-        </el-descriptions>
+        <description-list :column="1" :border="true">
+          <description-item label="手机号码">{{ contactInfo.phone }}</description-item>
+          <description-item label="电子邮箱">{{ contactInfo.email }}</description-item>
+          <description-item label="微信号">{{ contactInfo.wechat }}</description-item>
+        </description-list>
       </div>
     </el-dialog>
   </div>

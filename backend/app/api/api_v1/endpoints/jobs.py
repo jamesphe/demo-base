@@ -250,13 +250,9 @@ def delete_job(
     """删除职位"""
     job = job_service.get_job(db=db, job_id=job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="职位不存在")
-    
-    # 检查是否有关联的候选人
-    if job.candidates:
         raise HTTPException(
-            status_code=400,
-            detail="该职位下存在候选人,无法删除"
+            status_code=404,
+            detail="Job not found"
         )
     
     return job_service.delete_job(
@@ -264,32 +260,6 @@ def delete_job(
         job_id=job_id,
         tenant_id=current_tenant_id
     )
-
-
-@router.get(
-    "/{job_id}/candidates",
-    response_model=List[schemas.CandidateWithInterviews],
-    dependencies=[
-        Depends(
-            deps.get_current_user_with_tenant_permission(
-                required_permissions=["job_read", "candidate_read"]
-            )
-        )
-    ]
-)
-def read_job_candidates(
-    *,
-    db: Session = Depends(deps.get_db),
-    job_id: int,
-    current_tenant_id: int = Depends(deps.get_current_tenant_id)
-) -> Any:
-    """获取职位下的候选人列表"""
-    job = job_service.get_job(db=db, job_id=job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="职位不存在")
-    
-    candidates = crud.candidate.get_by_job(db, job_id=job_id)
-    return candidates
 
 
 @router.post(

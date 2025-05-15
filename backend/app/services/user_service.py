@@ -98,13 +98,47 @@ class UserService(BaseService[models.User, UserCreate, UserUpdate]):
     ) -> None:
         """检查创建用户权限"""
         if not current_user.is_superuser:
-            # 租户管理员只能创建租户用户、HR和面试官
-            allowed_user_types = ['tenant_user', 'hr', 'interviewer']
-            if user_in.user_type not in allowed_user_types:
+            # 打印用户类型，帮助调试
+            print(f"尝试创建的用户类型: {user_in.user_type}")
+            
+            # 数据库允许的用户类型
+            db_allowed_types = ['candidate', 'tenant', 'admin']
+            
+            # 租户管理员允许创建的用户类型 - 添加'tenant'到允许列表
+            allowed_user_types = ['tenant_user', 'hr', 'interviewer', 'tenant']
+            
+            # 用户类型映射到数据库支持的类型
+            user_type_mapping = {
+                'tenant_user': 'tenant',
+                'hr': 'tenant',
+                'interviewer': 'tenant',
+                # 其他映射...
+            }
+            
+            # 如果user_in.user_type是None，设置为默认值'tenant'
+            if user_in.user_type is None:
+                user_in.user_type = 'tenant'
+            
+            # 检查类型是否允许租户管理员创建
+            original_type = user_in.user_type
+            if original_type not in allowed_user_types:
                 raise HTTPException(
                     status_code=403,
                     detail=f"租户管理员只能创建以下类型的用户: {', '.join(allowed_user_types)}"
                 )
+                
+            # 将前端的用户类型映射到数据库支持的类型
+            if original_type in user_type_mapping:
+                user_in.user_type = user_type_mapping[original_type]
+                print(f"用户类型已映射: {original_type} -> {user_in.user_type}")
+            
+            # 如果映射后的类型不在数据库允许的类型中，抛出错误
+            if user_in.user_type not in db_allowed_types:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"不支持的用户类型: {user_in.user_type}。支持的类型: {', '.join(db_allowed_types)}"
+                )
+                
             # 设置用户所属租户为当前租户管理员的租户
             user_in.tenant_id = current_user.tenant_id
 

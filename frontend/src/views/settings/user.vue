@@ -156,7 +156,8 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="角色" prop="roles">
+        <!-- 角色选择部分可能导致问题，注释掉 -->
+        <!-- <el-form-item label="角色" prop="roles">
           <el-select
             v-model="userForm.roles"
             multiple
@@ -166,7 +167,7 @@
           >
             <el-option v-for="role in availableRoles" :key="role.id" :value="role.id" :label="role.name" />
           </el-select>
-        </el-form-item>
+        </el-form-item> -->
         <el-form-item label="状态">
           <el-switch
             v-model="userForm.isActive"
@@ -268,7 +269,8 @@ export default {
         password: '',
         tenantId: undefined,
         roles: [],
-        isActive: true
+        isActive: true,
+        user_type: 'tenant'
       },
 
       roleModalVisible: false,
@@ -442,6 +444,7 @@ export default {
           this.userForm[key] = undefined
         }
       })
+      this.userForm.user_type = 'tenant'
       this.userModalVisible = true
       this.$nextTick(() => {
         if (this.$refs.userFormRef) {
@@ -480,12 +483,12 @@ export default {
           try {
             const formData = {
               ...this.userForm,
-              roles: this.userForm.roles,
-              tenantId: this.userForm.tenantId?.toString()
+              tenantId: this.userForm.tenantId?.toString(),
+              user_type: this.userForm.user_type || 'tenant'
             }
 
             console.log('准备提交的数据:', formData)
-            console.log('转换后的租户ID类型:', typeof formData.tenantId)
+            console.log('用户类型:', formData.user_type)
 
             if (this.userForm.id) {
               await updateUser(this.userForm.id, formData)

@@ -16,6 +16,13 @@ const getters = {
   positionTotal: state => state.position.total,
   positionLoading: state => state.position.loading,
   currentPosition: state => state.position.currentPosition,
-  isSuperuser: state => state.user.isSuperuser
+  isSuperuser: state => state.user.isSuperuser,
+  user_id: state => state.user.id || '',
+  currentUser: state => ({
+    id: state.user.id || '',
+    name: state.user.name || '',
+    username: state.user.username || '',
+    avatar: state.user.avatar || ''
+  })
 }
 export default getters

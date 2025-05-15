@@ -11,6 +11,7 @@ export function getUserList(params) {
 
 // 创建用户
 export function createUser(data) {
+  console.log('API层收到的用户数据:', data)
   return request({
     url: '/users',
     method: 'post',
@@ -18,10 +19,10 @@ export function createUser(data) {
       username: data.username,
       email: data.email,
       password: data.password,
-      user_type: data.user_type,
+      user_type: data.user_type || 'tenant',
       avatar: data.avatar,
       introduction: data.introduction,
-      tenant_id: data.tenant_id,
+      tenant_id: data.tenantId,
       phone: data.phone
     }
   })
@@ -29,6 +30,7 @@ export function createUser(data) {
 
 // 更新用户
 export function updateUser(id, data) {
+  console.log('更新用户API层收到的数据:', data)
   return request({
     url: `/users/${id}`,
     method: 'put',
@@ -36,11 +38,11 @@ export function updateUser(id, data) {
       username: data.username,
       email: data.email,
       password: data.password,
-      user_type: data.user_type,
+      user_type: data.user_type || 'tenant',
       avatar: data.avatar,
       introduction: data.introduction,
-      tenant_id: data.tenant_id,
-      is_active: data.is_active,
+      tenant_id: data.tenantId,
+      is_active: data.isActive,
       phone: data.phone
     }
   })

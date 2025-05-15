@@ -113,50 +113,83 @@
         </template>
       </el-table-column>
 
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column label="操作" width="220" fixed="right">
         <template slot-scope="{row}">
-          <div class="action-column">
-            <div class="action-buttons">
-              <el-tooltip content="查看简历" placement="top" effect="light">
-                <el-button type="primary" size="mini" circle @click="viewDetail(row)">
-                  <i class="el-icon-view" />
-                </el-button>
-              </el-tooltip>
-              <el-dropdown trigger="hover" @command="(command) => handleMoreActions(command, row)" placement="bottom-end">
-                <el-button type="primary" size="mini" circle>
-                  <i class="el-icon-more" />
-                </el-button>
-                <el-dropdown-menu slot="dropdown">
-                  <el-dropdown-item command="previewOriginal">
-                    <i class="el-icon-document" />预览原件
-                  </el-dropdown-item>
-                  <el-dropdown-item command="aiAnalyze">
-                    <i class="el-icon-cpu" />AI解读
-                  </el-dropdown-item>
-                  <el-dropdown-item command="download">
-                    <i class="el-icon-download" />下载简历
-                  </el-dropdown-item>
-                  <el-dropdown-item command="star">
-                    <i :class="row.starred ? 'el-icon-star-on' : 'el-icon-star-off'" />{{ row.starred ? '取消收藏' : '收藏简历' }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="sendInvite" divided>
-                    <i class="el-icon-message" />发送面试邀请
-                  </el-dropdown-item>
-                  <el-dropdown-item command="addToPool">
-                    <i class="el-icon-folder-add" />加入人才库
-                  </el-dropdown-item>
-                  <el-dropdown-item command="addNote">
-                    <i class="el-icon-edit-outline" />添加备注
-                  </el-dropdown-item>
-                  <el-dropdown-item command="sendEmail">
-                    <i class="el-icon-message" />发送邮件
-                  </el-dropdown-item>
-                  <el-dropdown-item command="reject" divided>
-                    <i class="el-icon-close" />不合适
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </el-dropdown>
-            </div>
+          <div class="action-buttons">
+            <el-tooltip content="查看简历" placement="top">
+              <el-button 
+                type="primary" 
+                size="mini" 
+                plain
+                class="action-btn"
+                @click="viewDetail(row)"
+              >
+                <i class="el-icon-view" />
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="原始简历" placement="top">
+              <el-button 
+                type="info" 
+                size="mini" 
+                plain
+                class="action-btn"
+                @click="previewOriginalResume(row)"
+              >
+                <i class="el-icon-document" />
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="AI解读" placement="top">
+              <el-button 
+                type="warning" 
+                size="mini"
+                plain 
+                class="action-btn"
+                @click="aiAnalyzeResume(row)"
+              >
+                <i class="el-icon-cpu" />
+              </el-button>
+            </el-tooltip>
+            <el-tooltip content="下载简历" placement="top">
+              <el-button 
+                type="success" 
+                size="mini" 
+                plain
+                class="action-btn"
+                @click="handleDownload(row)"
+              >
+                <i class="el-icon-download" />
+              </el-button>
+            </el-tooltip>
+            <el-dropdown trigger="click" @command="(command) => handleMoreActions(command, row)">
+              <el-button 
+                type="primary" 
+                size="mini" 
+                plain
+                class="action-btn"
+              >
+                <i class="el-icon-more" />
+              </el-button>
+              <el-dropdown-menu slot="dropdown">
+                <el-dropdown-item command="star">
+                  <i :class="row.starred ? 'el-icon-star-on' : 'el-icon-star-off'" />{{ row.starred ? '取消收藏' : '收藏简历' }}
+                </el-dropdown-item>
+                <el-dropdown-item command="sendInvite" divided>
+                  <i class="el-icon-message" />发送面试邀请
+                </el-dropdown-item>
+                <el-dropdown-item command="addToPool">
+                  <i class="el-icon-folder-add" />加入人才库
+                </el-dropdown-item>
+                <el-dropdown-item command="addNote">
+                  <i class="el-icon-edit-outline" />添加备注
+                </el-dropdown-item>
+                <el-dropdown-item command="sendEmail">
+                  <i class="el-icon-message" />发送邮件
+                </el-dropdown-item>
+                <el-dropdown-item command="reject" divided>
+                  <i class="el-icon-close" />不合适
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </el-dropdown>
           </div>
         </template>
       </el-table-column>
@@ -194,15 +227,6 @@ export default {
     },
     handleMoreActions(command, row) {
       switch(command) {
-        case 'previewOriginal':
-          this.previewOriginalResume(row);
-          break;
-        case 'aiAnalyze':
-          this.aiAnalyzeResume(row);
-          break;
-        case 'download':
-          this.handleDownload(row);
-          break;
         case 'star':
           this.toggleStar(row);
           break;
@@ -253,6 +277,7 @@ export default {
     border: 1px solid #EBEEF5;
     border-radius: 4px;
     overflow: hidden;
+    margin-top: 16px;
     
     :deep(.el-table__row) {
       &:hover {
@@ -275,6 +300,10 @@ export default {
         padding: 12px 8px;
         vertical-align: top;
       }
+    }
+
+    ::v-deep .el-table__row {
+      height: 180px;
     }
 
     .candidate-info {
@@ -415,16 +444,46 @@ export default {
       }
     }
 
-    .action-column {
-      .action-buttons {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        justify-content: center;
-
-        .el-button {
-          margin: 0;
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      
+      .action-btn {
+        padding: 5px 5px;
+        margin: 0 1px;
+        min-width: 28px;
+        
+        i {
+          margin-right: 0;
+          font-size: 14px;
         }
+        
+        &:hover {
+          transform: translateY(-1px);
+          transition: all 0.2s;
+        }
+      }
+    }
+  }
+
+  ::v-deep .el-dropdown-menu {
+    padding: 5px 0;
+    
+    .el-dropdown-menu__item {
+      line-height: 32px;
+      padding: 0 15px;
+      font-size: 13px;
+      
+      i {
+        margin-right: 8px;
+      }
+      
+      &.divided {
+        border-top: 1px solid #ebeef5;
+        margin-top: 5px;
+        padding-top: 5px;
       }
     }
   }

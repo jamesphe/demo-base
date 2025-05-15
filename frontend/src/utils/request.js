@@ -82,7 +82,7 @@ service.interceptors.response.use(
     return res
   },
   error => {
-    console.error('响应错误:', error)
+    console.log('响应错误:', error)
 
     const status = error.response?.status
     // 获取错误信息，优先使用后端返回的message字段
@@ -110,10 +110,15 @@ service.interceptors.response.use(
       case 404:
         error.message = '请求的资源不存在'
         break
+      case 405:
+        error.message = '请求方法不允许'
+        console.warn('API端点不支持此请求方法:', error.config?.url, error.config?.method)
+        break
       default:
         error.message = errMsg
     }
 
+    // 注释掉自动消息通知，让调用处决定是否显示错误
     // Message({
     //   message: error.message,
     //   type: 'error',

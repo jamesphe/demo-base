@@ -33,6 +33,8 @@ from app.services.job_service import JobService
 from app.services.parser_service import parser_service
 from app.services.llm_service import llm_service
 from app.db.session import SessionLocal
+from app.crud import resume as resume_crud
+from app.models.resume import Resume
 
 # 创建服务实例
 job_service = JobService()
@@ -976,17 +978,25 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         ).first()
 
     def get_by_repository(self, db: Session, *, repository_id: int) -> List[models.Resume]:
-        """获取简历库下的所有简历"""
+        """按简历库ID获取所有简历"""
         return db.query(models.Resume).filter(
             models.Resume.repository_id == repository_id
         ).all()
-
+        
     def get_by_candidate(self, db: Session, *, candidate_id: int) -> List[models.Resume]:
-        """获取候选人的所有简历"""
+        """按候选人ID获取所有简历（使用talent_id字段）"""
         return db.query(models.Resume).filter(
-            models.Resume.candidate_id == candidate_id
+            models.Resume.talent_id == candidate_id
         ).all()
-
+        
+    def get_resumes_by_candidate(self, db: Session, *, candidate_id: int) -> List[models.Resume]:
+        """获取候选人的所有简历（重构后的方法）"""
+        return self.get_by_candidate(db=db, candidate_id=candidate_id)
+        
+    def get_candidate(self, db: Session, *, candidate_id: int) -> Optional[models.Candidate]:
+        """获取候选人信息"""
+        return crud.candidate.get(db=db, id=candidate_id)
+        
     async def create_resume(
         self,
         db: Session,
@@ -1175,7 +1185,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
         resume = self.update(
             db,
             db_obj=resume,
-            obj_in=ResumeUpdate(candidate_id=candidate_id)
+            obj_in=ResumeUpdate(talent_id=candidate_id)
         )
         return resume
 
@@ -2761,6 +2771,89 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
             if 'response' in locals():
                 logger.error(f"LLM响应: {response}")
             raise HTTPException(status_code=500, detail=f"AI分析失败: {str(e)}")
+
+    def update_resume_status(
+        self,
+        db: Session,
+        resume_id: int,
+        status: str,
+        note: Optional[str] = None,
+        error: Optional[str] = None
+    ) -> models.Resume:
+        """更新简历状态（同步方法）"""
+        resume = db.query(models.Resume).filter(
+            models.Resume.id == resume_id
+        ).first()
+        
+        if not resume:
+            raise HTTPException(status_code=404, detail="简历不存在")
+            
+        update_data = {
+            "processing_status": status,
+            "updated_at": datetime.utcnow()
+        }
+        
+        if note:
+            update_data["processing_message"] = note
+            
+        if error:
+            update_data["processing_error"] = error
+            
+        resume = self.update(
+            db=db,
+            db_obj=resume,
+            obj_in=ResumeUpdate(**update_data)
+        )
+        
+        return resume
+
+    async def get_resume_detail(
+        self,
+        db: Session,
+        resume_id: int
+    ) -> Optional[Resume]:
+        """获取简历详情"""
+        try:
+            # 获取基本简历信息
+            resume = resume_crud.get(db, id=resume_id)
+            if not resume:
+                return None
+            
+            # 直接从简历对象获取详细信息
+            resume_detail = {
+                "id": resume.id,
+                "name": resume.name,
+                "current_position": resume.current_position,
+                "experience_years": resume.experience_years,
+                "highest_education": resume.highest_education,
+                "skills": resume.skills if resume.skills else [],
+                "work_experience": resume.work_history if resume.work_history else [],
+                "education": resume.edu_experience if resume.edu_experience else [],
+                "projects": resume.project_experience if resume.project_experience else [],
+                "certificates": resume.certificates if resume.certificates else [],
+                "expected_position": resume.expected_position,
+                "expected_salary": resume.expected_salary,
+                "expected_location": resume.expected_location,
+                "phone": resume.phone,
+                "email": resume.email,
+                "gender": resume.gender,
+                "birthdate": resume.birthdate,
+                "current_company": resume.current_company,
+                "current_salary": resume.current_salary,
+                "major": resume.major
+            }
+            
+            # 将详细信息添加到简历对象
+            for key, value in resume_detail.items():
+                setattr(resume, key, value)
+            
+            return resume
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"获取简历详情失败: {str(e)}"
+            )
 
 # 创建单例实例
 resume_service = ResumeService()

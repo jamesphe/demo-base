@@ -168,12 +168,16 @@ export default {
     handleLogin() {
       this.$refs.loginForm.validate(async valid => {
         if (valid) {
+          this.loading = true
           try {
             await this.$store.dispatch('user/login', this.loginForm)
             // 登录成功后跳转到 dashboard
             this.$router.push('/dashboard')
           } catch (error) {
             console.error('登录失败:', error)
+            this.$message.error('用户名或密码错误，请重新输入')
+          } finally {
+            this.loading = false
           }
         }
       })

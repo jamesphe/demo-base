@@ -171,7 +171,6 @@ class ResumeBase(BaseModel):
     
     # 关联关系
     repository_id: Optional[int] = None
-    candidate_id: Optional[int] = Field(None, description="候选人ID")
     talent_id: Optional[int] = Field(None, description="人才ID")
     tenant_id: Optional[int] = None
     

@@ -70,43 +70,46 @@
       </div>
       
       <div class="card-footer">
-        <el-tooltip content="查看详情" placement="top">
-          <el-button type="text" @click="viewDetail(item)">
-            <i class="el-icon-view" />
-          </el-button>
-        </el-tooltip>
-        
-        <el-tooltip content="预览原件" placement="top">
-          <el-button type="text" @click="previewOriginalResume(item)">
-            <i class="el-icon-document" />
-          </el-button>
-        </el-tooltip>
-        
-        <el-tooltip content="AI解读" placement="top">
-          <el-button type="text" @click="aiAnalyzeResume(item)">
-            <i class="el-icon-cpu" />
-          </el-button>
-        </el-tooltip>
-        
-        <el-tooltip content="下载简历" placement="top">
-          <el-button type="text" @click="handleDownload(item)">
-            <i class="el-icon-download" />
-          </el-button>
-        </el-tooltip>
-        
-        <el-tooltip :content="item.starred ? '取消收藏' : '收藏'" placement="top">
-          <el-button
-            type="text"
-            :class="{'starred': item.starred}"
-            @click="toggleStar(item)"
-          >
-            <i :class="item.starred ? 'el-icon-star-on' : 'el-icon-star-off'" />
-          </el-button>
-        </el-tooltip>
-        
-        <el-tooltip content="更多操作" placement="top">
+        <div class="action-buttons">
+          <el-tooltip content="查看详情" placement="top">
+            <el-button type="primary" size="mini" plain class="action-btn" @click="viewDetail(item)">
+              <i class="el-icon-view" />
+            </el-button>
+          </el-tooltip>
+          
+          <el-tooltip content="预览原件" placement="top">
+            <el-button type="info" size="mini" plain class="action-btn" @click="previewOriginalResume(item)">
+              <i class="el-icon-document" />
+            </el-button>
+          </el-tooltip>
+          
+          <el-tooltip content="AI解读" placement="top">
+            <el-button type="warning" size="mini" plain class="action-btn" @click="aiAnalyzeResume(item)">
+              <i class="el-icon-cpu" />
+            </el-button>
+          </el-tooltip>
+          
+          <el-tooltip content="下载简历" placement="top">
+            <el-button type="success" size="mini" plain class="action-btn" @click="handleDownload(item)">
+              <i class="el-icon-download" />
+            </el-button>
+          </el-tooltip>
+          
+          <el-tooltip :content="item.starred ? '取消收藏' : '收藏'" placement="top">
+            <el-button
+              type="danger"
+              size="mini"
+              plain
+              class="action-btn"
+              :class="{'starred': item.starred}"
+              @click="toggleStar(item)"
+            >
+              <i :class="item.starred ? 'el-icon-star-on' : 'el-icon-star-off'" />
+            </el-button>
+          </el-tooltip>
+          
           <el-dropdown trigger="click" @command="(command) => handleMoreActions(command, item)">
-            <el-button type="text">
+            <el-button type="primary" size="mini" plain class="action-btn">
               <i class="el-icon-more" />
             </el-button>
             <el-dropdown-menu slot="dropdown">
@@ -127,7 +130,7 @@
               </el-dropdown-item>
             </el-dropdown-menu>
           </el-dropdown>
-        </el-tooltip>
+        </div>
       </div>
     </div>
   </div>
@@ -435,30 +438,58 @@ export default {
   }
 
   .card-footer {
-    padding: 10px 16px;
+    padding: 12px 16px;
     border-top: 1px solid #f0f2f5;
-    background: #f9fafc;
     display: flex;
-    justify-content: space-around;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
-
-    .el-button {
-      padding: 0;
-      font-size: 15px;
-      min-width: fit-content;
-      flex: 1;
-      text-align: center;
+  
+    .action-buttons {
       display: flex;
-      align-items: center;
       justify-content: center;
-
-      &.starred {
-        color: #e6a23c;
+      gap: 8px;
+      flex-wrap: wrap;
+      
+      .action-btn {
+        padding: 5px 5px;
+        margin: 0 1px;
+        min-width: 28px;
+        
+        i {
+          margin-right: 0;
+          font-size: 14px;
+        }
+        
+        &:hover {
+          transform: translateY(-1px);
+          transition: all 0.2s;
+        }
+        
+        &.starred {
+          color: #e6a23c;
+        }
       }
-
+    }
+  }
+  
+  ::v-deep .el-dropdown-menu {
+    padding: 5px 0;
+    
+    .el-dropdown-menu__item {
+      line-height: 32px;
+      padding: 0 15px;
+      font-size: 13px;
+      
       i {
-        margin-right: 4px;
-        font-size: 16px;
+        margin-right: 8px;
+      }
+      
+      &.divided {
+        border-top: 1px solid #ebeef5;
+        margin-top: 5px;
+        padding-top: 5px;
       }
     }
   }

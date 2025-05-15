@@ -4,6 +4,7 @@ from app.models.job_requirement import JobRequiredSkill, JobRequiredCertificatio
 from .job_application import JobApplication  # noqa: F401
 from .candidate import Candidate  # noqa: F401
 from .interview import Interview  # noqa: F401
+from .interview_interviewer import interview_interviewers  # noqa: F401
 from .resume import Resume  # noqa: F401
 from .resume_repository import ResumeRepository  # noqa: F401
 from .role import Role  # noqa: F401
@@ -33,6 +34,7 @@ __all__ = [
     "JobApplication",
     "Candidate",
     "Interview",
+    "interview_interviewers",
     "Resume",
     "ResumeRepository",
     "Role",

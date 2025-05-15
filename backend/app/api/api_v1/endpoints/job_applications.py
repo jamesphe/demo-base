@@ -160,7 +160,7 @@ def read_applications_by_status(
     """
     # 验证状态值是否有效
     valid_statuses = [
-        "pending", "reviewed", "interviewed", 
+        "pending", "reviewed", "interview_scheduled", "interviewed",
         "offered", "rejected", "withdrawn"
     ]
     if status not in valid_statuses:
@@ -558,94 +558,5 @@ def batch_update_application_status(
             db.rollback()
             result["failCount"] += 1
             result["errorMessages"].append(f"更新申请 {app_id} 失败: {str(e)}")
-    
-    return result
-
-
-@router.post("/convert-to-candidates", response_model=schemas.BatchActionResponse)
-def convert_applications_to_candidates(
-    *,
-    db: Session = Depends(deps.get_db),
-    request_data: schemas.ConvertToCandidatesRequest,
-    current_user: models.User = Depends(deps.get_current_active_user)
-):
-    """
-    将职位申请转为候选人并更新申请状态（一步完成）
-    
-    此接口将在一个事务中完成两个操作：
-    1. 将申请者添加为候选人
-    2. 更新申请状态为指定状态
-    
-    如果任一步骤失败，整个事务会回滚
-    """
-    if len(request_data.applications) == 0:
-        raise HTTPException(status_code=400, detail="不能提交空列表")
-    
-    # 检查租户权限
-    tenant_id = request_data.tenant_id
-    if tenant_id:
-        if not deps.check_tenant_permission(db, current_user, tenant_id):
-            raise HTTPException(status_code=403, detail="无权访问该租户数据")
-    
-    result = {"successCount": 0, "failCount": 0, "errorMessages": []}
-    
-    for app_info in request_data.applications:
-        # 开始数据库事务
-        try:
-            # 1. 创建候选人记录
-            existing = db.query(models.Candidate).filter(
-                models.Candidate.email == app_info.email,
-                models.Candidate.job_id == app_info.job_id
-            ).first()
-            
-            if existing:
-                result["failCount"] += 1
-                candidate_name = app_info.candidate_name or app_info.email
-                error_msg = f"候选人 {candidate_name} 已存在"
-                result["errorMessages"].append(error_msg)
-                continue
-            
-            # 创建新候选人
-            new_candidate = models.Candidate(
-                tenant_id=app_info.tenant_id,
-                name=app_info.candidate_name,
-                email=app_info.email,
-                phone=app_info.phone,
-                resume_url=app_info.resume_url,
-                status=request_data.status,
-                job_id=app_info.job_id,
-                notes=request_data.notes,
-                resume_id=app_info.resume_id
-            )
-            
-            db.add(new_candidate)
-            
-            # 2. 更新申请状态
-            application = db.query(models.JobApplication).filter(
-                models.JobApplication.id == app_info.id
-            ).first()
-            
-            if not application:
-                db.rollback()
-                result["failCount"] += 1
-                result["errorMessages"].append(f"申请ID {app_info.id} 不存在")
-                continue
-            
-            # 更新申请状态为已审核
-            application.status = "reviewed"
-            application.review_notes = f"已添加为候选人: {request_data.status}"
-            application.review_time = datetime.utcnow()
-            
-            # 提交事务
-            db.commit()
-            result["successCount"] += 1
-            
-        except Exception as e:
-            db.rollback()
-            result["failCount"] += 1
-            error_msg = (
-                f"处理申请 {app_info.id} 失败: {str(e)}"
-            )
-            result["errorMessages"].append(error_msg)
     
     return result 

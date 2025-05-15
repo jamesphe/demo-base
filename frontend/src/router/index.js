@@ -309,6 +309,30 @@ export const asyncRoutes = [
           activeMenu: '/interview/schedule'
         },
         hidden: true
+      },
+      {
+        path: 'process-record/:id',
+        component: () => import('@/views/interview/process-record'),
+        name: 'InterviewProcessRecord',
+        meta: {
+          title: '面试实时记录',
+          icon: 'el-icon-edit-outline',
+          roles: ['tenant_admin', 'tenant_hr', 'interviewer'],
+          activeMenu: '/interview/record'
+        },
+        hidden: true
+      },
+      {
+        path: 'feedback/:id',
+        component: () => import('@/views/interview/feedback'),
+        name: 'InterviewFeedback',
+        meta: {
+          title: '面试反馈',
+          icon: 'el-icon-s-comment',
+          roles: ['tenant_admin', 'tenant_hr', 'interviewer'],
+          activeMenu: '/interview/record'
+        },
+        hidden: true
       }
     ]
   },

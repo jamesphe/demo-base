@@ -7,7 +7,9 @@ from app.api.api_v1.endpoints import (
     talent_educations, talent_experiences, resume_reviews,
     job_applications,
     trial_application,
-    resume_sync_emails
+    resume_sync_emails,
+    interview_feedback,
+    ai  # 添加ai模块
 )
 
 api_router = APIRouter()
@@ -155,4 +157,18 @@ api_router.include_router(
     resume_sync_emails.router,
     prefix="/resume-sync-emails",
     tags=["resume-sync-emails"]
+)
+
+# 面试反馈
+api_router.include_router(
+    interview_feedback.router,
+    prefix="/interviews",
+    tags=["interview-feedback"]
+)
+
+# 添加AI路由
+api_router.include_router(
+    ai.router,
+    prefix="/ai",
+    tags=["AI服务"]
 )

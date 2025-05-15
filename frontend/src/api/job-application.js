@@ -32,12 +32,3 @@ export function batchUpdateStatus(ids, data) {
     data: requestData
   });
 }
-
-// 将申请者添加为候选人并更新申请状态（一步完成）
-export function convertApplicationsToCandidates(applicationData) {
-  return request({
-    url: '/job-applications/convert-to-candidates',
-    method: 'post',
-    data: applicationData
-  });
-}

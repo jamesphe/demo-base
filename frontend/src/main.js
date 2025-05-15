@@ -21,6 +21,7 @@ import './permission' // permission control
 import './utils/error-log' // error log
 
 import * as filters from './filters' // global filters
+import CustomComponents from '@/components'
 
 /**
  * If you don't want to use mock-server
@@ -40,6 +41,9 @@ Vue.use(Element, {
   locale: zhCN
 })
 
+// 注册自定义组件
+Vue.use(CustomComponents)
+
 // register global utility filters
 Object.keys(filters).forEach(key => {
   Vue.filter(key, filters[key])
@@ -51,6 +55,18 @@ Vue.use(Router)
 Vue.use(VueCompositionAPI)
 
 Vue.config.productionTip = false
+
+// 防止路由重复点击报错
+const originalPush = Router.prototype.push
+Router.prototype.push = function push(location) {
+  try {
+    return originalPush.call(this, location)
+  } catch (err) {
+    if (err.name !== 'NavigationDuplicated') {
+      throw err
+    }
+  }
+}
 
 new Vue({
   el: '#app',

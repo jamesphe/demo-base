@@ -86,14 +86,14 @@
         <!-- 候选人 -->
         <el-table-column
           label="候选人"
-          prop="candidateName"
+          prop="resumeTitle"
           align="center"
           min-width="120"
         >
           <template slot-scope="scope">
             <div class="candidate-info">
-              <span class="candidate-name">{{ scope.row.candidateName }}</span>
-              <el-tag size="mini" type="info">{{ scope.row.candidatePosition }}</el-tag>
+              <span class="candidate-name clickable" @click="handleCandidateClick(scope.row)">{{ (scope.row.resume && scope.row.resume.name) || scope.row.resumeTitle || '-' }}</span>
+              <el-tag size="mini" type="info">{{ scope.row.jobTitle || '-' }}</el-tag>
             </div>
           </template>
         </el-table-column>
@@ -101,13 +101,13 @@
         <!-- 面试类型 -->
         <el-table-column
           label="面试类型"
-          prop="type"
+          prop="interviewType"
           align="center"
           width="100"
         >
           <template slot-scope="scope">
-            <el-tag :type="getInterviewTypeTag(scope.row.type)">
-              {{ getInterviewTypeText(scope.row.type) }}
+            <el-tag :type="getInterviewTypeTag(scope.row.interviewType)">
+              {{ getInterviewTypeText(scope.row.interviewType) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -115,13 +115,13 @@
         <!-- 面试时间 -->
         <el-table-column
           label="面试时间"
-          prop="time"
+          prop="scheduleTime"
           align="center"
           width="160"
           sortable="custom"
         >
           <template slot-scope="scope">
-            <span>{{ formatDateTime(scope.row.time) }}</span>
+            <span>{{ formatDateTime(scope.row.scheduleTime) }}</span>
           </template>
         </el-table-column>
 
@@ -136,19 +136,34 @@
         <!-- 面试官 -->
         <el-table-column
           label="面试官"
-          prop="interviewers"
+          prop="interviewerName"
           align="center"
           min-width="120"
         >
           <template slot-scope="scope">
-            <el-tag
-              v-for="interviewer in scope.row.interviewers"
-              :key="interviewer.id"
-              size="mini"
-              class="interviewer-tag"
-            >
-              {{ interviewer.name }}
-            </el-tag>
+            <div v-if="scope.row.interviewers && scope.row.interviewers.length > 0">
+              <el-tag
+                v-for="interviewer in scope.row.interviewers"
+                :key="interviewer.id"
+                size="mini"
+                class="interviewer-tag"
+                style="margin-right: 5px; margin-bottom: 5px;"
+              >
+                {{ interviewer.username }}
+              </el-tag>
+            </div>
+            <div v-else-if="scope.row.interviewer_names && scope.row.interviewer_names.length > 0">
+              <el-tag
+                v-for="(name, index) in scope.row.interviewer_names"
+                :key="index"
+                size="mini"
+                class="interviewer-tag"
+                style="margin-right: 5px; margin-bottom: 5px;"
+              >
+                {{ name }}
+              </el-tag>
+            </div>
+            <span v-else>-</span>
           </template>
         </el-table-column>
 
@@ -170,49 +185,61 @@
         <el-table-column
           label="操作"
           align="center"
-          width="280"
+          width="320"
           fixed="right"
         >
           <template slot-scope="scope">
-            <el-button
-              size="mini"
-              type="primary"
-              plain
-              class="action-btn"
-              @click="handleView(scope.row)"
-            >
-              <i class="el-icon-view" />
-            </el-button>
-            <el-button
-              size="mini"
-              type="success"
-              plain
-              class="action-btn"
-              @click="handlePreparation(scope.row)"
-            >
-              <i class="el-icon-notebook-2" />
-            </el-button>
-            <el-button
-              size="mini"
-              type="success"
-              plain
-              :disabled="scope.row.status !== 'scheduled'"
-              @click="handleEdit(scope.row)"
-            >编辑</el-button>
-            <el-button
-              size="mini"
-              type="danger"
-              plain
-              :disabled="scope.row.status !== 'scheduled'"
-              @click="handleCancel(scope.row)"
-            >取消</el-button>
-            <el-button
-              size="mini"
-              type="warning"
-              plain
-              :disabled="scope.row.status !== 'completed'"
-              @click="handleEvaluate(scope.row)"
-            >评估</el-button>
+            <div class="action-buttons">
+              <el-tooltip content="查看详情" placement="top">
+                <el-button
+                  size="mini"
+                  type="primary"
+                  plain
+                  class="action-btn"
+                  @click="handleView(scope.row)"
+                >
+                  <i class="el-icon-view" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="面试准备" placement="top">
+                <el-button
+                  size="mini"
+                  type="success"
+                  plain
+                  class="action-btn"
+                  @click="handlePreparation(scope.row)"
+                >
+                  <i class="el-icon-notebook-2" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="编辑面试" placement="top">
+                <el-button
+                  size="mini"
+                  type="success"
+                  plain
+                  :disabled="scope.row.status !== 'scheduled'"
+                  @click="handleEdit(scope.row)"
+                >编辑</el-button>
+              </el-tooltip>
+              <el-tooltip content="取消面试" placement="top">
+                <el-button
+                  size="mini"
+                  type="danger"
+                  plain
+                  :disabled="scope.row.status !== 'scheduled'"
+                  @click="handleCancel(scope.row)"
+                >取消</el-button>
+              </el-tooltip>
+              <el-tooltip content="评估面试" placement="top">
+                <el-button
+                  size="mini"
+                  type="warning"
+                  plain
+                  :disabled="scope.row.status !== 'completed'"
+                  @click="handleEvaluate(scope.row)"
+                >评估</el-button>
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -288,9 +315,125 @@
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="submitForm" :loading="submitting">
+        <el-button type="primary" @click="submitInterviewForm" :loading="submitting">
           确 定
         </el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 面试详情对话框 -->
+    <el-dialog
+      title="面试详情"
+      :visible.sync="detailDialogVisible"
+      width="650px"
+      custom-class="interview-detail-dialog"
+    >
+      <div v-loading="currentInterviewLoading" class="interview-detail">
+        <div class="interview-header">
+          <div class="interview-tag">
+            <el-tag :type="getInterviewTypeTag(currentInterview.interviewType)" size="medium" effect="plain">
+              {{ getInterviewTypeText(currentInterview.interviewType) }}
+            </el-tag>
+            <el-tag :type="getStatusType(currentInterview.status)" class="status-tag" size="medium" effect="plain">
+              {{ getStatusText(currentInterview.status) }}
+            </el-tag>
+          </div>
+          <div class="interview-id"># {{ currentInterview.id }}</div>
+        </div>
+
+        <div class="candidate-box">
+          <div class="info-title">
+            <i class="el-icon-user"></i> 候选人信息
+          </div>
+          <div class="info-content">
+            <span class="candidate-name">{{ (currentInterview.resume && currentInterview.resume.name) || currentInterview.resumeTitle || '-' }}</span>
+            <span class="job-title">{{ currentInterview.jobTitle || '' }}</span>
+          </div>
+        </div>
+
+        <div class="info-row">
+          <div class="info-col">
+            <div class="info-title">
+              <i class="el-icon-date"></i> 面试时间
+            </div>
+            <div class="info-content time-block">
+              {{ formatDateTime(currentInterview.scheduleTime) }}
+            </div>
+          </div>
+          <div class="info-col">
+            <div class="info-title">
+              <i class="el-icon-location"></i> 面试地点
+            </div>
+            <div class="info-content">
+              {{ currentInterview.location || '-' }}
+            </div>
+          </div>
+        </div>
+
+        <div class="interviewer-box">
+          <div class="info-title">
+            <i class="el-icon-user-solid"></i> 面试官
+          </div>
+          <div class="info-content">
+            <div v-if="currentInterview.interviewers && currentInterview.interviewers.length > 0">
+              <el-tag
+                v-for="interviewer in currentInterview.interviewers"
+                :key="interviewer.id"
+                size="small"
+                effect="plain"
+                class="interviewer-tag"
+              >
+                <i class="el-icon-user"></i> {{ interviewer.username }}
+              </el-tag>
+            </div>
+            <span v-else class="empty-text">暂无面试官</span>
+          </div>
+        </div>
+
+        <div class="notes-box">
+          <div class="info-title">
+            <i class="el-icon-document"></i> 备注信息
+          </div>
+          <div class="info-content">
+            <div class="notes-content">{{ currentInterview.notes || '暂无备注信息' }}</div>
+          </div>
+        </div>
+        
+        <div class="detail-actions">
+          <el-button type="primary" size="small" round @click="handlePreparation(currentInterview)">
+            <i class="el-icon-notebook-2"></i> 面试准备
+          </el-button>
+          <el-button 
+            type="success" 
+            size="small" 
+            round
+            :disabled="currentInterview.status !== 'scheduled'"
+            @click="handleEdit(currentInterview)"
+          >
+            <i class="el-icon-edit"></i> 编辑面试
+          </el-button>
+          <el-button 
+            type="warning" 
+            size="small" 
+            round
+            :disabled="currentInterview.status !== 'completed'"
+            @click="handleEvaluate(currentInterview)"
+          >
+            <i class="el-icon-star-on"></i> 评估面试
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
+
+    <!-- 候选人详情对话框 -->
+    <el-dialog
+      title="候选人详情"
+      :visible.sync="candidateDetailVisible"
+      width="800px"
+      custom-class="candidate-detail-dialog"
+    >
+      <div v-loading="detailLoading" class="candidate-detail-container">
+        <resume-detail :detail="currentDetail" :loading="detailLoading" />
       </div>
     </el-dialog>
   </div>
@@ -299,12 +442,14 @@
 <script>
 import { mapGetters, mapActions } from 'vuex'
 import Pagination from '@/components/Pagination'
-import { getInterviewerList } from '@/api/interview'
+import ResumeDetail from '@/components/ResumeDetail'
+import { formatDateTime } from '@/utils/format'
 
 export default {
   name: 'InterviewSchedule',
   components: {
-    Pagination
+    Pagination,
+    ResumeDetail
   },
   data() {
     return {
@@ -328,7 +473,9 @@ export default {
         time: '',
         interviewers: [],
         location: '',
-        notes: ''
+        notes: '',
+        resumeId: '',
+        jobId: ''
       },
       interviewRules: {
         type: [
@@ -338,26 +485,48 @@ export default {
           { required: true, message: '请选择面试时间', trigger: 'change' }
         ],
         interviewers: [
-          { required: true, message: '请选择面试官', trigger: 'change' }
+          { required: true, message: '请选择至少一名面试官', trigger: 'change' }
         ],
         location: [
           { required: true, message: '请输入面试地点', trigger: 'blur' }
         ]
       },
-      interviewerOptions: [],
-      submitting: false
+      submitting: false,
+      currentInterviewId: null,
+      detailDialogVisible: false,
+      currentInterviewLoading: false,
+      currentInterview: {},
+      // 候选人详情对话框
+      candidateDetailVisible: false
     }
   },
   computed: {
     ...mapGetters('interview', [
       'interviewList',
       'total',
-      'loading'
-    ])
+      'loading',
+      'interviewerList'
+    ]),
+    ...mapGetters('resume', [
+      'currentDetail',
+      'detailLoading'
+    ]),
+    interviewerOptions() {
+      console.log('面试官列表数据:', this.interviewerList)
+      return this.interviewerList.map(item => ({
+        id: item.id,
+        name: item.username
+      }))
+    }
   },
   created() {
+    console.log('组件创建时的状态:', {
+      interviewList: this.interviewList,
+      total: this.total,
+      loading: this.loading
+    })
     this.getList()
-    this.getInterviewers()
+    this.getInterviewerList()
   },
   methods: {
     ...mapActions('interview', [
@@ -365,7 +534,11 @@ export default {
       'createInterviews',
       'updateInterview',
       'deleteInterview',
-      'checkTimeConflict'
+      'checkTimeConflict',
+      'getInterviewerList'
+    ]),
+    ...mapActions('resume', [
+      'getResumeDetail'
     ]),
     async getList() {
       try {
@@ -375,22 +548,16 @@ export default {
           timeStart: this.searchForm.timeRange?.[0],
           timeEnd: this.searchForm.timeRange?.[1]
         }
+        console.log('获取面试列表参数:', params)
         await this.getInterviewList(params)
+        console.log('获取面试列表后的状态:', {
+          interviewList: this.interviewList,
+          total: this.total,
+          loading: this.loading
+        })
       } catch (error) {
         console.error('获取面试列表失败:', error)
         this.$message.error('获取面试列表失败')
-      }
-    },
-    async getInterviewers() {
-      try {
-        const response = await getInterviewerList()
-        this.interviewerOptions = response.map(item => ({
-          id: item.id,
-          name: item.username
-        }))
-      } catch (error) {
-        console.error('获取面试官列表失败:', error)
-        this.$message.error('获取面试官列表失败')
       }
     },
     handleSearch() {
@@ -415,16 +582,28 @@ export default {
         time: '',
         interviewers: [],
         location: '',
-        notes: ''
+        notes: '',
+        resumeId: '',
+        jobId: ''
       }
       this.dialogVisible = true
     },
     handleEdit(row) {
       this.dialogType = 'edit'
+      this.currentInterviewId = row.id
+      
+      // 设置表单数据
       this.interviewForm = {
-        ...row,
-        interviewers: row.interviewers.map(i => i.id)
+        type: row.interviewType,
+        time: row.scheduleTime,
+        // 设置面试官列表
+        interviewers: row.interviewers ? row.interviewers.map(item => item.id) : [],
+        location: row.location,
+        notes: row.notes,
+        resumeId: row.resume_id,
+        jobId: row.job_id
       }
+      
       this.dialogVisible = true
     },
     async handleCancel(row) {
@@ -446,7 +625,9 @@ export default {
       }
     },
     handleView(row) {
-      // TODO: 实现查看面试详情
+      this.currentInterview = row
+      this.detailDialogVisible = true
+      this.currentInterviewLoading = false
     },
     handlePreparation(row) {
       this.$router.push(`/interview/preparation/${row.id}`)
@@ -454,7 +635,7 @@ export default {
     handleEvaluate(row) {
       this.$router.push(`/interview/evaluation/${row.id}`)
     },
-    async submitForm() {
+    async submitInterviewForm() {
       try {
         await this.$refs.interviewForm.validate()
         
@@ -476,13 +657,14 @@ export default {
           this.$message.success('面试创建成功')
         } else {
           await this.updateInterview({
-            id: this.interviewForm.id,
+            id: this.currentInterviewId,
             data: this.interviewForm
           })
           this.$message.success('面试更新成功')
         }
         
         this.dialogVisible = false
+        this.resetForm()
         this.getList()
       } catch (error) {
         console.error('提交表单失败:', error)
@@ -533,6 +715,48 @@ export default {
         hour: '2-digit',
         minute: '2-digit'
       })
+    },
+    resetForm() {
+      this.interviewForm = {
+        type: 'first',
+        time: '',
+        interviewers: [],
+        location: '',
+        notes: '',
+        resumeId: '',
+        jobId: ''
+      }
+    },
+    async handleCandidateClick(row) {
+      // 添加调试信息，查看面试记录的完整数据
+      console.log('面试记录数据:', row)
+      console.log('简历ID:', row.resume_id)
+      console.log('候选人信息:', row.resume)
+      
+      // 尝试获取简历ID，优先使用resume_id，然后尝试其他可能的字段
+      const resumeId = row.resume_id || row.resumeId || (row.resume && row.resume.id);
+      
+      if (!resumeId) {
+        // 检查有没有其他可能的ID字段
+        console.log('寻找替代ID:',
+          '候选人ID:', row.candidate_id,
+          '简历名称:', row.resumeTitle
+        )
+        
+        this.$message.warning('该面试无关联简历信息')
+        return
+      }
+      
+      console.log('将使用简历ID获取详情:', resumeId)
+      this.candidateDetailVisible = true
+      
+      try {
+        // 通过store获取简历详情
+        await this.getResumeDetail(resumeId)
+      } catch (error) {
+        console.error('获取候选人简历详情失败:', error)
+        this.$message.error('获取候选人简历详情失败')
+      }
     }
   }
 }
@@ -567,11 +791,31 @@ export default {
     .candidate-name {
       margin-bottom: 5px;
       font-weight: 500;
+      
+      &.clickable {
+        color: #409EFF;
+        cursor: pointer;
+        
+        &:hover {
+          text-decoration: underline;
+        }
+      }
     }
   }
   
   .interviewer-tag {
     margin: 2px;
+  }
+  
+  .action-buttons {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    gap: 5px;
+    
+    .action-btn {
+      margin: 0;
+    }
   }
 }
 
@@ -590,6 +834,210 @@ export default {
   .el-dialog__footer {
     padding: 20px;
     border-top: 1px solid #e4e7ed;
+  }
+}
+
+.interview-detail {
+  padding: 10px;
+}
+
+.interview-detail-dialog {
+  .interview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px dashed #ebeef5;
+
+    .interview-tag {
+      display: flex;
+      align-items: center;
+
+      .el-tag {
+        margin-right: 10px;
+        padding: 0 12px;
+        height: 28px;
+        line-height: 26px;
+      }
+    }
+
+    .interview-id {
+      font-size: 14px;
+      color: #909399;
+      font-weight: 500;
+      background: #f5f7fa;
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+  }
+
+  .candidate-box {
+    background: #f9fafc;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+
+    .info-title {
+      font-weight: 500;
+      margin-bottom: 10px;
+      font-size: 15px;
+      color: #303133;
+
+      i {
+        margin-right: 5px;
+        color: #409EFF;
+      }
+    }
+
+    .info-content {
+      display: flex;
+      align-items: center;
+
+      .candidate-name {
+        font-size: 16px;
+        font-weight: 600;
+        margin-right: 10px;
+      }
+
+      .job-title {
+        font-size: 13px;
+        color: #909399;
+        background: #f0f2f5;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+    }
+  }
+
+  .info-row {
+    display: flex;
+    margin-bottom: 20px;
+    gap: 20px;
+
+    .info-col {
+      flex: 1;
+      background: #f9fafc;
+      border-radius: 6px;
+      padding: 15px;
+
+      .info-title {
+        font-weight: 500;
+        margin-bottom: 10px;
+        font-size: 15px;
+        color: #303133;
+
+        i {
+          margin-right: 5px;
+          color: #409EFF;
+        }
+      }
+
+      .info-content {
+        font-size: 14px;
+
+        &.time-block {
+          color: #67c23a;
+          font-weight: 500;
+        }
+      }
+    }
+  }
+
+  .interviewer-box {
+    background: #f9fafc;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 20px;
+
+    .info-title {
+      font-weight: 500;
+      margin-bottom: 10px;
+      font-size: 15px;
+      color: #303133;
+
+      i {
+        margin-right: 5px;
+        color: #409EFF;
+      }
+    }
+
+    .info-content {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+
+      .interviewer-tag {
+        margin-right: 8px;
+        margin-bottom: 8px;
+        padding: 0 10px;
+        height: 28px;
+        line-height: 26px;
+        
+        i {
+          margin-right: 3px;
+        }
+      }
+
+      .empty-text {
+        color: #909399;
+        font-style: italic;
+      }
+    }
+  }
+
+  .notes-box {
+    background: #f9fafc;
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 5px;
+
+    .info-title {
+      font-weight: 500;
+      margin-bottom: 10px;
+      font-size: 15px;
+      color: #303133;
+
+      i {
+        margin-right: 5px;
+        color: #409EFF;
+      }
+    }
+
+    .info-content {
+      .notes-content {
+        white-space: pre-wrap;
+        padding: 8px 12px;
+        min-height: 40px;
+        color: #606266;
+        background: white;
+        border-radius: 4px;
+        border-left: 3px solid #dcdfe6;
+      }
+    }
+  }
+
+  .detail-actions {
+    margin-top: 25px;
+    text-align: center;
+    border-top: 1px solid #ebeef5;
+    padding-top: 20px;
+    
+    .el-button {
+      padding: 8px 20px;
+      margin: 0 10px;
+      
+      i {
+        margin-right: 5px;
+      }
+    }
+  }
+}
+
+.candidate-detail-dialog {
+  .candidate-detail-container {
+    min-height: 200px;
+    padding: 0;
   }
 }
 </style>

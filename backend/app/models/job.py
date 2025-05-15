@@ -48,11 +48,16 @@ class Job(Base):
         back_populates="published_jobs",
         foreign_keys=[publisher_id]
     )
-    candidates = relationship("Candidate", back_populates="job")
     required_skills = relationship("JobRequiredSkill", back_populates="job")
     required_certifications = relationship(
         "JobRequiredCertification", 
         back_populates="job"
     )
     applications = relationship("JobApplication", back_populates="job")
-    keywords = relationship("JobKeyword", back_populates="job", uselist=True, cascade="all, delete-orphan")
+    interviews = relationship("Interview", back_populates="job")
+    keywords = relationship(
+        "JobKeyword", 
+        back_populates="job", 
+        uselist=True, 
+        cascade="all, delete-orphan"
+    )

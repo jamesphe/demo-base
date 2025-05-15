@@ -43,6 +43,15 @@ module.exports = {
         errors: true
       }
     },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        pathRewrite: { '^/api': '/api' },
+        timeout: 300000, // 5分钟超时
+        ws: true  // 启用WebSocket支持
+      }
+    },
     setupMiddlewares: (middlewares, devServer) => {
       if (!devServer) {
         throw new Error('webpack-dev-server is not defined')

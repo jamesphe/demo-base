@@ -16,6 +16,7 @@ class JobApplication(Base):
         Enum(
             "pending",
             "reviewed",
+            "interview_scheduled",
             "interviewed",
             "offered",
             "rejected",

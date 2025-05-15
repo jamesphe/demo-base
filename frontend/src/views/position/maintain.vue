@@ -240,56 +240,81 @@
         <el-table-column
           label="操作"
           align="center"
-          width="350"
+          width="280"
           fixed="right"
         >
           <template slot-scope="{row}">
-            <el-button-group>
-              <el-button
-                v-if="row.status !== 'closed'"
-                size="mini"
-                type="primary"
-                icon="el-icon-edit"
-                @click="handleEdit(row)"
-              >
-                编辑
-              </el-button>
-              <el-button
-                v-if="row.status === 'active' || row.status === 'published'"
-                size="mini"
-                type="warning"
-                icon="el-icon-video-pause"
-                @click="handleUpdateStatus(row, 'paused')"
-              >
-                暂停
-              </el-button>
-              <el-button
-                v-if="row.status === 'paused'"
-                size="mini"
-                type="success"
-                icon="el-icon-video-play"
-                @click="handleUpdateStatus(row, 'active')"
-              >
-                恢复
-              </el-button>
-              <el-button
-                v-if="row.status !== 'closed'"
-                size="mini"
-                type="info"
-                icon="el-icon-circle-close"
-                @click="handleUpdateStatus(row, 'closed')"
-              >
-                结束
-              </el-button>
-              <el-button
-                size="mini"
-                type="danger"
-                icon="el-icon-delete"
-                @click="handleDelete(row)"
-              >
-                删除
-              </el-button>
-            </el-button-group>
+            <div class="action-buttons">
+              <el-tooltip content="编辑职位" placement="top">
+                <el-button
+                  v-if="row.status !== 'closed'"
+                  size="mini"
+                  type="primary"
+                  plain
+                  class="action-btn"
+                  @click="handleEdit(row)"
+                >
+                  <i class="el-icon-edit" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="暂停招聘" placement="top">
+                <el-button
+                  v-if="row.status === 'active' || row.status === 'published'"
+                  size="mini"
+                  type="warning"
+                  plain
+                  class="action-btn"
+                  @click="handleUpdateStatus(row, 'paused')"
+                >
+                  <i class="el-icon-video-pause" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="恢复招聘" placement="top">
+                <el-button
+                  v-if="row.status === 'paused'"
+                  size="mini"
+                  type="success"
+                  plain
+                  class="action-btn"
+                  @click="handleUpdateStatus(row, 'active')"
+                >
+                  <i class="el-icon-video-play" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="结束招聘" placement="top">
+                <el-button
+                  v-if="row.status !== 'closed'"
+                  size="mini"
+                  type="info"
+                  plain
+                  class="action-btn"
+                  @click="handleUpdateStatus(row, 'closed')"
+                >
+                  <i class="el-icon-circle-close" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="删除职位" placement="top">
+                <el-button
+                  size="mini"
+                  type="danger"
+                  plain
+                  class="action-btn"
+                  @click="handleDelete(row)"
+                >
+                  <i class="el-icon-delete" />
+                </el-button>
+              </el-tooltip>
+              <el-dropdown trigger="click" @command="(command) => handleMoreActions(command, scope.row)">
+                <el-button size="mini" type="primary" plain class="action-btn">
+                  <i class="el-icon-more"></i>
+                </el-button>
+                <el-dropdown-menu slot="dropdown">
+                  <el-dropdown-item command="view_applications">查看申请</el-dropdown-item>
+                  <el-dropdown-item command="share_position">分享职位</el-dropdown-item>
+                  <el-dropdown-item command="duplicate" divided>复制职位</el-dropdown-item>
+                </el-dropdown-menu>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -562,6 +587,7 @@
 import Pagination from '@/components/Pagination'
 import { parseTime } from '@/utils'
 import { mapState, mapActions } from 'vuex'
+import Clipboard from 'clipboard'
 
 export default {
   name: 'PositionMaintain',
@@ -1117,6 +1143,101 @@ export default {
         return [];
       }
     },
+    async handleMoreActions(command, row) {
+      switch (command) {
+        case 'view_applications':
+          this.handleViewApplications(row);
+          break;
+        case 'share_position':
+          this.handleSharePosition(row);
+          break;
+        case 'duplicate':
+          this.handleDuplicatePosition(row);
+          break;
+      }
+    },
+    handleViewApplications(row) {
+      this.$router.push({
+        path: '/position/applications',
+        query: { jobId: row.id }
+      });
+    },
+    handleSharePosition(row) {
+      // 构建分享链接
+      const shareUrl = `${window.location.origin}/job/detail/${row.id}`;
+      
+      // 创建临时的文本区域用于复制
+      const textArea = document.createElement('textarea');
+      textArea.value = shareUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          this.$message.success('职位链接已复制到剪贴板');
+        } else {
+          throw new Error('复制失败');
+        }
+      } catch (err) {
+        this.$message.error('复制失败，请手动复制');
+        // 如果复制失败，显示弹窗让用户手动复制
+        this.$alert(shareUrl, '职位分享链接', {
+          confirmButtonText: '确定',
+          callback: () => {}
+        });
+      }
+      
+      // 清理临时元素
+      document.body.removeChild(textArea);
+    },
+    handleDuplicatePosition(row) {
+      // 复制职位信息，打开编辑窗口
+      const duplicatedForm = { ...row };
+      // 清除ID以便创建新职位
+      duplicatedForm.id = undefined;
+      // 添加"副本"标记
+      duplicatedForm.title = `${duplicatedForm.title}（副本）`;
+      
+      // 使用与handleEdit相同的逻辑准备表单数据
+      this.positionForm = {
+        id: undefined,
+        title: duplicatedForm.title,
+        type: duplicatedForm.jobType,
+        department: duplicatedForm.department || '',
+        location: duplicatedForm.location || '',
+        salaryMin: duplicatedForm.salaryMin || '',
+        salaryMax: duplicatedForm.salaryMax || '',
+        salaryType: duplicatedForm.salaryType === '面议' ? 'negotiate'
+          : duplicatedForm.salaryType === '年薪' ? 'year' : 'month',
+        description: duplicatedForm.description || '',
+        requirements: duplicatedForm.requirements || '',
+        preferences: duplicatedForm.preferences || '',
+        experienceRequired: duplicatedForm.experienceRequired || '',
+        educationRequired: duplicatedForm.educationRequired || '',
+        headcount: duplicatedForm.headcount || 1,
+        benefits: this.getBenefitsArray(duplicatedForm.benefits),
+        emailSyncEnabled: false, // 默认不开启邮箱同步
+        receivingEmail: ''
+      };
+      
+      // 处理关键字
+      this.keywordList = this.getPositionKeywords(duplicatedForm);
+      this.keywordInput = '';
+      
+      this.dialogTitle = '创建职位副本';
+      this.dialogVisible = true;
+    },
+    getBenefitsArray(benefits) {
+      if (!benefits) return [];
+      
+      const benefitsArray = typeof benefits === 'string' ? benefits.split(',') : Array.isArray(benefits) ? benefits : [];
+      
+      return benefitsArray.map(benefit => {
+        const found = Object.entries(this.getBenefitMap()).find(([key, val]) => val === benefit)
+        return found ? found[0] : benefit
+      });
+    }
   }
 }
 </script>
@@ -1287,6 +1408,47 @@ export default {
 
   ::v-deep .el-card__body {
     padding: 20px;
+  }
+
+  .action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    
+    .action-btn {
+      padding: 5px 8px;
+      margin: 0 2px;
+      
+      i {
+        margin-right: 0;
+        font-size: 14px;
+      }
+      
+      &:hover {
+        transform: translateY(-1px);
+        transition: all 0.2s;
+      }
+    }
+  }
+
+  ::v-deep .el-dropdown-menu {
+    padding: 5px 0;
+    
+    .el-dropdown-menu__item {
+      line-height: 32px;
+      padding: 0 15px;
+      font-size: 13px;
+      
+      i {
+        margin-right: 8px;
+      }
+      
+      &.divided {
+        border-top: 1px solid #ebeef5;
+        margin-top: 5px;
+        padding-top: 5px;
+      }
+    }
   }
 }
 </style>

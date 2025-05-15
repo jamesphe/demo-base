@@ -134,13 +134,31 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         """获取指定租户的用户总数"""
         return db.query(User).filter(User.tenant_id == tenant_id).count()
 
-    def get_multi_by_role(self, db: Session, *, role: str) -> List[User]:
+    def get_multi_by_role(
+        self, 
+        db: Session, 
+        *, 
+        role: str,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[User]:
         """根据角色获取用户列表"""
         return (
             db.query(User)
             .join(User.roles)
             .filter(Role.name == role)
+            .offset(skip)
+            .limit(limit)
             .all()
+        )
+
+    def count_by_role(self, db: Session, *, role: str) -> int:
+        """获取指定角色的用户总数"""
+        return (
+            db.query(User)
+            .join(User.roles)
+            .filter(Role.name == role)
+            .count()
         )
 
     def get_multi_by_role_and_tenant(
@@ -148,7 +166,9 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         db: Session,
         *,
         role: str,
-        tenant_id: int
+        tenant_id: int,
+        skip: int = 0,
+        limit: int = 100
     ) -> List[User]:
         """根据角色和租户获取用户列表"""
         return (
@@ -158,7 +178,27 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 Role.name == role,
                 User.tenant_id == tenant_id
             )
+            .offset(skip)
+            .limit(limit)
             .all()
+        )
+        
+    def count_by_role_and_tenant(
+        self,
+        db: Session,
+        *,
+        role: str,
+        tenant_id: int
+    ) -> int:
+        """获取指定角色和租户的用户总数"""
+        return (
+            db.query(User)
+            .join(User.roles)
+            .filter(
+                Role.name == role,
+                User.tenant_id == tenant_id
+            )
+            .count()
         )
 
 user = CRUDUser(User)

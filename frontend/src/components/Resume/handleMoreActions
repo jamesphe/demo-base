@@ -1,0 +1,21 @@
+handleMoreActions(command, row) {
+  switch(command) {
+    case 'previewOriginal':
+      this.previewOriginalResume(row);
+      break;
+    case 'aiAnalyze':
+      this.aiAnalyzeResume(row);
+      break;
+    case 'download':
+      this.handleDownload(row);
+      break;
+    case 'star':
+      this.toggleStar(row);
+      break;
+    case 'sendInvite':
+      this.sendInterviewInvite(row);
+      break;
+    default:
+      this.$emit('more-actions', { command, row });
+  }
+} 

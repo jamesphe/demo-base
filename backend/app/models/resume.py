@@ -118,13 +118,6 @@ class Resume(Base):
     repository_id = Column(Integer, ForeignKey("resume_repositories.id"), nullable=True)
     repository = relationship("ResumeRepository", back_populates="resumes")
     
-    candidate_id = Column(Integer, ForeignKey("candidates.id"), nullable=True)
-    candidate = relationship(
-        "Candidate", 
-        back_populates="resumes",
-        foreign_keys=[candidate_id]
-    )
-    
     talent_id = Column(Integer, ForeignKey("talent.talent_id"))
     talent = relationship("Talent", back_populates="resumes")
     
@@ -149,6 +142,7 @@ class Resume(Base):
 
     # 添加关联关系
     applications = relationship("JobApplication", back_populates="resume")
+    interviews = relationship("Interview", back_populates="resume")
 
     # 发布者信息
     publisher_id = Column(Integer, ForeignKey("users.id"))

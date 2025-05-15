@@ -8,6 +8,150 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- 创建数据库表
+CREATE TABLE IF NOT EXISTS tenants (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER REFERENCES tenants(id),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    hashed_password VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    is_superuser BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS resumes (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER REFERENCES tenants(id),
+    file_name VARCHAR(255) NOT NULL,
+    file_path VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    name VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    experience_years INTEGER,
+    education VARCHAR(50),
+    matching_status VARCHAR(20) DEFAULT '待匹配',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS jobs (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER REFERENCES tenants(id),
+    title VARCHAR(255) NOT NULL,
+    job_type VARCHAR(50),
+    department VARCHAR(100),
+    location VARCHAR(100),
+    description TEXT,
+    requirements TEXT,
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS job_applications (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER REFERENCES tenants(id),
+    job_id INTEGER REFERENCES jobs(id),
+    resume_id INTEGER REFERENCES resumes(id),
+    status VARCHAR(20) DEFAULT 'pending',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS interviews (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER REFERENCES tenants(id),
+    resume_id INTEGER REFERENCES resumes(id),
+    job_id INTEGER REFERENCES jobs(id),
+    interviewer_id INTEGER REFERENCES users(id),
+    status VARCHAR(20) DEFAULT 'pending',
+    schedule_time TIMESTAMP WITH TIME ZONE,
+    duration INTEGER,
+    interview_type VARCHAR(50),
+    location VARCHAR(255),
+    notes TEXT,
+    status_updated_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    evaluation_score FLOAT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 创建索引
+CREATE INDEX IF NOT EXISTS idx_users_tenant_id ON users(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+CREATE INDEX IF NOT EXISTS idx_resumes_tenant_id ON resumes(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_resumes_matching_status ON resumes(matching_status);
+CREATE INDEX IF NOT EXISTS idx_resumes_created_at ON resumes(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_tenant_id ON jobs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_job_applications_tenant_id ON job_applications(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_job_applications_job_id ON job_applications(job_id);
+CREATE INDEX IF NOT EXISTS idx_job_applications_resume_id ON job_applications(resume_id);
+CREATE INDEX IF NOT EXISTS idx_job_applications_status ON job_applications(status);
+
+CREATE INDEX IF NOT EXISTS idx_interviews_tenant_id ON interviews(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_resume_id ON interviews(resume_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_job_id ON interviews(job_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_interviewer_id ON interviews(interviewer_id);
+CREATE INDEX IF NOT EXISTS idx_interviews_status ON interviews(status);
+CREATE INDEX IF NOT EXISTS idx_interviews_schedule_time ON interviews(schedule_time);
+
+-- 创建更新时间触发器
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_tenants_updated_at
+    BEFORE UPDATE ON tenants
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_resumes_updated_at
+    BEFORE UPDATE ON resumes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_jobs_updated_at
+    BEFORE UPDATE ON jobs
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_job_applications_updated_at
+    BEFORE UPDATE ON job_applications
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_interviews_updated_at
+    BEFORE UPDATE ON interviews
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- 1. 租户表 (最基础的表，许多表都依赖它)
 CREATE TABLE tenant (
     id SERIAL PRIMARY KEY,
@@ -123,18 +267,40 @@ CREATE TABLE candidates (
 COMMENT ON COLUMN candidates.notes IS '候选人备注信息';
 COMMENT ON COLUMN candidates.resume_id IS '关联的简历ID';
 
--- 6. 面试表 (依赖候选人表、用户表和职位表)
+-- 6. 面试表 (依赖简历表、用户表和职位表)
 CREATE TABLE interviews (
     id SERIAL PRIMARY KEY,
-    candidate_id INTEGER REFERENCES candidates(id),
-    interviewer_id INTEGER REFERENCES users(id),
+    resume_id INTEGER REFERENCES resumes(id),
     job_id INTEGER REFERENCES jobs(id),
+    interviewer_id INTEGER REFERENCES users(id),
     status VARCHAR(50) DEFAULT 'scheduled',
     schedule_time TIMESTAMP,
     feedback VARCHAR(1000),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 添加索引
+CREATE INDEX idx_interviews_resume ON interviews(resume_id);
+CREATE INDEX idx_interviews_job ON interviews(job_id);
+CREATE INDEX idx_interviews_interviewer ON interviews(interviewer_id);
+CREATE INDEX idx_interviews_status ON interviews(status);
+CREATE INDEX idx_interviews_schedule_time ON interviews(schedule_time);
+
+-- 添加更新时间触发器
+CREATE TRIGGER update_interviews_updated_at
+    BEFORE UPDATE ON interviews
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 添加注释
+COMMENT ON TABLE interviews IS '面试表';
+COMMENT ON COLUMN interviews.resume_id IS '关联的简历ID';
+COMMENT ON COLUMN interviews.job_id IS '关联的职位ID';
+COMMENT ON COLUMN interviews.interviewer_id IS '面试官ID';
+COMMENT ON COLUMN interviews.status IS '面试状态：scheduled(已安排)、in_progress(进行中)、completed(已完成)、cancelled(已取消)';
+COMMENT ON COLUMN interviews.schedule_time IS '面试时间';
+COMMENT ON COLUMN interviews.feedback IS '面试反馈';
 
 -- 7. 技能表
 CREATE TABLE skills (
@@ -485,23 +651,8 @@ CREATE TRIGGER update_jobs_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_candidates_updated_at
-    BEFORE UPDATE ON candidates
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_interviews_updated_at
-    BEFORE UPDATE ON interviews
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_skill_updated_at
-    BEFORE UPDATE ON skills
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_certifications_updated_at
-    BEFORE UPDATE ON certifications
+CREATE TRIGGER update_resumes_updated_at
+    BEFORE UPDATE ON resumes
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -511,17 +662,15 @@ CREATE INDEX idx_users_tenant ON users(tenant_id);
 CREATE INDEX idx_talent_tenant ON talent(tenant_id);
 CREATE INDEX idx_jobs_tenant ON jobs(tenant_id);
 CREATE INDEX idx_jobs_publisher ON jobs(publisher_id);
-CREATE INDEX idx_candidates_job ON candidates(job_id);
-CREATE INDEX idx_candidates_tenant ON candidates(tenant_id);
-CREATE INDEX idx_candidates_resume ON candidates(resume_id);
-CREATE INDEX idx_interviews_candidate ON interviews(candidate_id);
-CREATE INDEX idx_interviews_job ON interviews(job_id);
-CREATE INDEX idx_skill_tenant ON skills(tenant_id);
-CREATE INDEX idx_skill_status ON skills(status);
-CREATE INDEX idx_talent_skill_talent ON talent_skill(talent_id);
-CREATE INDEX idx_talent_skill_skill ON talent_skill(skill_id);
-CREATE INDEX idx_certification_tenant ON certifications(tenant_id);
-CREATE INDEX idx_certification_status ON certifications(status); 
+CREATE INDEX idx_resumes_source_channel ON resumes(source_channel);
+CREATE INDEX idx_resumes_matching_status ON resumes(matching_status);
+CREATE INDEX idx_resumes_source_batch ON resumes(source_batch);
+CREATE INDEX idx_notifications_user ON notifications(user_id);
+CREATE INDEX idx_notifications_tenant ON notifications(tenant_id);
+CREATE INDEX idx_jobs_status ON jobs(status);
+CREATE INDEX idx_jobs_job_type ON jobs(job_type);
+CREATE INDEX idx_jobs_salary_type ON jobs(salary_type);
+CREATE INDEX idx_jobs_location ON jobs(location);
 
 -- 插入默认LLM配置
 INSERT INTO llm_configs (
@@ -573,89 +722,6 @@ INSERT INTO users (
     true,
     true
 );
-
--- 添加新的索引
-CREATE INDEX idx_resumes_source_channel ON resumes(source_channel);
-CREATE INDEX idx_resumes_matching_status ON resumes(matching_status);
-CREATE INDEX idx_resumes_source_batch ON resumes(source_batch);
-
--- 添加索引
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_tenant ON notifications(tenant_id);
-
--- 创建职位相关的索引
-CREATE INDEX idx_jobs_status ON jobs(status);
-CREATE INDEX idx_jobs_job_type ON jobs(job_type);
-CREATE INDEX idx_jobs_salary_type ON jobs(salary_type);
-CREATE INDEX idx_jobs_location ON jobs(location);
-
--- 职位-技能要求关联表
-CREATE TABLE job_required_skills (
-    id SERIAL PRIMARY KEY,
-    job_id INTEGER NOT NULL REFERENCES jobs(id),
-    skill_id INTEGER NOT NULL REFERENCES skills(id),
-    skill_level VARCHAR(50) NOT NULL,
-    is_required BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 职位-证书要求关联表
-CREATE TABLE job_required_certifications (
-    id SERIAL PRIMARY KEY,
-    job_id INTEGER NOT NULL REFERENCES jobs(id),
-    certification_id INTEGER NOT NULL REFERENCES certifications(id),
-    is_required BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 职位申请记录表
-DROP TABLE IF EXISTS job_applications;
-CREATE TABLE job_applications (
-    id SERIAL PRIMARY KEY,
-    job_id INTEGER NOT NULL REFERENCES jobs(id),
-    resume_id INTEGER NOT NULL REFERENCES resumes(id),
-    status VARCHAR(20) CHECK (
-        status IN (
-            'pending',
-            'reviewed',
-            'interviewed',
-            'offered',
-            'rejected',
-            'withdrawn'
-        )
-    ) DEFAULT 'pending',
-    created_by INTEGER REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    -- 恢复重要的业务字段
-    apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    review_time TIMESTAMP,
-    review_notes TEXT,
-    
-    -- 添加租户ID字段
-    tenant_id INTEGER REFERENCES tenant(id),
-    
-    -- 添加匹配度和匹配理由字段
-    match_score FLOAT DEFAULT 0.0,
-    match_reason TEXT
-);
-
--- 添加触发器
-CREATE TRIGGER update_job_applications_updated_at
-    BEFORE UPDATE ON job_applications
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
--- 添加索引
-CREATE INDEX idx_job_applications_job ON job_applications(job_id);
-CREATE INDEX idx_job_applications_resume ON job_applications(resume_id);
-CREATE INDEX idx_job_applications_status ON job_applications(status);
-CREATE INDEX idx_job_applications_tenant ON job_applications(tenant_id);
-CREATE INDEX idx_job_applications_created_by ON job_applications(created_by);
-CREATE INDEX idx_job_applications_match_score ON job_applications(match_score);
 
 -- 添加新的索引
 CREATE INDEX idx_resumes_publisher ON resumes(publisher_id);
@@ -807,4 +873,86 @@ COMMENT ON COLUMN job_keywords.sync_email_id IS '同步邮箱ID';
 COMMENT ON COLUMN job_keywords.keyword IS '匹配关键字';
 COMMENT ON COLUMN job_keywords.is_active IS '是否启用';
 COMMENT ON COLUMN job_keywords.description IS '描述信息';
+
+-- 职位-技能要求关联表
+CREATE TABLE job_required_skills (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id),
+    skill_id INTEGER NOT NULL REFERENCES skills(id),
+    skill_level VARCHAR(50) NOT NULL,
+    is_required BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 职位-证书要求关联表
+CREATE TABLE job_required_certifications (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id),
+    certification_id INTEGER NOT NULL REFERENCES certifications(id),
+    is_required BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 职位申请记录表
+DROP TABLE IF EXISTS job_applications;
+CREATE TABLE job_applications (
+    id SERIAL PRIMARY KEY,
+    job_id INTEGER NOT NULL REFERENCES jobs(id),
+    resume_id INTEGER NOT NULL REFERENCES resumes(id),
+    status VARCHAR(20) CHECK (
+        status IN (
+            'pending',
+            'reviewed',
+            'interview_scheduled',
+            'interviewed',
+            'offered',
+            'rejected',
+            'withdrawn'
+        )
+    ) DEFAULT 'pending',
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    -- 恢复重要的业务字段
+    apply_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    review_time TIMESTAMP,
+    review_notes TEXT,
+    
+    -- 添加租户ID字段
+    tenant_id INTEGER REFERENCES tenant(id),
+    
+    -- 添加匹配度和匹配理由字段
+    match_score FLOAT DEFAULT 0.0,
+    match_reason TEXT
+);
+
+-- 添加触发器
+CREATE TRIGGER update_job_applications_updated_at
+    BEFORE UPDATE ON job_applications
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- 添加索引
+CREATE INDEX idx_job_applications_job ON job_applications(job_id);
+CREATE INDEX idx_job_applications_resume ON job_applications(resume_id);
+CREATE INDEX idx_job_applications_status ON job_applications(status);
+CREATE INDEX idx_job_applications_tenant ON job_applications(tenant_id);
+CREATE INDEX idx_job_applications_created_by ON job_applications(created_by);
+CREATE INDEX idx_job_applications_match_score ON job_applications(match_score);
+
+-- 添加新的索引
+CREATE INDEX idx_resumes_publisher ON resumes(publisher_id);
+CREATE INDEX idx_resumes_reviewer ON resumes(reviewer_id);
+CREATE INDEX idx_resumes_review_status ON resumes(review_status);
+
+-- 为新字段添加索引
+CREATE INDEX idx_resumes_is_manual_entry ON resumes(is_manual_entry);
+
+-- 添加注释
+COMMENT ON COLUMN resumes.is_manual_entry IS '是否为手动创建的简历（无文件）';
+COMMENT ON COLUMN resumes.file_name IS '文件名（可为空，表示手动创建的简历）';
+COMMENT ON COLUMN resumes.file_path IS '文件路径（可为空，表示手动创建的简历）';
 

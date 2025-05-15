@@ -23,7 +23,7 @@ const flattenApplicationData = (application) => {
   console.log('原始申请数据:', application)
   console.log('职位信息:', application.job)
   
-  const { job, ...rest } = application
+  const { job, resume, ...rest } = application
   const flattenedData = {
     ...rest,
     job_title: job?.title || '',
@@ -31,7 +31,8 @@ const flattenApplicationData = (application) => {
     publisher_name: job?.publisherName || '',
     job_id: job?.id,
     // 保留原始job对象，以备其他地方可能需要完整的职位信息
-    job: job
+    job: job,
+    resume: resume
   }
   
   console.log('扁平化后的数据:', flattenedData)

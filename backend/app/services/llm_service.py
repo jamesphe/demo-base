@@ -316,6 +316,9 @@ class OpenAICompatibleChatModel(BaseChatModel):
                         "content": message.content
                     })
 
+            # 从kwargs中移除temperature参数，使用实例的temperature
+            kwargs.pop('temperature', None)
+            
             completion = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=formatted_messages,
@@ -352,6 +355,9 @@ class OpenAICompatibleChatModel(BaseChatModel):
                         "content": message.content
                     })
 
+            # 从kwargs中移除temperature参数，使用实例的temperature
+            kwargs.pop('temperature', None)
+            
             stream = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=formatted_messages,

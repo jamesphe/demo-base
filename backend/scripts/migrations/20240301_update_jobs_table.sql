@@ -5,7 +5,7 @@ BEGIN;
 CREATE TABLE jobs_backup AS SELECT * FROM jobs;
 
 -- 2. 删除旧表的外键约束
-ALTER TABLE candidates DROP CONSTRAINT IF EXISTS candidates_job_id_fkey;
+-- ALTER TABLE candidates DROP CONSTRAINT IF EXISTS candidates_job_id_fkey;
 ALTER TABLE interviews DROP CONSTRAINT IF EXISTS interviews_job_id_fkey;
 
 -- 3. 删除旧表
@@ -71,9 +71,9 @@ SELECT
 FROM jobs_backup;
 
 -- 7. 重新创建外键约束
-ALTER TABLE candidates 
-    ADD CONSTRAINT candidates_job_id_fkey 
-    FOREIGN KEY (job_id) REFERENCES jobs(id);
+-- ALTER TABLE candidates 
+--     ADD CONSTRAINT candidates_job_id_fkey 
+--     FOREIGN KEY (job_id) REFERENCES jobs(id);
 
 ALTER TABLE interviews 
     ADD CONSTRAINT interviews_job_id_fkey 

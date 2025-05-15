@@ -23,7 +23,6 @@ class Tenant(Base):
 
     # 关联关系
     users = relationship("User", back_populates="tenant")
-    candidates = relationship("Candidate", back_populates="tenant")
     talents = relationship("Talent", back_populates="tenant")
     notifications = relationship("Notification", back_populates="tenant")
     talent_pools = relationship("TalentPool", back_populates="tenant")

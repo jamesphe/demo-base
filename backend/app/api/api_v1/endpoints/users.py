@@ -52,14 +52,11 @@ def create_user(
     current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """创建新用户"""
-    user = crud.user.get_by_email(db, email=user_in.email)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this email already exists in the system.",
-        )
-    user = crud.user.create(db, obj_in=user_in)
-    return user
+    return user_service.create_user(
+        db,
+        user_in=user_in,
+        current_user=current_user
+    )
 
 
 @router.get("/me", response_model=schemas.User)

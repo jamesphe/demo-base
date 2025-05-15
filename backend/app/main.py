@@ -33,7 +33,8 @@ app.add_middleware(
     # 允许的源列表，生产环境中应该设置为具体的域名
     allow_origins=[
         "http://localhost:9527",  # 开发环境前端地址
-        "http://127.0.0.1:9527"
+        "http://127.0.0.1:9527",
+        "http://192.168.50.242:9527"  # 添加IP地址
     ],
     allow_credentials=True,  # 允许携带凭证
     allow_methods=["*"],  # 允许的HTTP方法

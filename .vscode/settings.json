@@ -9,6 +9,16 @@
             "database": "recruitment",
             "username": "postgres",
             "password": "postgres"
+        },
+        {
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5420,
+            "driver": "PostgreSQL",
+            "name": "resume-dev",
+            "database": "recruitment",
+            "username": "postgres",
+            "password": "postgres"
         }
     ]
 }

@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 
 from app.db.base_class import Base
+from .interview_interviewer import interview_interviewers
 
 
 class User(Base):
@@ -32,7 +33,11 @@ class User(Base):
 
     # 关联关系
     tenant = relationship("Tenant", back_populates="users")
-    interviews = relationship("Interview", back_populates="interviewer")
+    interviews = relationship(
+        "Interview",
+        secondary=interview_interviewers,
+        back_populates="interviewers"
+    )
     roles = relationship(
         "Role",
         secondary="user_role",

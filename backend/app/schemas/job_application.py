@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
-from app.schemas.resume import Resume, ResumeBase
+from typing import Optional, List
+from pydantic import BaseModel
+from app.schemas.resume import Resume
 
 
 class JobApplicationBase(BaseModel):
@@ -95,7 +95,7 @@ class JobApplicationWithResumeInfo(JobApplicationBase):
     updated_at: datetime
     apply_time: datetime
     resume_name: str
-    candidate_name: str
+    candidate_name: Optional[str] = None
     resume_phone: Optional[str] = None
     resume_email: Optional[str] = None
     resume_highest_education: Optional[str] = None

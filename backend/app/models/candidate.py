@@ -24,17 +24,7 @@ class Candidate(Base):
     )
     
     # 关联关系
-    tenant = relationship("Tenant", back_populates="candidates")
-    interviews = relationship("Interview", back_populates="candidate")
-    resumes = relationship(
-        "Resume", 
-        back_populates="candidate", 
-        foreign_keys="[Resume.candidate_id]"
-    )
-    
-    # 添加职位关联
-    job_id = Column(Integer, ForeignKey("jobs.id"))
-    job = relationship("Job", back_populates="candidates")
+    tenant = relationship("Tenant")
     
     # 添加简历ID关联
     resume_id = Column(Integer, ForeignKey("resumes.id"), nullable=True)
@@ -44,11 +34,7 @@ class Candidate(Base):
         backref="primary_for_candidate"
     )
     
-    # 添加混合属性获取职位名称和简历名称
-    @hybrid_property
-    def job_title(self):
-        return self.job.title if self.job else None
-    
+    # 添加混合属性获取简历名称
     @hybrid_property
     def resume_name(self):
         return self.primary_resume.file_name if self.primary_resume else None

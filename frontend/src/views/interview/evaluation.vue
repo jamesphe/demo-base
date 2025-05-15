@@ -23,8 +23,9 @@
               :key="interviewer.id"
               size="mini"
               class="interviewer-tag"
+              style="margin-right: 5px;"
             >
-              {{ interviewer.name }}
+              {{ interviewer.name || interviewer.username }}
             </el-tag>
           </el-descriptions-item>
         </el-descriptions>

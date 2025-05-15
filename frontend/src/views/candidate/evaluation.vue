@@ -92,14 +92,14 @@
     <!-- 评估详情对话框 -->
     <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="65%">
       <div v-loading="detailLoading">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="候选人">{{ detail.candidateName }}</el-descriptions-item>
-          <el-descriptions-item label="面试环节">{{ detail.interviewRound }}</el-descriptions-item>
-          <el-descriptions-item label="面试时长">{{ detail.duration }}</el-descriptions-item>
-          <el-descriptions-item label="评估状态">
+        <description-list :column="2" :border="true">
+          <description-item label="候选人">{{ detail.candidateName }}</description-item>
+          <description-item label="面试环节">{{ detail.interviewRound }}</description-item>
+          <description-item label="面试时长">{{ detail.duration }}</description-item>
+          <description-item label="评估状态">
             <el-tag :type="detail.status | statusTypeFilter">{{ detail.status }}</el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
+          </description-item>
+        </description-list>
 
         <!-- 技术评估 -->
         <div class="evaluation-section">

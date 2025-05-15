@@ -12,18 +12,10 @@ class ApplicationBatchUpdateRequest(BaseModel):
 class ApplicationInfo(BaseModel):
     """申请信息"""
     id: int
-    resume_id: int
-    job_id: int
-    tenant_id: int
+    email: str
     candidate_name: Optional[str] = None
-    email: Optional[str] = None
     phone: Optional[str] = None
     resume_url: Optional[str] = None
-
-
-class ConvertToCandidatesRequest(BaseModel):
-    """将申请转为候选人请求"""
-    applications: List[ApplicationInfo]
-    status: str
-    notes: Optional[str] = None
-    tenant_id: Optional[int] = None 
+    job_id: int
+    tenant_id: int
+    resume_id: Optional[int] = None 

@@ -127,7 +127,7 @@ class CandidateService(BaseService[models.Candidate, CandidateCreate, CandidateU
         resume_service.update(
             db,
             db_obj=resume,
-            obj_in=schemas.ResumeUpdate(candidate_id=candidate.id)
+            obj_in=schemas.ResumeUpdate(talent_id=candidate.id)
         )
         
         return candidate

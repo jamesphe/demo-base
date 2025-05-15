@@ -4,6 +4,8 @@ import router, { resetRouter } from '@/router'
 
 const state = {
   token: getToken(),
+  id: '',
+  username: '',
   name: '',
   avatar: '',
   introduction: '',
@@ -16,6 +18,12 @@ const state = {
 const mutations = {
   SET_TOKEN: (state, token) => {
     state.token = token
+  },
+  SET_ID: (state, id) => {
+    state.id = id
+  },
+  SET_USERNAME: (state, username) => {
+    state.username = username
   },
   SET_INTRODUCTION: (state, introduction) => {
     state.introduction = introduction
@@ -94,7 +102,7 @@ const actions = {
           reject('验证失败，请重新登录')
         }
 
-        const { roles, name, avatar, introduction, isSuperuser } = data
+        const { roles, name, avatar, introduction, isSuperuser, id, username } = data
 
         // roles 必须是非空数组
         if (!roles || roles.length <= 0) {
@@ -105,7 +113,10 @@ const actions = {
         commit('SET_NAME', name)
         commit('SET_AVATAR', avatar)
         commit('SET_INTRODUCTION', introduction)
-        commit('SET_IS_SUPERUSER', !!isSuperuser)
+        commit('SET_IS_SUPERUSER', isSuperuser)
+        commit('SET_ID', id)
+        commit('SET_USERNAME', username)
+
         resolve(data)
       }).catch(error => {
         reject(error)

@@ -4,9 +4,17 @@ from app import crud, models, schemas
 from fastapi import HTTPException
 from app.models.job_application import JobApplication
 from sqlalchemy.sql import func
+from sqlalchemy import and_, or_
+from datetime import datetime
+from .base import BaseService
 
 
-class JobApplicationService:
+class JobApplicationService(BaseService[models.JobApplication, schemas.JobApplicationCreate, schemas.JobApplicationUpdate]):
+    """职位申请服务"""
+    
+    def __init__(self):
+        super().__init__(models.JobApplication)
+
     def create_application(
         self,
         db: Session,
@@ -71,10 +79,29 @@ class JobApplicationService:
         self,
         db: Session,
         *,
-        job_id: int
-    ) -> List[JobApplication]:
-        """获取指定职位的所有申请"""
-        return crud.job_application.get_by_job(db=db, job_id=job_id)
+        job_id: int,
+        skip: int = 0,
+        limit: int = 100
+    ) -> List[Dict[str, Any]]:
+        """获取职位的所有申请"""
+        applications = db.query(models.JobApplication).filter(
+            models.JobApplication.job_id == job_id
+        ).offset(skip).limit(limit).all()
+        
+        result = []
+        for app in applications:
+            resume = db.query(models.Resume).filter(
+                models.Resume.id == app.resume_id
+            ).first()
+            
+            result.append({
+                "application_id": app.id,
+                "resume_title": resume.title if resume else None,
+                "status": app.status,
+                "created_at": app.created_at
+            })
+            
+        return result
     
     def get_applications_by_job_with_resume_info(
         self,
@@ -256,7 +283,6 @@ class JobApplicationService:
             sort_field_map = {
                 "id": models.JobApplication.id,
                 "job_title": models.Job.title,
-                "candidate_name": models.Resume.name,
                 "resume_name": models.Resume.file_name,
                 "experience_years": models.Resume.experience_years,
                 "apply_time": models.JobApplication.apply_time,
@@ -293,8 +319,8 @@ class JobApplicationService:
                 "updated_at": application.JobApplication.updated_at,
                 "apply_time": application.JobApplication.apply_time,
                 "tenant_id": application.JobApplication.tenant_id,
-                "resume_name": application.Resume.file_name,
                 "candidate_name": application.Resume.name,
+                "resume_name": application.Resume.file_name,
                 "resume_phone": application.Resume.phone,
                 "resume_email": application.Resume.email,
                 "resume_highest_education": application.Resume.highest_education,
@@ -375,14 +401,15 @@ class JobApplicationService:
             )
 
         # 检查权限
-        job = crud.job.get(db, id=application.job_id)
-        if not current_user.is_superuser and (
-            job.tenant_id != current_user.tenant_id
-        ):
-            raise HTTPException(
-                status_code=403,
-                detail="无权更新该申请状态"
-            )
+        if current_user is not None:
+            job = crud.job.get(db, id=application.job_id)
+            if not current_user.is_superuser and (
+                job.tenant_id != current_user.tenant_id
+            ):
+                raise HTTPException(
+                    status_code=403,
+                    detail="无权更新该申请状态"
+                )
 
         return crud.job_application.update_status(
             db,
@@ -461,6 +488,34 @@ class JobApplicationService:
         ).count()
         
         return applications, total
+
+    def get_application_details(
+        self,
+        db: Session,
+        *,
+        application_id: int
+    ) -> Dict[str, Any]:
+        """获取申请详情"""
+        application = self.get(db, id=application_id)
+        if not application:
+            raise HTTPException(status_code=404, detail="申请不存在")
+            
+        resume = db.query(models.Resume).filter(
+            models.Resume.id == application.resume_id
+        ).first()
+        
+        job = db.query(models.Job).filter(
+            models.Job.id == application.job_id
+        ).first()
+        
+        return {
+            "application_id": application.id,
+            "resume_title": resume.title if resume else None,
+            "job_title": job.title if job else None,
+            "status": application.status,
+            "created_at": application.created_at,
+            "updated_at": application.updated_at
+        }
 
 
 # 创建服务实例
