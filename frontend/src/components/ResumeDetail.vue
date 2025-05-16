@@ -236,6 +236,18 @@
           <div v-else class="no-data">暂无项目经历</div>
         </div>
       </div>
+
+      <!-- 其他信息 -->
+      <div class="detail-section">
+        <div class="section-header">
+          <i class="el-icon-info" />
+          <span>其他信息</span>
+        </div>
+        <div v-if="detail.otherInfo" class="other-info">
+          <p>{{ detail.otherInfo }}</p>
+        </div>
+        <div v-else class="no-data">暂无其他信息</div>
+      </div>
     </template>
     <div v-else class="no-data-container">
       <div class="no-data">

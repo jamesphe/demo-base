@@ -253,7 +253,7 @@ class OpenAICompatibleChatModel(BaseChatModel):
         self.client = OpenAI(
             api_key=self.api_key,
             base_url=self.api_url,
-            timeout=180
+            timeout=300
         )
         
     @property

@@ -89,7 +89,8 @@ const formatResumeData = (data) => {
     currentSalary: data.currentSalary,
     starred: data.starred || false,
     updateTime: data.updatedAt || data.updateTime,
-    fileName: data.fileName
+    fileName: data.fileName,
+    otherInfo: data.otherInfo
   }
 }
 

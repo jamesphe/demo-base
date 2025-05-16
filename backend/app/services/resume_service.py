@@ -849,7 +849,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     ],
     
     "family_situation": "家庭情况",
-    "other_info": "其他信息",
+    "other_info": "其他信息，包括自我评价、个人特长、爱好以及所有未能归类到上述字段的有价值信息",
     "work_history": [
         {{
             "company": "公司名称",
@@ -917,6 +917,11 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
 4. 如果某字段在简历中未找到，返回null
 5. skills和certificates必须按照指定格式返回，包含所有必要字段
 6. work_history必须是数组格式，包含工作经历详情
+7. 对于other_info字段：
+   - 将简历中的自我评价、个人特长、爱好等内容提取到此字段
+   - 所有未能归类到其他已定义字段的有价值信息也应提取到此字段
+   - 如果有多项内容，用分段形式组织，保持原文的语义和结构
+   - 不要丢失任何可能有价值的信息
 
 请确保返回的JSON格式正确且可以被解析。"""
 
@@ -937,6 +942,11 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
 2. 证书信息需要包含 name、issuer、issue_date、expire_date 字段
 3. 如果某些字段信息不存在，使用 null 表示
 4. 对于年龄信息，请根据当前日期({current_date})准确推算出生年份
+5. 对于other_info字段：
+   - 将简历中的自我评价、个人特长、爱好等内容提取到此字段
+   - 所有未能归类到其他已定义字段的有价值信息也应提取到此字段
+   - 如果有多项内容，用分段形式组织，保持原文的语义和结构
+   - 不要丢失任何可能有价值的信息
 
 请返回JSON格式，大致如下结构：
 {{
@@ -944,6 +954,7 @@ class ResumeService(BaseService[models.Resume, ResumeCreate, ResumeUpdate]):
     "gender": "性别",
     "birthdate": "出生日期",
     // ... 其他字段
+    "other_info": "其他信息，包括自我评价、个人特长、爱好以及所有未能归类到已定义字段的有价值信息",
     "skills": [
         {{
             "name": "技能名称",

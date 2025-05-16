@@ -130,19 +130,56 @@
             <!-- 推荐结果 -->
             <div class="recommendation-stats">
               <h4>招聘建议统计</h4>
-              <div v-if="Object.keys(feedbackSummary.recommendation_summary || {}).length > 0">
-                <el-progress 
-                  v-for="(count, type) in feedbackSummary.recommendation_summary" 
-                  :key="type"
-                  :percentage="feedbackSummary.completed_count > 0 ? Math.round(count / feedbackSummary.completed_count * 100) : 0"
-                  :color="getRecommendationColor(type)"
-                  :stroke-width="16"
-                >
-                  <div>{{ getRecommendationText(type) }}: {{ count }}人</div>
-                </el-progress>
+              <div class="recommendation-summary">
+                <div class="recommendation-total">
+                  <span class="total-label">面试官总数: {{ feedbackSummary.interviewer_count || 0 }}人</span>
+                  <span class="total-label">已完成反馈: {{ feedbackSummary.completed_count || 0 }}人</span>
+                  <el-progress 
+                    :percentage="feedbackSummary.interviewer_count > 0 ? Math.round(feedbackSummary.completed_count / feedbackSummary.interviewer_count * 100) : 0"
+                    :format="percent => `完成率: ${percent}%`"
+                    :stroke-width="12"
+                  ></el-progress>
+                </div>
+                
+                <div class="recommendation-legend">
+                  <div class="legend-item" v-for="(color, type) in {
+                    'strong_recommend': '#67c23a',
+                    'recommend': '#85ce61',
+                    'neutral': '#909399',
+                    'not_recommend': '#e6a23c',
+                    'strong_not_recommend': '#f56c6c'
+                  }" :key="type">
+                    <div class="legend-color" :style="{ backgroundColor: color }"></div>
+                    <div class="legend-text">{{ getRecommendationText(type) }}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="recommendation-description">
+                <i class="el-icon-info"></i>
+                <span>下方显示各类招聘建议所占比例，百分比基于已完成反馈的面试官人数</span>
+              </div>
+              
+              <div v-if="Object.keys(feedbackSummary.recommendation_summary || {}).length > 0" class="recommendation-progress-list">
+                <div v-for="(count, type) in feedbackSummary.recommendation_summary" :key="type" class="recommendation-progress-item">
+                  <div class="recommendation-label">
+                    <el-tag :type="getRecommendationTagType(type)" effect="plain" size="small">
+                      {{ getRecommendationText(type) }}
+                    </el-tag>
+                  </div>
+                  <div class="recommendation-progress">
+                    <el-progress 
+                      :percentage="feedbackSummary.completed_count > 0 ? Math.round(count / feedbackSummary.completed_count * 100) : 0"
+                      :color="getRecommendationColor(type)"
+                      :stroke-width="16"
+                      :format="percent => `${percent}% (${count}人)`"
+                    >
+                    </el-progress>
+                  </div>
+                </div>
               </div>
               <div v-else>
-                暂无推荐数据
+                <el-empty description="暂无推荐数据" :image-size="80"></el-empty>
               </div>
             </div>
           </el-card>
@@ -1037,21 +1074,116 @@ export default {
     font-size: 16px;
   }
   
-  .el-progress {
-    margin-bottom: 18px;
+  .recommendation-summary {
+    margin-bottom: 20px;
     
-    ::v-deep .el-progress-bar__outer {
+    .recommendation-total {
+      margin-bottom: 16px;
+      background-color: #fff;
+      padding: 16px;
       border-radius: 8px;
-      background-color: #e9ecf2;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      
+      .total-label {
+        display: inline-block;
+        margin-right: 20px;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
     }
     
-    ::v-deep .el-progress-bar__inner {
+    .recommendation-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      background-color: #fff;
+      padding: 16px;
       border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      
+      .legend-item {
+        display: flex;
+        align-items: center;
+        
+        .legend-color {
+          width: 16px;
+          height: 16px;
+          border-radius: 4px;
+          margin-right: 8px;
+        }
+        
+        .legend-text {
+          font-weight: 500;
+          font-size: 14px;
+        }
+      }
     }
+  }
+  
+  .recommendation-description {
+    margin-bottom: 16px;
+    color: #606266;
+    font-size: 14px;
+    background-color: #f0f9eb;
+    padding: 10px 16px;
+    border-radius: 4px;
+    border-left: 4px solid #67c23a;
     
-    ::v-deep .el-progress__text {
-      font-weight: 500;
+    i {
+      margin-right: 8px;
+      color: #67c23a;
     }
+  }
+  
+  .recommendation-progress-list {
+    margin-bottom: 16px;
+    
+    .recommendation-progress-item {
+      margin-bottom: 16px;
+      background-color: #fff;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+      transition: all 0.3s;
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      
+      .recommendation-label {
+        margin-bottom: 12px;
+        font-weight: 500;
+      }
+      
+      .recommendation-progress {
+        margin-bottom: 0;
+        
+        ::v-deep .el-progress-bar__outer {
+          border-radius: 8px;
+          background-color: #e9ecf2;
+        }
+        
+        ::v-deep .el-progress-bar__inner {
+          border-radius: 8px;
+        }
+        
+        ::v-deep .el-progress__text {
+          font-weight: 500;
+          font-size: 14px !important;
+          color: #606266;
+        }
+      }
+    }
+  }
+  
+  .el-empty {
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
   }
 }
 

@@ -153,6 +153,7 @@ class ResumeBase(BaseModel):
     
     # 其他信息
     family_situation: Optional[str] = Field(None, description="家庭情况")
+    other_info: Optional[str] = Field(None, description="其他信息")
     
     # 匹配状态
     matching_status: Optional[str] = None

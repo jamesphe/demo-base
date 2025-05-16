@@ -79,3 +79,4 @@ class InterviewGuideRequest(BaseModel):
     jobId: int
     role: str
     focusPoints: FocusPoints 
+    industry: Optional[str] = None  # 行业领域，如"信息技术"、"金融"等 
