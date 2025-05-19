@@ -13,8 +13,8 @@ class InterviewType(str, Enum):
 
 
 class InterviewBase(BaseModel):
-    resume_id: int
-    job_id: int
+    resume_id: Optional[int] = None
+    job_id: Optional[int] = None
     status: Optional[str] = "待安排"  # 待安排、已安排、已完成、已取消
     schedule_time: Optional[datetime] = None
     feedback: Optional[str] = None
@@ -26,11 +26,12 @@ class InterviewBase(BaseModel):
 
 
 class InterviewCreate(InterviewBase):
-    candidate_id: Optional[int] = None  # 候选人ID，用于验证
+    # 注意: candidate_id 字段在数据库中不存在，已移除
+    # 通过 resume_id 关联的 resume.talent_id 关联候选人
     interviewer_ids: Optional[List[int]] = None  # 面试官ID列表
     type: Optional[str] = None  # 接收前端的type字段
     time: Optional[str] = None  # 接收前端的time字段
-    candidates: Optional[List[dict]] = None  # 接收前端的candidates数组
+    candidates: Optional[List[dict]] = None  # 接收前端的candidates数组，保留但不必须
 
 
 class InterviewUpdate(InterviewBase):

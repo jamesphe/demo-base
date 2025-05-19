@@ -55,15 +55,6 @@ export function deleteInterview(id) {
   })
 }
 
-// 检查面试时间冲突
-export function checkTimeConflict(data) {
-  return request({
-    url: '/interviews/check-time-conflict',
-    method: 'post',
-    data
-  })
-}
-
 // 获取面试官列表
 export function getInterviewerList() {
   return request({
@@ -73,19 +64,45 @@ export function getInterviewerList() {
 }
 
 // 提交面试评估
-export function submitInterviewEvaluation(id, data) {
+export function submitInterviewEvaluation(interviewId, evaluationData) {
   return request({
-    url: `/interviews/${id}/evaluation`,
+    url: `/api/v1/interviews/${interviewId}/evaluation`,
     method: 'post',
-    data
+    data: evaluationData
   })
 }
 
 // 获取面试评估详情
-export function getInterviewEvaluation(id) {
+export function getInterviewEvaluation(interviewId) {
   return request({
-    url: `/interviews/${id}/evaluation`,
+    url: `/api/v1/interviews/${interviewId}/evaluation`,
     method: 'get'
+  })
+}
+
+// 更新面试评估
+export function updateInterviewEvaluation(interviewId, evaluationData) {
+  return request({
+    url: `/api/v1/interviews/${interviewId}/evaluation`,
+    method: 'put',
+    data: evaluationData
+  })
+}
+
+// 获取面试后的下一步选项
+export function getNextStepOptions(interviewId) {
+  return request({
+    url: `/api/v1/interviews/${interviewId}/next-step-options`,
+    method: 'get'
+  })
+}
+
+// 执行面试后的下一步操作
+export function proceedToNextStep(interviewId, nextStep) {
+  return request({
+    url: `/api/v1/interviews/${interviewId}/proceed-to-next-step`,
+    method: 'post',
+    data: nextStep
   })
 }
 
@@ -261,5 +278,19 @@ export function saveInterviewPreparationNotes(interviewId, interviewerId, data) 
     url: `/interviews/${interviewId}/interviewers/${interviewerId}/preparation-notes`,
     method: 'put',
     data: { preparation_notes: data }
+  })
+}
+
+/**
+ * 更新面试状态
+ * @param {number} id - 面试ID
+ * @param {Object} data - 包含status等状态信息
+ * @returns {Promise<any>}
+ */
+export function updateInterviewStatus(id, data) {
+  return request({
+    url: `/interviews/${id}/status`,
+    method: 'put',
+    data
   })
 } 

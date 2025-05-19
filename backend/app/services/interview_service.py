@@ -242,21 +242,16 @@ class InterviewService(BaseService[models.Interview, InterviewCreate, InterviewU
         interview = self.get(db, id=interview_id)
         if not interview:
             raise HTTPException(status_code=404, detail="面试不存在")
-            
+        
+        # 直接更新面试状态，而不是创建完整的InterviewUpdate对象
         update_data = {
             "status": status,
             "status_updated_at": datetime.utcnow()
         }
         
         if status == "completed":
-            if not feedback:
-                raise HTTPException(
-                    status_code=400,
-                    detail="面试完成需要提供反馈"
-                )
+            # 只更新完成时间，不更新反馈和评分
             update_data.update({
-                "feedback": feedback,
-                "evaluation_score": evaluation_score,
                 "completed_at": datetime.utcnow()
             })
             
@@ -265,7 +260,7 @@ class InterviewService(BaseService[models.Interview, InterviewCreate, InterviewU
                 db,
                 resume_id=interview.resume_id,
                 status="interviewed",
-                note=f"面试完成,评分:{evaluation_score}"
+                note="面试已完成"
             )
             
         elif status == "cancelled":
@@ -283,12 +278,12 @@ class InterviewService(BaseService[models.Interview, InterviewCreate, InterviewU
                 status="pending",
                 note=f"面试取消,原因:{notes}"
             )
-            
-        interview = self.update(
-            db,
-            db_obj=interview,
-            obj_in=InterviewUpdate(**update_data)
-        )
+        
+        # 直接使用SQLAlchemy更新面试记录
+        for key, value in update_data.items():
+            setattr(interview, key, value)
+        db.commit()
+        db.refresh(interview)
         
         return interview
 

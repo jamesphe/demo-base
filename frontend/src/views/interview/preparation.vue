@@ -9,119 +9,14 @@
       </div>
 
       <div v-loading="loading">
-        <!-- 面试基本信息 - 新设计 -->
+        <!-- 面试基本信息 - 使用InterviewBasicInfo组件 -->
         <transition name="fade">
-          <el-card class="interview-info-card" shadow="hover">
-            <div class="interview-header">
-              <div class="interview-title">
-                <i class="el-icon-user"></i>
-                <span>{{ interview.candidateName || '候选人信息' }}</span>
-                <el-tag class="position-tag" effect="plain">{{ interview.candidatePosition }}</el-tag>
-                <el-tag v-if="interview.job && interview.job.department" class="department-tag">
-                  {{ interview.job.department }}
-                </el-tag>
-              </div>
-              <div class="interview-status">
-                <el-tag :type="getStatusType(interview.status)" effect="dark" size="medium">
-                  {{ getStatusText(interview.status) }}
-                </el-tag>
-                <span class="interview-id">ID: {{ interview.id }}</span>
-              </div>
-            </div>
-            
-            <el-divider content-position="left">
-              <i class="el-icon-info"></i> 面试信息
-            </el-divider>
-            
-            <div class="info-grid">
-              <div class="info-item">
-                <div class="info-label">
-                  <i class="el-icon-date"></i>
-                  面试时间
-                </div>
-                <div class="info-value">{{ formatDateTime(interview.time) }}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">
-                  <i class="el-icon-location"></i>
-                  面试地点
-                </div>
-                <div class="info-value">{{ interview.location }}</div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">
-                  <i class="el-icon-medal"></i>
-                  面试类型
-                </div>
-                <div class="info-value">
-                  <el-tag :type="getInterviewTypeTag(interview.type)" size="small">
-                    {{ getInterviewTypeText(interview.type) }}
-                  </el-tag>
-                </div>
-              </div>
-              <div class="info-item">
-                <div class="info-label">
-                  <i class="el-icon-s-custom"></i>
-                  面试官
-                </div>
-                <div class="info-value interviewer-list">
-                  <el-tag
-                    v-for="interviewer in interview.interviewers"
-                    :key="interviewer.id"
-                    size="small"
-                    class="interviewer-tag"
-                    effect="plain"
-                  >
-                    {{ interviewer.name }}
-                  </el-tag>
-                </div>
-              </div>
-            </div>
-            
-            <template v-if="interview.resume">
-              <el-divider content-position="left">
-                <i class="el-icon-user"></i> 候选人详细信息
-              </el-divider>
-              
-              <div class="info-grid three-columns">
-                <div class="info-item">
-                  <div class="info-label">
-                    <i class="el-icon-phone-outline"></i>
-                    联系电话
-                  </div>
-                  <div class="info-value">{{ interview.resume.phone || '-' }}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">
-                    <i class="el-icon-message"></i>
-                    电子邮箱
-                  </div>
-                  <div class="info-value">{{ interview.resume.email || '-' }}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">
-                    <i class="el-icon-collection"></i>
-                    学历
-                  </div>
-                  <div class="info-value">{{ interview.resume.highestEducation || '-' }}</div>
-                </div>
-                <div class="info-item">
-                  <div class="info-label">
-                    <i class="el-icon-reading"></i>
-                    专业
-                  </div>
-                  <div class="info-value">{{ interview.resume.major || '-' }}</div>
-                </div>
-                <div class="info-item" v-if="interview.notes">
-                  <div class="info-label">
-                    <i class="el-icon-document"></i>
-                    备注
-                  </div>
-                  <div class="info-value">{{ interview.notes }}</div>
-                </div>
-              </div>
-            </template>
-          </el-card>
+          <interview-basic-info 
+            :interview="interview" 
+            :current-user="$store.state.user"
+            @show-contact-info="showContactInfo"
+            @view-resume="viewResume">
+          </interview-basic-info>
         </transition>
 
         <!-- 面试准备表单 -->
@@ -398,9 +293,13 @@
 import { mapActions, mapGetters } from 'vuex'
 import html2pdf from 'html2pdf.js'
 import MarkdownIt from 'markdown-it'
+import InterviewBasicInfo from '@/components/InterviewBasicInfo.vue'
 
 export default {
   name: 'InterviewPreparation',
+  components: {
+    InterviewBasicInfo
+  },
   data() {
     return {
       loading: false,
@@ -511,71 +410,25 @@ export default {
   },
   computed: {
     renderedGuide() {
-      // 简化日志输出
       if (!this.interviewGuide) return '';
-      
-      // 使用markdown-it渲染markdown内容
       let rendered = this.markdown.render(this.interviewGuide);
-      
-      // 如果文档仍在生成中，添加一个闪烁的光标效果
       if (this.guideLoading || this.generatingGuide) {
         rendered += '<span class="blinking-cursor">|</span>';
       }
-      
       return rendered;
     },
-    
     formattedGuide() {
       if (!this.interviewGuide) return '';
-      
-      // 将换行符转换为<br>标签 (保留此方法用于兼容性)
       let formatted = this.interviewGuide.replace(/\n/g, '<br>');
-      
-      // 如果文档仍在生成中，添加一个闪烁的光标效果
       if (this.guideLoading || this.generatingGuide) {
         formatted += '<span class="blinking-cursor">|</span>';
       }
-      
       return formatted;
     },
     renderedFocusContent() {
       if (!this.preparationForm.focusContent) return '<div class="empty-preview">暂无内容</div>';
       return this.markdown.render(this.preparationForm.focusContent);
-    },
-    
-    // 根据行业代码获取行业名称
-    getIndustryText() {
-      return (industry) => {
-        const industryMap = {
-          'it': '信息技术',
-          'finance': '金融',
-          'healthcare': '医疗健康',
-          'manufacturing': '制造业',
-          'education': '教育',
-          'retail': '零售',
-          'media': '媒体',
-          'government': '政府',
-          'consulting': '咨询'
-        };
-        return industryMap[industry] || '未知行业';
-      };
-    },
-    
-    // 根据角色代码获取角色名称
-    getRoleText() {
-      return (role) => {
-        const roleMap = {
-          'technical': '技术面试官',
-          'department_head': '部门主管',
-          'hr': '人事面试官',
-          'behavior': '行为面试官',
-          'culture': '文化面试官',
-          'business': '业务面试官',
-          'other': '其他角色'
-        };
-        return roleMap[role] || '未知角色';
-      };
-    },
+    }
   },
   watch: {
     'preparationForm.role': {
@@ -598,19 +451,32 @@ export default {
     
     try {
       // 先获取面试基本信息
-      await this.getInterviewInfo();
+      try {
+        await this.getInterviewInfo();
+      } catch (error) {
+        console.error('获取面试基本信息失败:', error);
+        // 显示错误消息但不中断后续流程
+        this.$message.warning('面试基本信息加载不完整，部分功能可能受限');
+      }
       
       // 然后获取准备信息
-      await this.getPreparationInfo().catch(error => {
+      try {
+        await this.getPreparationInfo();
+      } catch (error) {
         console.error('获取面试准备信息失败，将使用默认值:', error);
         this.$message.warning('获取面试准备信息失败，将使用默认模板');
-      });
+      }
       
       // 尝试获取关注点
-      await this.getFocusPoints().catch(() => {});
+      try {
+        await this.getFocusPoints();
+      } catch (error) {
+        console.error('获取面试关注点失败:', error);
+        // 这是可选功能，失败时不显示错误消息
+      }
     } catch (error) {
       console.error('初始化面试准备数据失败:', error);
-      this.$message.error('加载面试基本信息失败，请刷新页面重试');
+      this.$message.error('加载面试数据时出现问题，部分功能可能不可用');
     } finally {
       this.loading = false;
     }
@@ -638,43 +504,80 @@ export default {
       'getEvaluationSuggestions',
       'streamGenerateInterviewGuide'
     ]),
+    showContactInfo() {
+      if (!this.interview.resume) {
+        this.$message.warning('无法获取候选人联系方式信息');
+        return;
+      }
+      
+      this.$notify({
+        title: '候选人联系方式',
+        message: `姓名: ${this.interview.candidateName || '-'}<br>
+                 电话: ${this.interview.resume.phone || '-'}<br>
+                 邮箱: ${this.interview.resume.email || '-'}`,
+        dangerouslyUseHTMLString: true,
+        type: 'info',
+        duration: 6000
+      });
+    },
+    viewResume() {
+      const resumeId = this.interview.resumeId || this.interview.resume?.id;
+      if (!resumeId) {
+        this.$message.warning('无法获取简历信息');
+        return;
+      }
+      
+      // 根据实际路由配置跳转到简历详情页
+      this.$router.push(`/resume/view/${resumeId}`);
+    },
     async getInterviewInfo() {
       try {
         const interviewId = this.$route.params.id
         
-        const response = await this.$store.dispatch('interview/getInterviewDetail', interviewId)
-        
-        if (!response || !response.resumeId || !response.jobId) {
-          throw new Error('面试信息不完整')
+        let response = null
+        try {
+          response = await this.$store.dispatch('interview/getInterviewDetail', interviewId)
+          console.log('获取到的面试信息:', response)
+        } catch (apiError) {
+          console.error('API调用失败:', apiError)
+          this.$message.warning('获取面试基本信息失败，部分功能可能受限')
+          // 创建一个空的基本面试对象作为回退
+          response = {
+            id: interviewId,
+            status: 'scheduled',
+            interviewType: 'first',
+            resumeId: null,
+            jobId: null
+          }
         }
         
-        // 统一数据格式，确保所有字段都有值
+        // 即使response为空或不完整，也创建基本面试对象而不是抛出错误
         this.interview = {
           // 基本信息
-          id: response.id,
-          resumeId: response.resumeId,
-          jobId: response.jobId,
-          resume_id: response.resumeId, // 兼容性字段
-          job_id: response.jobId, // 兼容性字段
+          id: response?.id || interviewId,
+          resumeId: response?.resumeId,
+          jobId: response?.jobId,
+          resume_id: response?.resumeId, // 兼容性字段
+          job_id: response?.jobId, // 兼容性字段
           
           // 面试状态信息
-          status: response.status || 'scheduled',
-          type: response.interviewType || 'first',
-          time: response.scheduleTime,
-          location: response.location || '-',
-          duration: response.duration || 60,
-          notes: response.notes || '',
+          status: response?.status || 'scheduled',
+          type: response?.interviewType || 'first',
+          time: response?.scheduleTime,
+          location: response?.location || '-',
+          duration: response?.duration || 60,
+          notes: response?.notes || '',
           
           // 时间信息
-          createdAt: response.createdAt,
-          updatedAt: response.updatedAt,
+          createdAt: response?.createdAt,
+          updatedAt: response?.updatedAt,
           
           // 候选人信息
-          candidateName: response.resume?.name || response.resumeTitle || '-',
-          candidatePosition: response.job?.title || response.jobTitle || '-',
+          candidateName: response?.resume?.name || response?.resumeTitle || '-',
+          candidatePosition: response?.job?.title || response?.jobTitle || '-',
           
           // 简历信息
-          resume: response.resume ? {
+          resume: response?.resume ? {
             id: response.resume.id,
             name: response.resume.name || '-',
             phone: response.resume.phone || '-',
@@ -682,17 +585,17 @@ export default {
             gender: response.resume.gender || '-',
             highestEducation: response.resume.highestEducation || '-',
             major: response.resume.major || '-'
-          } : null,
+          } : {},
           
           // 职位信息
-          job: response.job ? {
+          job: response?.job ? {
             id: response.job.id,
             title: response.job.title || '-',
             department: response.job.department || '-'
-          } : null,
+          } : {},
           
           // 面试官信息
-          interviewers: (response.interviewers || []).map(interviewer => ({
+          interviewers: (response?.interviewers || []).map(interviewer => ({
             id: interviewer.id,
             name: interviewer.username || '-',
             email: interviewer.email || '-',
@@ -701,15 +604,17 @@ export default {
         }
         
         // 检查响应中是否有preparationNotes，如果有则直接设置到interviewGuide
-        if (response.preparationNotes) {
+        if (response?.preparationNotes) {
           console.log('在面试详情中发现preparationNotes，直接设置为interviewGuide')
           this.interviewGuide = response.preparationNotes
         }
         
-        return Promise.resolve(response)
+        return Promise.resolve(response || {})
       } catch (error) {
-        this.$message.error(error.message || '获取面试信息失败')
-        return Promise.reject(error)
+        console.error('获取面试信息处理失败:', error)
+        // 不使用$message.error，而是使用warning，更友好地提示用户
+        this.$message.warning(error.message || '获取面试信息失败，将使用默认模板')
+        return Promise.resolve({}) // 返回空对象而不是reject，避免中断后续流程
       }
     },
     async getPreparationInfo() {
@@ -724,6 +629,10 @@ export default {
           // 检查preparation是否为undefined
           if (!preparation) {
             console.log('preparation数据为空')
+            this.preparationForm = {
+              ...this.preparationForm,
+              focusContent: this.defaultFocusPoints[this.preparationForm.role]?.technical || ''
+            }
             return Promise.resolve({})
           }
           
@@ -742,12 +651,12 @@ export default {
           }
         } catch (apiError) {
           console.error('API调用失败:', apiError)
-          // 如果是服务器错误，使用一个空对象
-          if (apiError.response && apiError.response.status >= 500) {
-            return Promise.resolve({})
+          // 如果是服务器错误或API调用失败，使用默认值
+          this.preparationForm = {
+            ...this.preparationForm,
+            focusContent: this.defaultFocusPoints[this.preparationForm.role]?.technical || ''
           }
-          // 其他错误则继续抛出
-          throw apiError
+          return Promise.resolve({})
         }
         
         // 检查返回数据是否有效
@@ -761,6 +670,12 @@ export default {
           this.preparationForm = {
             ...this.preparationForm,
             focusContent: preparation.focusPoints.content || preparation.focusPoints.technical || '',
+          }
+        } else {
+          // 如果没有focusPoints，使用默认值
+          this.preparationForm = {
+            ...this.preparationForm,
+            focusContent: this.defaultFocusPoints[this.preparationForm.role]?.technical || ''
           }
         }
         
@@ -792,8 +707,12 @@ export default {
         if (preparation.role) {
           const roleMapping = {
             '技术面试官': 'technical',
+            '部门主管': 'department_head',
             '部门负责人': 'department_head',
-            '人事面试官': 'hr'
+            '人事面试官': 'hr',
+            '行为面试官': 'behavior',
+            '文化面试官': 'culture',
+            '业务面试官': 'business'
           }
           
           const mappedRole = roleMapping[preparation.role]
@@ -809,7 +728,11 @@ export default {
         return Promise.resolve(preparation)
       } catch (error) {
         console.error('获取面试准备信息失败:', error)
-        // 不在这里显示错误消息，统一在created钩子中处理
+        // 使用默认值
+        this.preparationForm = {
+          ...this.preparationForm,
+          focusContent: this.defaultFocusPoints[this.preparationForm.role]?.technical || ''
+        }
         return Promise.reject(error)
       }
     },
@@ -818,6 +741,7 @@ export default {
         let focusPoints
         try {
           focusPoints = await this.getInterviewerFocusPoints()
+          console.log('获取到的面试官关注点:', focusPoints)
         } catch (apiError) {
           console.error('获取面试官关注点失败:', apiError)
           // 任何API错误都返回null而不中断执行
@@ -1125,6 +1049,11 @@ export default {
       try {
         const interviewId = this.$route.params.id
         
+        // 检查interviewId是否存在，避免传递undefined
+        if (!interviewId) {
+          throw new Error('面试ID不存在，无法保存')
+        }
+        
         // 获取用户信息
         const userData = await this.$store.dispatch('user/getInfo')
         const currentUserId = userData.id || this.$store.state.user.id
@@ -1135,7 +1064,7 @@ export default {
         
         // 使用updateInterviewPreparation接口，调用新的后端API
         await this.$store.dispatch('interview/updateInterviewPreparation', {
-          interviewId,
+          id: interviewId, // 修改参数名为id，与store action期望的参数名匹配
           data: {
             focusPoints: {
               content: this.preparationForm.focusContent
@@ -1358,13 +1287,14 @@ export default {
     getRoleText(role) {
       const roleMap = {
         'technical': '技术面试官',
-        'department_head': '部门负责人',
+        'department_head': '部门主管',
         'hr': '人事面试官',
         'behavior': '行为面试官',
         'culture': '文化面试官',
-        'business': '业务面试官'
+        'business': '业务面试官',
+        'other': '其他角色'
       };
-      return roleMap[role] || role; // 如果是other或未知角色，直接返回原值
+      return roleMap[role] || '未知角色';
     },
     
     getRoleIcon(role) {
@@ -1473,17 +1403,17 @@ export default {
     },
     getIndustryText(industry) {
       const industryMap = {
-        'it': 'IT/互联网',
-        'finance': '金融/银行',
-        'healthcare': '医疗/制药',
-        'manufacturing': '制造/工程',
-        'education': '教育/培训',
-        'retail': '零售/消费品',
-        'media': '媒体/设计',
-        'government': '政府/公共事业',
-        'consulting': '咨询/专业服务'
+        'it': '信息技术',
+        'finance': '金融',
+        'healthcare': '医疗健康',
+        'manufacturing': '制造业',
+        'education': '教育',
+        'retail': '零售',
+        'media': '媒体',
+        'government': '政府',
+        'consulting': '咨询'
       };
-      return industryMap[industry] || '通用';
+      return industryMap[industry] || '未知行业';
     },
     
     getIndustryIcon(industry) {

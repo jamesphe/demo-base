@@ -362,6 +362,22 @@
                   <el-dropdown-item command="download" divided>下载简历</el-dropdown-item>
                 </el-dropdown-menu>
               </el-dropdown>
+              <el-button
+                size="mini"
+                type="success"
+                @click="handleViewEvaluation(scope.row)"
+                v-if="scope.row.status === 'evaluated'"
+              >
+                查看评估
+              </el-button>
+              <el-button
+                size="mini"
+                type="warning"
+                @click="handleEvaluate(scope.row)"
+                v-if="scope.row.status === 'completed' && canEvaluate"
+              >
+                评估
+              </el-button>
             </div>
           </template>
         </el-table-column>
@@ -824,7 +840,8 @@ export default {
       candidateDetailVisible: false,
       resumeDetailLoading: false,
       jobDetailVisible: false,
-      currentJob: {}
+      currentJob: {},
+      canEvaluate: false
     }
   },
   computed: {
@@ -835,6 +852,9 @@ export default {
     ]),
     currentResumeDetail() {
       return this.$store.state.resume.currentDetail || {}
+    },
+    roles() {
+      return this.$store.getters['user/roles'] || []
     }
   },
   created() {
@@ -842,6 +862,7 @@ export default {
     this.getInterviewers()
     this.checkUserRoles()
     this.calculateStatistics()
+    this.canEvaluate = this.roles.some(role => ['admin', 'tenant_admin', 'tenant_hr'].includes(role))
   },
   mounted() {
     console.log('面试记录组件已挂载')
@@ -1236,6 +1257,12 @@ export default {
       } else {
         this.$message.warning('职位信息不完整，无法查看详情')
       }
+    },
+    handleViewEvaluation(row) {
+      this.$router.push(`/interview/view-evaluation/${row.id}`)
+    },
+    handleEvaluate(row) {
+      this.$router.push(`/interview/evaluation/${row.id}`)
     }
   }
 }

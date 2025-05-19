@@ -20,7 +20,7 @@ def read_interviews(
     page: int = Query(1, ge=1, description="页码"),
     per_page: int = Query(10, ge=1, le=100, description="每页数量"),
     interviewer_id: Optional[int] = Query(None, description="面试官ID"),
-    type: Optional[str] = Query(None, description="面试类型"),
+    interview_type: Optional[str] = Query(None, description="面试类型"),
     status: Optional[str] = Query(None, description="面试状态"),
     candidate_name: Optional[str] = Query(None, description="候选人姓名"),
     start_date: Optional[datetime] = Query(None, description="开始日期"),
@@ -41,9 +41,9 @@ def read_interviews(
     if not is_admin_or_manager:
         interviewer_id = current_user.id
         
-    print(f"调试: 收到请求参数 - interviewer_id={interviewer_id}, type={type}, status={status}")
+    print(f"调试: 收到请求参数 - interviewer_id={interviewer_id}, interview_type={interview_type}, status={status}")
     
-    if interviewer_id or type or status or candidate_name or start_date or end_date:
+    if interviewer_id or interview_type or status or candidate_name or start_date or end_date:
         # 使用search_interviews方法进行高级搜索
         interviews = interview_service.search_interviews(
             db,
@@ -51,7 +51,7 @@ def read_interviews(
             keyword=candidate_name,
             interviewer_id=interviewer_id,
             status=status,
-            interview_type=type,  # 将type参数传递给interview_type
+            interview_type=interview_type,  # 将interview_type参数传递给interview_type
             start_date=start_date,
             end_date=end_date,
             skip=skip,
@@ -279,22 +279,11 @@ def create_interview(
                             detail=f"查询申请记录失败: {str(e)}"
                         )
         
-        # 如果candidates处理失败，尝试从candidate_id获取resumeId
+        # 如果candidates处理失败，尝试从resume表直接关联talent_id
         if not resume_id:
-            candidate_id = getattr(interview_in, 'candidate_id', None)
-            logger.debug(f"使用candidate_id查找: {candidate_id}")
-            
-            if candidate_id:
-                candidate = db.query(models.Candidate).filter(
-                    models.Candidate.id == candidate_id
-                ).first()
-                
-                if not candidate:
-                    logger.error(f"候选人ID {candidate_id} 不存在")
-                    raise HTTPException(status_code=404, detail="候选人不存在")
-                
-                resume_id = candidate.resume_id
-                logger.debug(f"从candidate获取到resumeId: {resume_id}")
+            # 注意：不再使用candidate_id，而是直接查询resume表
+            logger.error("未找到有效的简历ID")
+            raise HTTPException(status_code=400, detail="未找到有效的简历ID，请提供resume_id")
     except Exception as e:
         logger.error(f"处理候选人/简历ID时出错: {str(e)}")
         raise HTTPException(status_code=400, detail=f"简历ID处理错误: {str(e)}")
@@ -901,4 +890,72 @@ async def get_interviewer_focus_points(
 ) -> Any:
     """获取面试官关注点列表"""
     # 使用服务层获取预定义的关注点列表
-    return interview_service.get_interviewer_focus_points() 
+    return interview_service.get_interviewer_focus_points()
+
+
+@router.put("/{interview_id}/status")
+async def update_interview_status(
+    *,
+    db: Session = Depends(deps.get_db),
+    interview_id: int,
+    status_data: Dict[str, Any],
+    current_user: models.User = Depends(deps.get_current_active_user)
+) -> Any:
+    """更新面试状态
+    
+    允许将面试状态从"scheduled"更新为"in_progress"，或从"in_progress"更新为"completed"
+    """
+    # 获取面试记录
+    interview = crud.interview.get(db=db, id=interview_id)
+    if not interview:
+        raise HTTPException(status_code=404, detail="面试不存在")
+    
+    # 验证当前用户是否参与该面试
+    is_interviewer = False
+    for interviewer in interview.interviewers:
+        if interviewer.id == current_user.id:
+            is_interviewer = True
+            break
+    
+    # 只有面试官和管理员可以更新面试状态
+    admin_roles = ["admin", "hr", "hr_manager", "tenant_admin"]
+    is_admin = current_user.is_superuser or any(role in admin_roles for role in current_user.get_roles())
+    
+    if not is_interviewer and not is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="只有面试官或管理员可以更新面试状态"
+        )
+    
+    # 获取传入的状态
+    new_status = status_data.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="缺少状态信息")
+    
+    # 验证状态转换的有效性
+    valid_transitions = {
+        "scheduled": ["in_progress", "cancelled"],
+        "in_progress": ["completed", "cancelled"]
+    }
+    
+    if interview.status not in valid_transitions or new_status not in valid_transitions.get(interview.status, []):
+        raise HTTPException(
+            status_code=400,
+            detail=f"不允许从 {interview.status} 状态转换为 {new_status} 状态"
+        )
+    
+    # 调用服务层更新状态
+    result = interview_service.update_interview_status(
+        db,
+        interview_id=interview_id,
+        status=new_status
+    )
+    
+    return {
+        "status": "success",
+        "data": {
+            "id": result.id,
+            "status": result.status,
+            "updated_at": result.updated_at
+        }
+    } 

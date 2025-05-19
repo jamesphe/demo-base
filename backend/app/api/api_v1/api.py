@@ -9,6 +9,7 @@ from app.api.api_v1.endpoints import (
     trial_application,
     resume_sync_emails,
     interview_feedback,
+    interview_evaluation,  # 添加面试评估模块
     ai  # 添加ai模块
 )
 
@@ -163,7 +164,14 @@ api_router.include_router(
 api_router.include_router(
     interview_feedback.router,
     prefix="/interviews",
-    tags=["interview-feedback"]
+    tags=["面试反馈"]
+)
+
+# 面试评估
+api_router.include_router(
+    interview_evaluation.router,
+    prefix="/interviews",
+    tags=["面试评估"]
 )
 
 # 添加AI路由

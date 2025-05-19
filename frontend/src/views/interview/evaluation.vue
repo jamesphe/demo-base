@@ -7,28 +7,110 @@
 
       <div v-loading="loading">
         <!-- 候选人基本信息 -->
-        <el-descriptions :column="3" border class="candidate-info">
-          <el-descriptions-item label="候选人">{{ interview.candidateName }}</el-descriptions-item>
-          <el-descriptions-item label="应聘职位">{{ interview.candidatePosition }}</el-descriptions-item>
-          <el-descriptions-item label="面试类型">
-            <el-tag :type="getInterviewTypeTag(interview.type)">
-              {{ getInterviewTypeText(interview.type) }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="面试时间">{{ formatDateTime(interview.time) }}</el-descriptions-item>
-          <el-descriptions-item label="面试地点">{{ interview.location }}</el-descriptions-item>
-          <el-descriptions-item label="面试官">
-            <el-tag
-              v-for="interviewer in interview.interviewers"
-              :key="interviewer.id"
-              size="mini"
-              class="interviewer-tag"
-              style="margin-right: 5px;"
-            >
-              {{ interviewer.name || interviewer.username }}
-            </el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
+        <interview-basic-info 
+          :interview="interview"
+          :current-user="currentUser"
+          @show-contact-info="showContactInfo"
+          @view-resume="viewResume"
+        />
+
+        <!-- 面试官反馈汇总 -->
+        <el-card class="feedback-summary-card" v-if="feedbackSummary">
+          <div slot="header" class="clearfix">
+            <span>面试官反馈汇总</span>
+            <el-button style="float: right; padding: 3px 0" type="text" @click="refreshFeedbackSummary">
+              <i class="el-icon-refresh"></i> 刷新
+            </el-button>
+          </div>
+          
+          <!-- 评分概览 -->
+          <div class="summary-stats">
+            <div class="stat-item">
+              <div class="stat-value">{{ feedbackSummary.average_score ? feedbackSummary.average_score.toFixed(1) : '0.0' }}</div>
+              <div class="stat-label">平均评分</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ feedbackSummary.completed_count || 0 }}</div>
+              <div class="stat-label">已提交</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">{{ (feedbackSummary.interviewer_count || 0) - (feedbackSummary.completed_count || 0) }}</div>
+              <div class="stat-label">待提交</div>
+            </div>
+          </div>
+          
+          <!-- 面试官详细反馈表格 -->
+          <el-table :data="feedbackSummary.feedbacks || []" style="width: 100%; margin-top: 20px;" border>
+            <el-table-column label="面试官" prop="interviewer_name" width="150">
+              <template slot-scope="scope">
+                <span>{{ scope.row.interviewer_name || '未知面试官' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="综合评分">
+              <template slot-scope="scope">
+                <el-rate
+                  v-model="scope.row.evaluation_score"
+                  disabled
+                  show-score
+                  text-color="#ff9900"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="招聘建议" width="150">
+              <template slot-scope="scope">
+                <el-tag :type="getRecommendationTagType(scope.row.hiring_recommendation)">
+                  {{ getRecommendationText(scope.row.hiring_recommendation) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="反馈状态" width="100">
+              <template slot-scope="scope">
+                <el-tag :type="scope.row.status === 'completed' ? 'success' : 'warning'" size="mini">
+                  {{ scope.row.status === 'completed' ? '已完成' : '待完成' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="120" align="center">
+              <template slot-scope="scope">
+                <el-button 
+                  type="primary" 
+                  size="mini" 
+                  @click="viewFeedbackDetail(scope.row)"
+                  :disabled="scope.row.status !== 'completed'"
+                  plain
+                >
+                  查看详情
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          
+          <!-- 关键优势和劣势 -->
+          <div class="key-points" v-if="feedbackSummary.key_strengths && feedbackSummary.key_strengths.length">
+            <h4>关键优势</h4>
+            <ul>
+              <li v-for="(strength, index) in feedbackSummary.key_strengths" :key="'strength-' + index">
+                {{ strength }}
+              </li>
+            </ul>
+          </div>
+          
+          <div class="key-points" v-if="feedbackSummary.key_weaknesses && feedbackSummary.key_weaknesses.length">
+            <h4>关键劣势</h4>
+            <ul>
+              <li v-for="(weakness, index) in feedbackSummary.key_weaknesses" :key="'weakness-' + index">
+                {{ weakness }}
+              </li>
+            </ul>
+          </div>
+        </el-card>
+
+        <!-- 使用FeedbackDetailDialog组件替换原来的反馈详情对话框 -->
+        <feedback-detail-dialog
+          :visible.sync="dialogVisible"
+          :feedback="selectedFeedback"
+          title="面试官反馈详情"
+        />
 
         <!-- 评估表单 -->
         <el-form
@@ -181,16 +263,29 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex'
-import { getInterviewDetail, submitInterviewEvaluation } from '@/api/interview'
+import { mapActions, mapGetters } from 'vuex'
+import DescriptionList from '@/components/DescriptionList'
+import DescriptionItem from '@/components/DescriptionList/Item'
+import InterviewBasicInfo from '@/components/InterviewBasicInfo'
+import FeedbackDetailDialog from '@/components/FeedbackDetailDialog'
 
 export default {
   name: 'InterviewEvaluation',
+  components: {
+    DescriptionList,
+    DescriptionItem,
+    InterviewBasicInfo,
+    FeedbackDetailDialog
+  },
   data() {
     return {
       loading: false,
       submitting: false,
       interview: {},
+      feedbackSummary: null,
+      dialogVisible: false,
+      selectedFeedback: null,
+      currentUser: null,
       evaluationForm: {
         technicalScore: 0,
         technicalDepth: 0,
@@ -230,23 +325,91 @@ export default {
   },
   created() {
     this.getInterviewInfo()
+    this.getCurrentUser()
   },
   methods: {
     ...mapActions('interview', [
-      'updateInterview'
+      'updateInterview',
+      'getInterviewDetail',
+      'submitInterviewEvaluation',
+      'getInterviewFeedbackSummary'
     ]),
+    async getCurrentUser() {
+      // 从store中获取当前用户信息
+      try {
+        this.currentUser = this.$store.getters.user
+      } catch (error) {
+        console.error('获取当前用户信息失败:', error)
+      }
+    },
     async getInterviewInfo() {
       this.loading = true
       try {
         const interviewId = this.$route.params.id
-        const response = await getInterviewDetail(interviewId)
-        this.interview = response.data
+        const response = await this.getInterviewDetail(interviewId)
+        
+        // 修复映射逻辑，确保将API响应正确映射到组件数据结构
+        this.interview = {
+          id: response.data?.id || response.id,
+          candidateName: response.data?.resume?.name || response.resume?.name || response.resumeTitle || '-',
+          candidatePosition: response.data?.job?.title || response.job?.title || response.jobTitle || '-',
+          type: response.data?.interviewType || response.interviewType || 'first',
+          time: response.data?.scheduleTime || response.scheduleTime,
+          location: response.data?.location || response.location || '-',
+          interviewers: response.data?.interviewers || response.interviewers || [],
+          resumeId: response.data?.resume?.id || response.resume?.id || null
+        }
+        
+        // 获取面试反馈汇总
+        await this.getFeedbackSummary()
       } catch (error) {
         console.error('获取面试信息失败:', error)
         this.$message.error('获取面试信息失败')
       } finally {
         this.loading = false
       }
+    },
+    async getFeedbackSummary() {
+      try {
+        const interviewId = this.$route.params.id
+        const response = await this.getInterviewFeedbackSummary(interviewId)
+        this.feedbackSummary = response.data || response
+      } catch (error) {
+        console.error('获取面试反馈汇总失败:', error)
+        // 这里不显示错误消息，因为可能尚无反馈
+      }
+    },
+    async refreshFeedbackSummary() {
+      try {
+        await this.getFeedbackSummary()
+        this.$message.success('反馈数据已刷新')
+      } catch (error) {
+        this.$message.error('刷新反馈数据失败')
+      }
+    },
+    viewFeedbackDetail(feedback) {
+      this.selectedFeedback = feedback
+      this.dialogVisible = true
+    },
+    getRecommendationText(recommendation) {
+      const map = {
+        highly_recommended: '强烈推荐',
+        recommended: '推荐',
+        recommend_with_reservations: '有条件推荐',
+        not_recommended: '不推荐',
+        strongly_not_recommended: '强烈不推荐'
+      }
+      return map[recommendation] || '未评价'
+    },
+    getRecommendationTagType(recommendation) {
+      const map = {
+        highly_recommended: 'success',
+        recommended: 'success',
+        recommend_with_reservations: 'warning',
+        not_recommended: 'danger',
+        strongly_not_recommended: 'danger'
+      }
+      return map[recommendation] || 'info'
     },
     getInterviewTypeText(type) {
       const typeMap = {
@@ -283,7 +446,7 @@ export default {
         const interviewId = this.$route.params.id
         
         // 提交评估结果
-        await submitInterviewEvaluation(interviewId, this.evaluationForm)
+        await this.submitInterviewEvaluation({ id: interviewId, data: this.evaluationForm })
         
         // 更新面试状态
         await this.updateInterview({
@@ -303,7 +466,19 @@ export default {
       }
     },
     handleCancel() {
-      this.$router.push('/interview/record')
+      this.$router.push('/interview/evaluation-list')
+    },
+    showContactInfo() {
+      this.$message.info('显示候选人联系方式功能待实现')
+      // 这里可以实现显示候选人联系方式的逻辑，如弹出对话框等
+    },
+    viewResume() {
+      // 如果有简历ID，可以跳转到简历详情页面
+      if (this.interview && this.interview.resumeId) {
+        this.$router.push(`/resume/detail/${this.interview.resumeId}`)
+      } else {
+        this.$message.info('暂无简历信息')
+      }
     }
   }
 }
@@ -314,11 +489,21 @@ export default {
   padding: 20px;
 }
 
-.candidate-info {
-  margin-bottom: 20px;
+:deep(.description-list) {
+  background-color: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  padding: 16px;
   
-  .interviewer-tag {
-    margin: 2px;
+  .description-term {
+    line-height: 1.5;
+    padding-right: 10px;
+    font-weight: 500;
+  }
+  
+  .description-detail {
+    line-height: 1.5;
+    padding: 0 10px;
   }
 }
 
@@ -357,10 +542,81 @@ export default {
   margin-top: 8px;
 }
 
-::v-deep .el-descriptions {
-  .el-descriptions-item__label {
-    width: 120px;
-    font-weight: 500;
+.feedback-summary-card {
+  margin-bottom: 20px;
+}
+
+.summary-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+  
+  .stat-item {
+    text-align: center;
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #409EFF;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      color: #909399;
+      margin-top: 5px;
+    }
+  }
+}
+
+.key-points {
+  margin-top: 20px;
+  
+  h4 {
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: #303133;
+  }
+  
+  ul {
+    padding-left: 20px;
+    
+    li {
+      margin-bottom: 5px;
+    }
+  }
+}
+
+.feedback-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  
+  h4 {
+    margin: 0;
+  }
+}
+
+.feedback-card {
+  margin-bottom: 15px;
+  
+  .feedback-content {
+    padding: 5px 0;
+    
+    .feedback-item {
+      margin-bottom: 15px;
+      
+      h5 {
+        margin: 0 0 5px 0;
+        font-size: 14px;
+        color: #606266;
+      }
+      
+      p {
+        margin: 0;
+        color: #303133;
+      }
+    }
   }
 }
 </style> 

@@ -180,7 +180,7 @@ class CRUDInterview(CRUDBase[Interview, InterviewCreate, InterviewUpdate]):
         # 过滤掉InterviewCreate中的非Interview模型字段
         interview_data = {
             key: value for key, value in obj_in.dict().items()
-            if key not in ["interviewers", "candidate_id", "type", "time", "candidates"]
+            if key not in ["interviewers", "type", "time", "candidates"]
         }
         
         # 创建面试对象

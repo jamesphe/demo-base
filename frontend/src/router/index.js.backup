@@ -291,9 +291,19 @@ export const asyncRoutes = [
       },
       {
         path: 'evaluation',
-        component: () => import('@/views/interview/evaluation-list'),
+        component: () => import('@/views/interview/evaluation'),
         name: 'InterviewEvaluation',
         meta: {
+          title: '面试评估',
+          icon: 'el-icon-s-marketing',
+          roles: ['tenant_admin', 'tenant_hr', 'interviewer']
+        }
+      },
+      {
+        path: 'evaluation-list',
+        component: () => import('@/views/interview/evaluation-list'),
+        name: 'InterviewEvaluationList',
+        meta: { 
           title: '面试评估',
           icon: 'el-icon-s-marketing',
           roles: ['tenant_admin', 'tenant_hr', 'interviewer']
@@ -321,12 +331,11 @@ export const asyncRoutes = [
       },
       {
         path: 'statistics',
-        component: () => import('@/views/interview/record'),
+        component: () => import('@/views/interview/statistics'),
         name: 'InterviewStatistics',
         meta: { 
           title: '面试统计',
-          icon: 'el-icon-data-analysis',
-          roles: ['tenant_admin', 'tenant_hr']
+          roles: ['tenant_admin', 'tenant_hr', 'interviewer']
         }
       },
       {

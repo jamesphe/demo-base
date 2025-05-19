@@ -7,6 +7,32 @@
           <span>面试实时记录</span>
         </div>
         <div class="header-actions">
+          <div class="interview-status-control">
+            <el-tag :type="getInterviewStatusType(interview.status)">
+              {{ getInterviewStatusText(interview.status) }}
+            </el-tag>
+            <el-button 
+              v-if="interview.status === 'scheduled'"
+              type="success" 
+              size="small" 
+              icon="el-icon-video-play"
+              @click="startInterview"
+              :loading="statusUpdating"
+            >
+              开始面试
+            </el-button>
+            <el-button 
+              v-if="interview.status === 'in_progress'"
+              type="danger" 
+              size="small" 
+              icon="el-icon-circle-check"
+              @click="completeInterview"
+              :loading="statusUpdating"
+            >
+              结束面试
+            </el-button>
+          </div>
+          <el-divider direction="vertical"></el-divider>
           <el-button 
             type="primary" 
             size="small" 
@@ -340,7 +366,7 @@
 </template>
 
 <script>
-import { getInterviewDetail, submitInterviewerFeedback, getInterviewPreparation } from '@/api/interview'
+import { getInterviewDetail, submitInterviewerFeedback, getInterviewPreparation, updateInterviewStatus } from '@/api/interview'
 import { parseTime } from '@/utils'
 import MarkdownIt from 'markdown-it'
 
@@ -354,8 +380,10 @@ export default {
         type: '',
         time: '',
         location: '',
-        interviewers: []
+        interviewers: [],
+        status: 'scheduled'
       },
+      statusUpdating: false,
       recordContent: '',
       summary: '',
       recommendation: 'neutral',
@@ -373,11 +401,10 @@ export default {
       timerInterval: null,
       drawerVisible: false,
       currentUser: {
-        id: '', // 将从store中获取
+        id: '',
         name: ''
       },
       saveSuccessVisible: false,
-      // 模板数据
       technicalTemplates: [
         { title: '前端技能扎实', content: '候选人的前端基础知识扎实，对HTML/CSS/JavaScript有深入理解，对主流框架（如React/Vue）使用经验丰富。' },
         { title: '算法能力优秀', content: '候选人的算法思维清晰，能够快速理解并解决复杂问题，代码实现简洁高效。' },
@@ -396,7 +423,6 @@ export default {
         { title: '建议再观察', content: '候选人有一定潜力，但在某些关键能力上还需提高，建议安排下一轮面试进一步评估。' }
       ],
       activeGuideTab: 'process',
-      // 面试准备信息
       preparationInfo: {
         focus_points: [],
         preparation_notes: '',
@@ -404,19 +430,18 @@ export default {
         loading: false
       },
       showFullScreen: false,
-      // 初始化markdown-it实例
       md: new MarkdownIt({
-        html: true,  // 允许HTML标签
-        breaks: true,  // 转换\n为<br>
-        linkify: true,  // 自动识别链接
-        typographer: true  // 引号和破折号等smartquotes
+        html: true,
+        breaks: true,
+        linkify: true,
+        typographer: true
       }),
       leftColSpan: 16,
       isResizing: false,
       startX: 0,
       initialLeftColSpan: 16,
       containerWidth: 0,
-      scrollAreaHeight: 600 // 默认高度
+      scrollAreaHeight: 600
     }
   },
   computed: {
@@ -426,7 +451,6 @@ export default {
         this.summary.trim() !== ''
       )
     },
-    // 使用markdown-it渲染Markdown内容
     formattedPreparationNotes() {
       if (!this.preparationInfo.preparation_notes) return ''
       return this.md.render(this.preparationInfo.preparation_notes)
@@ -434,13 +458,11 @@ export default {
   },
   created() {
     this.fetchInterviewDetail()
-    // 获取当前用户信息
     this.currentUser = {
       id: this.$store.getters.userId || '',
       name: this.$store.getters.name || ''
     }
 
-    // 加载本地草稿
     this.loadDraft()
   },
   beforeDestroy() {
@@ -459,7 +481,6 @@ export default {
         const response = await getInterviewDetail(interviewId)
         console.log('接口返回数据:', response)
         
-        // 适配返回的数据
         if (response) {
           const data = response
           
@@ -470,17 +491,18 @@ export default {
             type: data.interview_type || data.interviewType,
             time: data.schedule_time || data.scheduleTime,
             location: data.location || '未指定地点',
-            interviewers: data.interviewers || []
+            interviewers: data.interviewers || [],
+            status: data.status || 'scheduled'
           }
           
-          // 获取面试准备信息
           this.fetchInterviewPreparation(interviewId)
         } else {
           this.$message.error('无法获取面试详情')
         }
         
-        // 自动开始计时器
-        this.startTimer()
+        if (this.interview.status === 'in_progress') {
+          this.startTimer()
+        }
       } catch (error) {
         console.error('获取面试详情失败:', error)
         this.$message.error('获取面试详情失败')
@@ -515,13 +537,11 @@ export default {
         return '暂无数据'
       }
       
-      // 检查是否包含"NaN"，如果包含则返回原始字符串
       if (typeof timestamp === 'string' && timestamp.includes('NaN')) {
         return timestamp
       }
       
       try {
-        // 针对ISO格式日期字符串(如 2025-05-19T10:00:00)的特殊处理
         if (typeof timestamp === 'string' && timestamp.includes('T')) {
           const date = new Date(timestamp)
           if (!isNaN(date.getTime())) {
@@ -538,11 +558,9 @@ export default {
           }
         }
         
-        // 原有逻辑，使用parseTime函数
         const result = parseTime(timestamp, '{y}-{m}-{d} {h}:{i}')
         return result || timestamp
       } catch (error) {
-        // 如果解析失败，返回原始字符串
         return typeof timestamp === 'string' ? timestamp : '日期格式错误'
       }
     },
@@ -601,24 +619,19 @@ export default {
       this.isModified = true
     },
     insertAtCursor(text) {
-      // 获取文本域元素
       const textarea = document.querySelector('.record-content textarea')
       if (!textarea) {
-        // 如果找不到文本域，则直接追加到末尾
         this.recordContent += text
         this.isModified = true
         return
       }
       
-      // 获取光标位置
       const start = textarea.selectionStart
       const end = textarea.selectionEnd
       
-      // 在光标位置插入文本
       const newText = this.recordContent.substring(0, start) + text + this.recordContent.substring(end)
       this.recordContent = newText
       
-      // 设置新的光标位置到插入文本后
       this.$nextTick(() => {
         textarea.focus()
         textarea.setSelectionRange(start + text.length, start + text.length)
@@ -639,7 +652,6 @@ export default {
     saveDraft() {
       this.loading = true
       try {
-        // 保存到本地存储
         const interviewId = this.$route.params.id
         const draft = {
           recordContent: this.recordContent,
@@ -678,7 +690,6 @@ export default {
             overall: 3
           }
           
-          // 标记为未修改，因为刚加载
           this.isModified = false
         }
       } catch (error) {
@@ -695,7 +706,6 @@ export default {
       try {
         const interviewId = this.$route.params.id
         
-        // 准备提交的数据
         const feedbackData = {
           process_record: this.recordContent,
           summary: this.summary,
@@ -719,13 +729,10 @@ export default {
           }
         }
         
-        // 提交反馈 - 使用新的API路径格式（不需要interviewer_id参数）
         await submitInterviewerFeedback(interviewId, feedbackData)
         
-        // 清除本地草稿
         localStorage.removeItem(`interview_draft_${interviewId}_${this.currentUser.id}`)
         
-        // 显示成功对话框
         this.saveSuccessVisible = true
       } catch (error) {
         console.error('提交面试记录失败:', error)
@@ -736,23 +743,18 @@ export default {
     },
     handleSaveSuccess() {
       this.saveSuccessVisible = false
-      // 导航到面试反馈页面
       this.$router.push(`/interview/feedback/${this.$route.params.id}`)
     },
     copyPreparationNotes() {
-      // 创建临时textarea元素
       const textarea = document.createElement('textarea')
       textarea.value = this.preparationInfo.preparation_notes
       document.body.appendChild(textarea)
       
-      // 选择文本并复制
       textarea.select()
       document.execCommand('copy')
       
-      // 移除临时元素
       document.body.removeChild(textarea)
       
-      // 提示用户
       this.$message.success('面试指导内容已复制到剪贴板')
     },
     toggleFullScreen() {
@@ -764,11 +766,9 @@ export default {
       document.body.style.cursor = 'col-resize'
       document.body.style.userSelect = 'none'
       
-      // 保存初始宽度比例
       this.initialLeftColSpan = this.leftColSpan
       this.containerWidth = this.$el.querySelector('.interview-content-row').offsetWidth
       
-      // 添加CSS变量来让resizer跟随调整位置
       document.documentElement.style.setProperty('--left-col-span', this.leftColSpan)
     },
     resize(event) {
@@ -777,10 +777,8 @@ export default {
         const dx = event.clientX - this.startX
         const percentDelta = (dx / this.containerWidth)
         
-        // 将百分比变化转换为span值变化（24列系统）
         const spanChange = Math.floor(percentDelta * 24)
         
-        // 确保不能拖动过大或过小
         const newSpan = Math.max(10, Math.min(20, this.initialLeftColSpan + spanChange))
         
         if (newSpan !== this.leftColSpan) {
@@ -795,28 +793,89 @@ export default {
       document.body.style.userSelect = ''
     },
     updateScrollAreaHeight() {
-      // 获取视口高度
       const viewportHeight = window.innerHeight
-      // 获取顶部位置
       const scrollArea = this.$el.querySelector('.preparation-scroll-area')
       if (scrollArea) {
         const rect = scrollArea.getBoundingClientRect()
-        // 计算可用高度（减去顶部距离和底部边距）
         const availableHeight = viewportHeight - rect.top - 70
-        // 设置滚动区域高度（最小高度为400px）
         this.scrollAreaHeight = Math.max(400, availableHeight)
-        // 设置CSS变量
         document.documentElement.style.setProperty('--scroll-area-height', `${this.scrollAreaHeight}px`)
+      }
+    },
+    getInterviewStatusText(status) {
+      const statusMap = {
+        scheduled: '待面试',
+        in_progress: '进行中',
+        completed: '已完成',
+        evaluated: '已评估',
+        cancelled: '已取消'
+      }
+      return statusMap[status] || status
+    },
+    getInterviewStatusType(status) {
+      const typeMap = {
+        scheduled: 'info',
+        in_progress: 'warning',
+        completed: 'success',
+        evaluated: 'success',
+        cancelled: 'danger'
+      }
+      return typeMap[status] || 'info'
+    },
+    async startInterview() {
+      if (this.interview.status !== 'scheduled') {
+        return
+      }
+      
+      this.statusUpdating = true
+      try {
+        const interviewId = this.$route.params.id
+        
+        await updateInterviewStatus(interviewId, {
+          status: 'in_progress'
+        })
+        
+        this.interview.status = 'in_progress'
+        this.$message.success('面试已开始')
+        
+        this.startTimer()
+      } catch (error) {
+        console.error('更新面试状态失败:', error)
+        this.$message.error('开始面试失败: ' + (error.response?.data?.message || error.message))
+      } finally {
+        this.statusUpdating = false
+      }
+    },
+    async completeInterview() {
+      if (this.interview.status !== 'in_progress') {
+        return
+      }
+      
+      this.statusUpdating = true
+      try {
+        const interviewId = this.$route.params.id
+        
+        await updateInterviewStatus(interviewId, {
+          status: 'completed'
+        })
+        
+        this.interview.status = 'completed'
+        this.$message.success('面试已完成')
+        
+        this.pauseTimer()
+      } catch (error) {
+        console.error('更新面试状态失败:', error)
+        this.$message.error('完成面试失败: ' + (error.response?.data?.message || error.message))
+      } finally {
+        this.statusUpdating = false
       }
     }
   },
   mounted() {
     document.addEventListener('mousemove', this.resize)
     document.addEventListener('mouseup', this.endResize)
-    // 初始化设置CSS变量
     document.documentElement.style.setProperty('--left-col-span', this.leftColSpan)
     
-    // 初始化滚动区域高度
     this.$nextTick(() => {
       this.updateScrollAreaHeight()
       window.addEventListener('resize', this.updateScrollAreaHeight)
@@ -852,6 +911,28 @@ export default {
     margin-right: 8px;
     color: #409EFF;
   }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.interview-status-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  
+  .el-tag {
+    min-width: 60px;
+    text-align: center;
+  }
+}
+
+.el-divider--vertical {
+  height: 20px;
+  margin: 0 10px;
 }
 
 .candidate-info-card {
@@ -1043,7 +1124,6 @@ export default {
   }
 }
 
-// 适配小屏幕
 @media (max-width: 768px) {
   .record-toolbar {
     flex-direction: column;
@@ -1182,7 +1262,6 @@ export default {
   max-height: var(--scroll-area-height, 600px);
   padding-right: 5px;
   
-  /* 自定义滚动条样式 */
   &::-webkit-scrollbar {
     width: 6px;
   }
@@ -1201,7 +1280,6 @@ export default {
     background: #a0a0a0;
   }
   
-  /* 火狐浏览器滚动条 */
   scrollbar-width: thin;
   scrollbar-color: #d0d0d0 #f1f1f1;
 }
@@ -1215,7 +1293,6 @@ export default {
   line-height: 1.6;
   padding: 10px;
   
-  /* 标题样式 */
   h1 {
     font-size: 20px;
     font-weight: 600;
@@ -1239,7 +1316,6 @@ export default {
     color: #303133;
   }
   
-  /* 文本样式 */
   p {
     margin: 8px 0;
   }
@@ -1254,7 +1330,6 @@ export default {
     color: #606266;
   }
   
-  /* 列表样式 */
   ul, ol {
     padding-left: 20px;
     margin: 8px 0;
@@ -1264,7 +1339,6 @@ export default {
     margin: 4px 0;
   }
   
-  /* 代码块样式 */
   pre {
     margin: 10px 0;
     padding: 10px;
@@ -1277,7 +1351,6 @@ export default {
     font-family: 'Courier New', Courier, monospace;
   }
   
-  /* 行内代码 */
   p code {
     padding: 2px 5px;
     margin: 0 2px;
@@ -1286,7 +1359,6 @@ export default {
     color: #E6A23C;
   }
   
-  /* 引用样式 */
   blockquote {
     padding: 8px 16px;
     margin: 10px 0;
@@ -1296,7 +1368,6 @@ export default {
     font-style: italic;
   }
   
-  /* 表格样式 */
   table {
     border-collapse: collapse;
     margin: 10px 0;
@@ -1314,7 +1385,6 @@ export default {
     font-weight: 500;
   }
   
-  /* 水平线 */
   hr {
     margin: 15px 0;
     border: none;

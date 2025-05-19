@@ -6,79 +6,14 @@
       </div>
 
       <div v-loading="loading">
-        <!-- 候选人基本信息 -->
-        <el-card v-if="interview && interview.candidateName" class="candidate-profile-card">
-          <div class="candidate-profile-header">
-            <div class="candidate-avatar">
-              <el-avatar :size="64" icon="el-icon-user-solid"></el-avatar>
-            </div>
-            <div class="candidate-main-info">
-              <h2 class="candidate-name">{{ interview.candidateName }}</h2>
-              <div class="candidate-position">
-                <i class="el-icon-suitcase"></i> {{ interview.candidatePosition }}
-              </div>
-              <div class="interview-type">
-                <el-tag :type="getInterviewTypeTag(interview.type)" effect="dark" size="medium">
-                  {{ getInterviewTypeText(interview.type) }}
-                </el-tag>
-              </div>
-            </div>
-          </div>
-          
-          <el-divider content-position="center">面试详情</el-divider>
-          
-          <div class="candidate-details">
-            <div class="detail-item">
-              <div class="detail-icon">
-                <i class="el-icon-time"></i>
-              </div>
-              <div class="detail-content">
-                <div class="detail-label">面试时间</div>
-                <div class="detail-value">{{ formatDateTime(interview.time) }}</div>
-              </div>
-            </div>
-            
-            <div class="detail-item">
-              <div class="detail-icon">
-                <i class="el-icon-location"></i>
-              </div>
-              <div class="detail-content">
-                <div class="detail-label">面试地点</div>
-                <div class="detail-value">{{ interview.location }}</div>
-              </div>
-            </div>
-            
-            <div class="detail-item interviewers-container">
-              <div class="detail-icon">
-                <i class="el-icon-user"></i>
-              </div>
-              <div class="detail-content">
-                <div class="detail-label">面试官</div>
-                <div class="interviewers-list">
-                  <el-tag
-                    v-for="interviewer in interview.interviewers"
-                    :key="interviewer.id"
-                    size="small"
-                    class="interviewer-tag"
-                    :type="interviewer.id === (currentUser && currentUser.id ? currentUser.id : '') ? 'success' : ''"
-                    effect="plain"
-                  >
-                    {{ interviewer.name || interviewer.username }}
-                  </el-tag>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="candidate-actions">
-            <el-button type="primary" size="small" icon="el-icon-phone" @click="showContactInfo" plain>
-              查看候选人联系方式
-            </el-button>
-            <el-button type="info" size="small" icon="el-icon-document" plain>
-              查看简历
-            </el-button>
-          </div>
-        </el-card>
+        <!-- 候选人基本信息 - 使用新组件 -->
+        <interview-basic-info 
+          v-if="interview && interview.candidateName" 
+          :interview="interview" 
+          :current-user="currentUser"
+          @show-contact-info="showContactInfo"
+          @view-resume="viewResume"
+        />
         
         <!-- 候选人联系方式按钮 - 已移动到个人资料卡中 -->
 
@@ -179,7 +114,10 @@
                 </div>
               </div>
               <div v-else>
-                <el-empty description="暂无推荐数据" :image-size="80"></el-empty>
+                <div class="empty-state">
+                  <i class="el-icon-document"></i>
+                  <p>暂无推荐数据</p>
+                </div>
               </div>
             </div>
           </el-card>
@@ -194,7 +132,12 @@
                 <li v-for="(strength, index) in feedbackSummary.key_strengths" :key="index">
                   <i class="el-icon-check" style="color: #67c23a; margin-right: 5px;"></i> {{ strength }}
                 </li>
-                <li v-if="feedbackSummary.key_strengths.length === 0">暂无数据</li>
+                <li v-if="feedbackSummary.key_strengths.length === 0">
+                  <div class="empty-state">
+                    <i class="el-icon-document"></i>
+                    <p>暂无数据</p>
+                  </div>
+                </li>
               </ul>
             </el-card>
             <el-card class="weakness-card">
@@ -205,7 +148,12 @@
                 <li v-for="(weakness, index) in feedbackSummary.key_weaknesses" :key="index">
                   <i class="el-icon-close" style="color: #f56c6c; margin-right: 5px;"></i> {{ weakness }}
                 </li>
-                <li v-if="feedbackSummary.key_weaknesses.length === 0">暂无数据</li>
+                <li v-if="feedbackSummary.key_weaknesses.length === 0">
+                  <div class="empty-state">
+                    <i class="el-icon-document"></i>
+                    <p>暂无数据</p>
+                  </div>
+                </li>
               </ul>
             </el-card>
           </div>
@@ -282,148 +230,11 @@
       </div>
     </el-card>
 
-    <!-- 详细反馈对话框 -->
-    <el-dialog title="反馈详情" :visible.sync="dialogVisible" width="750px">
-      <div v-if="selectedFeedback">
-        <!-- 面试官信息 -->
-        <div class="feedback-interviewer">
-          <h4>
-            <el-avatar :size="28" icon="el-icon-user" style="margin-right: 10px; vertical-align: middle;"></el-avatar>
-            {{ selectedFeedback.interviewer_name || '未知面试官' }} 的反馈
-          </h4>
-          <div class="feedback-stats">
-            <span>
-              综合评分: 
-              <el-rate
-                v-model="selectedFeedback.evaluation_score"
-                disabled
-                show-score
-                text-color="#ff9900"
-              />
-            </span>
-            <span>
-              招聘建议: 
-              <el-tag :type="getRecommendationTagType(selectedFeedback.hiring_recommendation)" effect="dark">
-                {{ getRecommendationText(selectedFeedback.hiring_recommendation) }}
-              </el-tag>
-            </span>
-          </div>
-        </div>
-
-        <!-- 技术评估 -->
-        <el-card class="feedback-detail-card" v-if="selectedFeedback.technical_evaluation">
-          <div slot="header">
-            <span><i class="el-icon-cpu" style="margin-right: 5px;"></i>技术能力评估</span>
-          </div>
-          <description-list :column="3" :border="true">
-            <description-item label="编码能力">
-              <el-rate :value="getEvalValue(selectedFeedback.technical_evaluation, 'coding_ability', 'codingAbility')" disabled />
-            </description-item>
-            <description-item label="问题解决">
-              <el-rate :value="getEvalValue(selectedFeedback.technical_evaluation, 'problem_solving', 'problemSolving')" disabled />
-            </description-item>
-            <description-item label="系统设计">
-              <el-rate :value="getEvalValue(selectedFeedback.technical_evaluation, 'system_design', 'systemDesign')" disabled />
-            </description-item>
-            <description-item label="算法理解">
-              <el-rate :value="getEvalValue(selectedFeedback.technical_evaluation, 'algorithm')" disabled />
-            </description-item>
-            <description-item label="技术深度">
-              <el-rate :value="getEvalValue(selectedFeedback.technical_evaluation, 'knowledge_depth', 'knowledgeDepth')" disabled />
-            </description-item>
-            <description-item label="技术广度">
-              <el-rate :value="getEvalValue(selectedFeedback.technical_evaluation, 'knowledge_breadth', 'knowledgeBreadth')" disabled />
-            </description-item>
-            <description-item :span="3" label="技术评价">
-              <div v-if="selectedFeedback.technical_evaluation.comments">
-                <div v-for="(comment, key) in selectedFeedback.technical_evaluation.comments" :key="key">
-                  <strong>{{ getTechnicalEvaluationLabel(key) }}:</strong> {{ comment }}
-                </div>
-              </div>
-              <div v-else>暂无评价</div>
-            </description-item>
-          </description-list>
-        </el-card>
-
-        <!-- 综合评估 -->
-        <el-card class="feedback-detail-card" v-if="selectedFeedback.comprehensive_evaluation">
-          <div slot="header">
-            <span><i class="el-icon-user" style="margin-right: 5px;"></i>综合能力评估</span>
-          </div>
-          <description-list :column="3" :border="true">
-            <description-item label="沟通能力">
-              <el-rate :value="getEvalValue(selectedFeedback.comprehensive_evaluation, 'communication')" disabled />
-            </description-item>
-            <description-item label="团队协作">
-              <el-rate :value="getEvalValue(selectedFeedback.comprehensive_evaluation, 'teamwork')" disabled />
-            </description-item>
-            <description-item label="学习能力">
-              <el-rate :value="getEvalValue(selectedFeedback.comprehensive_evaluation, 'learning_ability', 'learningAbility')" disabled />
-            </description-item>
-            <description-item label="抗压能力">
-              <el-rate :value="getEvalValue(selectedFeedback.comprehensive_evaluation, 'pressure_handling', 'pressureHandling')" disabled />
-            </description-item>
-            <description-item label="文化契合">
-              <el-rate :value="getEvalValue(selectedFeedback.comprehensive_evaluation, 'cultural_fit', 'culturalFit')" disabled />
-            </description-item>
-            <description-item :span="3" label="综合评价">
-              <div v-if="selectedFeedback.comprehensive_evaluation.comments">
-                <div v-for="(comment, key) in selectedFeedback.comprehensive_evaluation.comments" :key="key">
-                  <strong>{{ getComprehensiveEvaluationLabel(key) }}:</strong> {{ comment }}
-                </div>
-              </div>
-              <div v-else>暂无评价</div>
-            </description-item>
-          </description-list>
-        </el-card>
-
-        <!-- 总体评价 -->
-        <el-card class="feedback-detail-card">
-          <div slot="header">
-            <span><i class="el-icon-document" style="margin-right: 5px;"></i>总体评价</span>
-          </div>
-          <description-list :column="1" :border="true">
-            <description-item label="候选人优势">
-              {{ selectedFeedback.strengths || '暂无记录' }}
-            </description-item>
-            <description-item label="候选人劣势">
-              {{ selectedFeedback.weaknesses || '暂无记录' }}
-            </description-item>
-            <description-item label="总体反馈">
-              {{ selectedFeedback.feedback || '暂无记录' }}
-            </description-item>
-          </description-list>
-        </el-card>
-
-        <!-- 面试准备材料 -->
-        <el-card class="feedback-detail-card" v-if="selectedFeedback.preparation_notes">
-          <div slot="header">
-            <div class="card-header-with-actions">
-              <span><i class="el-icon-notebook-1" style="margin-right: 5px;"></i>面试准备材料</span>
-              <el-button 
-                type="primary" 
-                size="small" 
-                icon="el-icon-view"
-                @click="previewMarkdown(selectedFeedback.preparation_notes)"
-              >
-                预览Markdown
-              </el-button>
-            </div>
-          </div>
-          <pre class="preparation-notes">{{ selectedFeedback.preparation_notes }}</pre>
-        </el-card>
-      </div>
-    </el-dialog>
-
-    <!-- Markdown预览对话框 -->
-    <el-dialog
-      title="面试准备材料预览"
-      :visible.sync="markdownPreviewVisible"
-      width="800px"
-      class="markdown-preview-dialog"
-    >
-      <div class="markdown-content" v-html="markdownHtml"></div>
-    </el-dialog>
+    <!-- 使用新组件替换原来的详细反馈对话框 -->
+    <feedback-detail-dialog
+      :visible.sync="dialogVisible"
+      :feedback="selectedFeedback"
+    />
 
     <!-- 联系方式对话框 -->
     <el-dialog title="联系方式" :visible.sync="contactVisible" width="30%">
@@ -449,11 +260,15 @@
 <script>
 import { mapGetters } from 'vuex'
 import InterviewFeedbackForm from '@/components/InterviewFeedbackForm'
+import InterviewBasicInfo from '@/components/InterviewBasicInfo'
+import FeedbackDetailDialog from '@/components/FeedbackDetailDialog'
 
 export default {
   name: 'InterviewFeedback',
   components: {
-    InterviewFeedbackForm
+    InterviewFeedbackForm,
+    InterviewBasicInfo,
+    FeedbackDetailDialog
   },
   data() {
     return {
@@ -485,8 +300,6 @@ export default {
       showSummary: false,
       dialogVisible: false,
       selectedFeedback: null,
-      markdownPreviewVisible: false,
-      markdownHtml: '',
       contactVisible: false,
       contactLoading: false,
       contactInfo: {}
@@ -642,38 +455,6 @@ export default {
       this.selectedFeedback = feedback
       this.dialogVisible = true
     },
-    previewMarkdown(markdown) {
-      if (!markdown) return
-      
-      // 这里简单处理，实际项目中应该使用markdown-it或marked等库解析markdown
-      // 这里为简单实现，仅做一些基本转换
-      let html = markdown
-        .replace(/\n/g, '<br>')
-        .replace(/^# (.*)/gm, '<h1>$1</h1>')
-        .replace(/^## (.*)/gm, '<h2>$1</h2>')
-        .replace(/^### (.*)/gm, '<h3>$1</h3>')
-        .replace(/^\- (.*)/gm, '<ul><li>$1</li></ul>')
-        .replace(/^\d\. (.*)/gm, '<ol><li>$1</li></ol>')
-      
-      this.markdownHtml = html
-      this.markdownPreviewVisible = true
-    },
-    getInterviewTypeText(type) {
-      const typeMap = {
-        first: '初试',
-        second: '复试',
-        final: '终试'
-      }
-      return typeMap[type] || '面试'
-    },
-    getInterviewTypeTag(type) {
-      const tagMap = {
-        first: 'primary',
-        second: 'success',
-        final: 'warning'
-      }
-      return tagMap[type] || 'info'
-    },
     getRecommendationText(recommendation) {
       const textMap = {
         strong_recommend: '强烈推荐',
@@ -725,26 +506,13 @@ export default {
       }
       return labelMap[key] || key
     },
-    formatDateTime(timestamp) {
-      if (!timestamp) return '-'
-      const date = new Date(timestamp)
-      return date.toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    },
-    getEvalValue(obj, key1, key2) {
-      if (!obj) return 0;
-      if (obj[key1] != null) return obj[key1];
-      if (key2 && obj[key2] != null) return obj[key2];
-      return 0;
-    },
     // 显示联系信息
     showContactInfo() {
       this.contactVisible = true;
+    },
+    viewResume() {
+      // 查看简历功能，可根据实际需求实现
+      this.$message.info('查看简历功能待实现')
     }
   }
 }
@@ -770,222 +538,6 @@ export default {
       font-size: 18px;
       font-weight: 600;
       color: #303133;
-    }
-  }
-}
-
-.candidate-profile-card {
-  margin-bottom: 24px;
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  background-color: #ffffff;
-  border: none;
-  
-  &:hover {
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.15);
-    transform: translateY(-3px);
-  }
-  
-  ::v-deep .el-card__body {
-    padding: 0;
-  }
-}
-
-.candidate-profile-header {
-  display: flex;
-  align-items: center;
-  padding: 28px;
-  background: linear-gradient(120deg, #1a73e8 0%, #3b9fe6 100%);
-  color: white;
-  position: relative;
-  overflow: hidden;
-  
-  &:before {
-    content: "";
-    position: absolute;
-    top: -50%;
-    right: -50%;
-    width: 100%;
-    height: 200%;
-    background: rgba(255, 255, 255, 0.1);
-    transform: rotate(25deg);
-    pointer-events: none;
-  }
-  
-  .candidate-avatar {
-    margin-right: 28px;
-    position: relative;
-    z-index: 1;
-    
-    ::v-deep .el-avatar {
-      border: 4px solid rgba(255, 255, 255, 0.8);
-      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-      transition: all 0.3s;
-      
-      &:hover {
-        transform: scale(1.05);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
-      }
-    }
-  }
-  
-  .candidate-main-info {
-    position: relative;
-    z-index: 1;
-    
-    .candidate-name {
-      margin-bottom: 10px;
-      font-size: 24px;
-      font-weight: 600;
-      color: white;
-      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    }
-    
-    .candidate-position {
-      margin-bottom: 14px;
-      font-size: 16px;
-      color: rgba(255, 255, 255, 0.95);
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      
-      i {
-        margin-right: 8px;
-      }
-    }
-    
-    .interview-type {
-      margin-top: 10px;
-      
-      ::v-deep .el-tag {
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        padding: 6px 12px;
-        font-weight: 500;
-        letter-spacing: 0.5px;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-        transition: all 0.3s;
-        
-        &:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-      }
-    }
-  }
-}
-
-.el-divider {
-  margin: 0;
-  
-  ::v-deep .el-divider__text {
-    background-color: #f5f7fa;
-    padding: 8px 20px;
-    font-weight: 600;
-    color: #606266;
-    border-radius: 20px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
-    font-size: 15px;
-  }
-}
-
-.candidate-details {
-  margin: 24px;
-  
-  .detail-item {
-    margin-bottom: 20px;
-    display: flex;
-    align-items: flex-start;
-    transition: all 0.3s;
-    padding: 12px;
-    border-radius: 8px;
-    
-    &:hover {
-      background-color: #f9fafc;
-      transform: translateX(5px);
-    }
-    
-    &:last-child {
-      margin-bottom: 0;
-    }
-    
-    .detail-icon {
-      margin-right: 16px;
-      color: #409eff;
-      background-color: rgba(64, 158, 255, 0.1);
-      border-radius: 50%;
-      padding: 10px;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      transition: all 0.3s;
-      
-      &:hover {
-        transform: rotate(15deg);
-        background-color: rgba(64, 158, 255, 0.2);
-      }
-    }
-    
-    .detail-content {
-      flex: 1;
-      
-      .detail-label {
-        margin-bottom: 6px;
-        font-size: 14px;
-        color: #909399;
-        font-weight: 500;
-      }
-      
-      .detail-value {
-        font-size: 15px;
-        color: #303133;
-        font-weight: 500;
-      }
-    }
-  }
-}
-
-.interviewers-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  
-  .interviewer-tag {
-    margin: 3px;
-    border-radius: 20px;
-    transition: all 0.3s;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-  }
-}
-
-.candidate-actions {
-  display: flex;
-  justify-content: flex-end;
-  background-color: #f5f7fa;
-  padding: 16px 24px;
-  gap: 12px;
-  border-top: 1px solid #ebeef5;
-  
-  .el-button {
-    transition: all 0.3s ease;
-    border-radius: 8px;
-    padding: 10px 20px;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-    
-    i {
-      margin-right: 6px;
-      font-size: 16px;
     }
   }
 }
@@ -1445,6 +997,27 @@ ul {
     margin: 16px 0;
     padding-bottom: 10px;
     border-bottom: 1px solid #ebeef5;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 20px;
+  background-color: #fafafa;
+  border-radius: 8px;
+  margin: 10px 0;
+  
+  i {
+    font-size: 48px;
+    color: #c0c4cc;
+    margin-bottom: 16px;
+    display: block;
+  }
+  
+  p {
+    font-size: 14px;
+    color: #909399;
+    margin: 0;
   }
 }
 </style> 

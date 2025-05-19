@@ -534,7 +534,6 @@ export default {
       'createInterviews',
       'updateInterview',
       'deleteInterview',
-      'checkTimeConflict',
       'getInterviewerList'
     ]),
     ...mapActions('resume', [
@@ -639,17 +638,6 @@ export default {
       try {
         await this.$refs.interviewForm.validate()
         
-        // 检查时间冲突
-        const hasConflict = await this.checkTimeConflict({
-          time: this.interviewForm.time,
-          interviewers: this.interviewForm.interviewers
-        })
-        
-        if (hasConflict) {
-          this.$message.warning('所选时间与面试官其他面试时间冲突，请重新选择')
-          return
-        }
-
         this.submitting = true
         
         if (this.dialogType === 'add') {
@@ -668,7 +656,16 @@ export default {
         this.getList()
       } catch (error) {
         console.error('提交表单失败:', error)
-        this.$message.error('提交表单失败')
+        if (error.response && error.response.data && error.response.data.detail) {
+          const detail = error.response.data.detail
+          if (typeof detail === 'object' && detail.message === '面试时间冲突') {
+            this.$message.error(detail.details || '面试官在该时间段已有其他面试安排，请选择其他时间')
+          } else {
+            this.$message.error(detail)
+          }
+        } else {
+          this.$message.error('提交表单失败')
+        }
       } finally {
         this.submitting = false
       }
