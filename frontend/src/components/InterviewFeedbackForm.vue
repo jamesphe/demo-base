@@ -1,201 +1,104 @@
 <template>
   <div class="interview-feedback-form">
+    <!-- 顶部标题栏 -->
+    <div class="page-header">
+      <div class="title">
+        <i class="el-icon-document"></i> 面试记录
+      </div>
+      <div class="header-actions">
+        <el-button type="primary" icon="el-icon-back" size="medium" @click="goBack">返回汇总页面</el-button>
+      </div>
+    </div>
+
+    <!-- 顶部按钮栏 -->
+    <div class="action-toolbar">
+      <div class="action-buttons">
+        <el-button size="small" icon="el-icon-time" @click="addTimestamp">添加时间戳</el-button>
+        <el-button size="small" icon="el-icon-star-on" @click="saveKeyPoint">记录关键点</el-button>
+        <el-button size="small" icon="el-icon-document" @click="recordQuestion">记录题目不足</el-button>
+        <el-button size="small" icon="el-icon-mic" @click="recordDifficulity">记录难题</el-button>
+      </div>
+      <div class="timer-control">
+        <span class="timer">{{ formatTime(recordingTime) }}</span>
+        <el-button v-if="!isRecording" type="primary" size="small" icon="el-icon-video-play" @click="startRecording">开始</el-button>
+        <el-button v-else type="danger" size="small" icon="el-icon-video-pause" @click="stopRecording">停止</el-button>
+      </div>
+    </div>
+
     <el-form
       ref="feedbackForm"
       :model="feedbackForm"
       :rules="feedbackRules"
-      label-width="120px"
+      label-width="0"
     >
-      <!-- 技术能力评估 -->
-      <el-card class="feedback-card">
-        <div slot="header">
-          <span>技术能力评估</span>
-        </div>
-        <el-form-item label="编码能力" prop="technical_evaluation.coding_ability">
-          <el-rate
-            v-model="feedbackForm.technical_evaluation.coding_ability"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="问题解决" prop="technical_evaluation.problem_solving">
-          <el-rate
-            v-model="feedbackForm.technical_evaluation.problem_solving"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="系统设计" prop="technical_evaluation.system_design">
-          <el-rate
-            v-model="feedbackForm.technical_evaluation.system_design"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="算法理解" prop="technical_evaluation.algorithm_understanding">
-          <el-rate
-            v-model="feedbackForm.technical_evaluation.algorithm_understanding"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="技术深度" prop="technical_evaluation.knowledge_depth">
-          <el-rate
-            v-model="feedbackForm.technical_evaluation.knowledge_depth"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="技术广度" prop="technical_evaluation.knowledge_breadth">
-          <el-rate
-            v-model="feedbackForm.technical_evaluation.knowledge_breadth"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="技术评价" prop="technical_evaluation.comments">
-          <el-input
-            type="textarea"
-            :rows="3"
-            placeholder="请详细评价候选人的技术能力"
-            v-model="feedbackForm.technical_evaluation.comments"
-          />
-        </el-form-item>
-      </el-card>
+      <!-- 面试记录文本框 -->
+      <el-form-item prop="process_record">
+        <el-input
+          type="textarea"
+          :rows="12"
+          placeholder="在此记录面试过程中的问题与答案..."
+          v-model="feedbackForm.process_record"
+          class="record-textarea"
+        />
+      </el-form-item>
 
-      <!-- 综合能力评估 -->
-      <el-card class="feedback-card">
-        <div slot="header">
-          <span>综合能力评估</span>
+      <!-- 快速评分 -->
+      <div class="quick-scores-section">
+        <div class="section-title">快速评分</div>
+        <div class="score-items">
+          <div class="score-item">
+            <div class="score-label">技术能力</div>
+            <el-rate v-model="feedbackForm.technical_evaluation.coding_ability" :max="5" />
+          </div>
+          <div class="score-item">
+            <div class="score-label">沟通能力</div>
+            <el-rate v-model="feedbackForm.comprehensive_evaluation.communication" :max="5" />
+          </div>
+          <div class="score-item">
+            <div class="score-label">解决问题</div>
+            <el-rate v-model="feedbackForm.technical_evaluation.problem_solving" :max="5" />
+          </div>
+          <div class="score-item">
+            <div class="score-label">文化契合</div>
+            <el-rate v-model="feedbackForm.comprehensive_evaluation.culture_fit" :max="5" />
+          </div>
+          <div class="score-item">
+            <div class="score-label">综合评价</div>
+            <el-rate v-model="feedbackForm.evaluation_score" :max="5" />
+          </div>
         </div>
-        <el-form-item label="沟通能力" prop="comprehensive_evaluation.communication">
-          <el-rate
-            v-model="feedbackForm.comprehensive_evaluation.communication"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="团队协作" prop="comprehensive_evaluation.teamwork">
-          <el-rate
-            v-model="feedbackForm.comprehensive_evaluation.teamwork"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="学习能力" prop="comprehensive_evaluation.learning_ability">
-          <el-rate
-            v-model="feedbackForm.comprehensive_evaluation.learning_ability"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="抗压能力" prop="comprehensive_evaluation.pressure_handling">
-          <el-rate
-            v-model="feedbackForm.comprehensive_evaluation.pressure_handling"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="文化契合" prop="comprehensive_evaluation.culture_fit">
-          <el-rate
-            v-model="feedbackForm.comprehensive_evaluation.culture_fit"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="综合评价" prop="comprehensive_evaluation.comments">
-          <el-input
-            type="textarea"
-            :rows="3"
-            placeholder="请详细评价候选人的综合素质"
-            v-model="feedbackForm.comprehensive_evaluation.comments"
-          />
-        </el-form-item>
-      </el-card>
+      </div>
 
-      <!-- 总体评价 -->
-      <el-card class="feedback-card">
-        <div slot="header">
-          <span>总体评价</span>
-        </div>
-        <el-form-item label="综合得分" prop="evaluation_score">
-          <el-rate
-            v-model="feedbackForm.evaluation_score"
-            :max="5"
-            show-score
-            text-color="#ff9900"
-          />
-        </el-form-item>
-        <el-form-item label="候选人优势" prop="strengths">
-          <el-input
-            type="textarea"
-            :rows="3"
-            placeholder="请列出候选人的主要优势，多个优势用逗号分隔"
-            v-model="feedbackForm.strengths"
-          />
-        </el-form-item>
-        <el-form-item label="候选人劣势" prop="weaknesses">
-          <el-input
-            type="textarea"
-            :rows="3"
-            placeholder="请列出候选人的主要劣势，多个劣势用逗号分隔"
-            v-model="feedbackForm.weaknesses"
-          />
-        </el-form-item>
-        <el-form-item label="招聘建议" prop="hiring_recommendation">
-          <el-select v-model="feedbackForm.hiring_recommendation" placeholder="请选择招聘建议">
-            <el-option label="强烈推荐" value="strong_recommend" />
-            <el-option label="推荐" value="recommend" />
-            <el-option label="中立" value="neutral" />
-            <el-option label="不推荐" value="not_recommend" />
-            <el-option label="强烈不推荐" value="strong_not_recommend" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="总体反馈" prop="feedback">
-          <el-input
-            type="textarea"
-            :rows="4"
-            placeholder="请提供详细的面试总结和招聘建议"
-            v-model="feedbackForm.feedback"
-          />
-        </el-form-item>
-      </el-card>
-
-      <!-- 面试准备材料 -->
-      <el-card class="feedback-card">
-        <div slot="header">
-          <span>面试准备材料</span>
-        </div>
-        <el-form-item label="准备笔记" prop="preparation_notes">
+      <!-- 面试总结 -->
+      <div class="summary-section">
+        <div class="section-title">面试总结</div>
+        <el-form-item prop="feedback">
           <el-input
             type="textarea"
             :rows="6"
-            placeholder="面试准备材料，支持Markdown格式"
-            v-model="feedbackForm.preparation_notes"
+            placeholder="请总结候选人的整体表现，优势，劣势..."
+            v-model="feedbackForm.feedback"
           />
         </el-form-item>
-        <div class="form-actions">
-          <el-button type="primary" size="small" @click="generatePreparationNotes">
-            AI生成面试准备材料
-          </el-button>
-        </div>
-      </el-card>
+      </div>
+
+      <!-- 招聘建议 -->
+      <div class="recommendation-section">
+        <div class="section-title">招聘建议</div>
+        <el-form-item prop="hiring_recommendation">
+          <div class="recommendation-options">
+            <el-radio v-model="feedbackForm.hiring_recommendation" label="strong_recommend">强烈推荐</el-radio>
+            <el-radio v-model="feedbackForm.hiring_recommendation" label="recommend">推荐</el-radio>
+            <el-radio v-model="feedbackForm.hiring_recommendation" label="neutral">中立</el-radio>
+            <el-radio v-model="feedbackForm.hiring_recommendation" label="not_recommend">不推荐</el-radio>
+            <el-radio v-model="feedbackForm.hiring_recommendation" label="strong_not_recommend">强烈不推荐</el-radio>
+          </div>
+        </el-form-item>
+      </div>
 
       <!-- 提交按钮 -->
       <div class="form-actions">
-        <el-button @click="handleCancel">取 消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">提 交</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="submitting">提交面试记录</el-button>
       </div>
     </el-form>
   </div>
@@ -232,6 +135,7 @@ export default {
       feedbackForm: {
         interview_id: null,
         interviewer_id: null,
+        process_record: '',
         technical_evaluation: {
           coding_ability: 0,
           problem_solving: 0,
@@ -239,7 +143,10 @@ export default {
           algorithm_understanding: 0,
           knowledge_depth: 0,
           knowledge_breadth: 0,
-          comments: ''
+          comments: {
+            codingAbility: '',
+            problemSolving: ''
+          }
         },
         comprehensive_evaluation: {
           communication: 0,
@@ -247,7 +154,10 @@ export default {
           learning_ability: 0,
           pressure_handling: 0,
           culture_fit: 0,
-          comments: ''
+          comments: {
+            communication: '',
+            culturalFit: ''
+          }
         },
         evaluation_score: 0,
         strengths: '',
@@ -256,15 +166,18 @@ export default {
         feedback: '',
         preparation_notes: ''
       },
+      timer: null,
+      recordingTime: 0,
+      isRecording: false,
       feedbackRules: {
+        process_record: [
+          { required: true, message: '请填写面试记录', trigger: 'blur' }
+        ],
         evaluation_score: [
           { required: true, message: '请给出综合得分', trigger: 'change' }
         ],
         hiring_recommendation: [
           { required: true, message: '请选择招聘建议', trigger: 'change' }
-        ],
-        feedback: [
-          { required: true, message: '请填写总体反馈', trigger: 'blur' }
         ]
       }
     }
@@ -273,6 +186,50 @@ export default {
     this.initFormData()
   },
   methods: {
+    // 确保值是字符串类型
+    ensureString(value) {
+      if (value === undefined || value === null) return ''
+      if (typeof value === 'string') return value
+      if (typeof value === 'object') return JSON.stringify(value)
+      return String(value)
+    },
+    
+    // 确保值是数字类型
+    ensureNumber(value) {
+      if (value === undefined || value === null) return 0
+      if (typeof value === 'number') return value
+      if (typeof value === 'string') {
+        const num = parseFloat(value)
+        return isNaN(num) ? 0 : num
+      }
+      return 0
+    },
+    
+    // 初始化comments对象
+    ensureCommentsObject(commentsObj, defaultFields) {
+      if (!commentsObj || typeof commentsObj !== 'object') {
+        return defaultFields
+      }
+      
+      // 如果comments是字符串类型，尝试转换为对象
+      if (typeof commentsObj === 'string') {
+        try {
+          const parsed = JSON.parse(commentsObj)
+          if (typeof parsed === 'object') {
+            // 确保有所有必要的字段
+            return { ...defaultFields, ...parsed }
+          }
+        } catch (e) {
+          // 如果解析失败，返回默认对象
+          console.warn('无法解析comments字符串:', commentsObj)
+          return defaultFields
+        }
+      }
+      
+      // 确保有所有必要的字段
+      return { ...defaultFields, ...commentsObj }
+    },
+    
     initFormData() {
       // 设置面试和面试官ID
       this.feedbackForm.interview_id = this.interview.id
@@ -280,29 +237,54 @@ export default {
 
       // 如果有现有的反馈数据，填充表单
       if (this.existingFeedback) {
-        // 复制评估数据
-        this.feedbackForm.evaluation_score = this.existingFeedback.evaluation_score || 0
-        this.feedbackForm.strengths = this.existingFeedback.strengths || ''
-        this.feedbackForm.weaknesses = this.existingFeedback.weaknesses || ''
-        this.feedbackForm.hiring_recommendation = this.existingFeedback.hiring_recommendation || ''
-        this.feedbackForm.feedback = this.existingFeedback.feedback || ''
-
-        // 复制技术评估
+        // 复制评估数据 - 确保类型正确
+        this.feedbackForm.evaluation_score = this.ensureNumber(this.existingFeedback.evaluation_score)
+        this.feedbackForm.strengths = this.ensureString(this.existingFeedback.strengths)
+        this.feedbackForm.weaknesses = this.ensureString(this.existingFeedback.weaknesses)
+        this.feedbackForm.hiring_recommendation = this.ensureString(this.existingFeedback.hiring_recommendation)
+        this.feedbackForm.feedback = this.ensureString(this.existingFeedback.feedback)
+        this.feedbackForm.preparation_notes = this.ensureString(this.existingFeedback.preparation_notes)
+        this.feedbackForm.process_record = this.ensureString(this.existingFeedback.process_record || '')
+        
+        // 复制技术评估 - 确保类型正确
         if (this.existingFeedback.technical_evaluation) {
-          Object.keys(this.feedbackForm.technical_evaluation).forEach(key => {
-            if (this.existingFeedback.technical_evaluation[key] !== undefined) {
-              this.feedbackForm.technical_evaluation[key] = this.existingFeedback.technical_evaluation[key]
-            }
-          })
+          const techEval = this.existingFeedback.technical_evaluation
+          
+          // 确保数值字段是数字
+          this.feedbackForm.technical_evaluation.coding_ability = this.ensureNumber(techEval.coding_ability)
+          this.feedbackForm.technical_evaluation.problem_solving = this.ensureNumber(techEval.problem_solving)
+          this.feedbackForm.technical_evaluation.system_design = this.ensureNumber(techEval.system_design)
+          this.feedbackForm.technical_evaluation.algorithm_understanding = this.ensureNumber(techEval.algorithm_understanding)
+          this.feedbackForm.technical_evaluation.knowledge_depth = this.ensureNumber(techEval.knowledge_depth)
+          this.feedbackForm.technical_evaluation.knowledge_breadth = this.ensureNumber(techEval.knowledge_breadth)
+          
+          // 确保comments字段是对象
+          const defaultTechComments = { 
+            codingAbility: '', 
+            problemSolving: '' 
+          }
+          this.feedbackForm.technical_evaluation.comments = 
+            this.ensureCommentsObject(techEval.comments, defaultTechComments)
         }
 
-        // 复制综合评估
+        // 复制综合评估 - 确保类型正确
         if (this.existingFeedback.comprehensive_evaluation) {
-          Object.keys(this.feedbackForm.comprehensive_evaluation).forEach(key => {
-            if (this.existingFeedback.comprehensive_evaluation[key] !== undefined) {
-              this.feedbackForm.comprehensive_evaluation[key] = this.existingFeedback.comprehensive_evaluation[key]
-            }
-          })
+          const compEval = this.existingFeedback.comprehensive_evaluation
+          
+          // 确保数值字段是数字
+          this.feedbackForm.comprehensive_evaluation.communication = this.ensureNumber(compEval.communication)
+          this.feedbackForm.comprehensive_evaluation.teamwork = this.ensureNumber(compEval.teamwork)
+          this.feedbackForm.comprehensive_evaluation.learning_ability = this.ensureNumber(compEval.learning_ability)
+          this.feedbackForm.comprehensive_evaluation.pressure_handling = this.ensureNumber(compEval.pressure_handling)
+          this.feedbackForm.comprehensive_evaluation.culture_fit = this.ensureNumber(compEval.culture_fit)
+          
+          // 确保comments字段是对象
+          const defaultCompComments = { 
+            communication: '', 
+            culturalFit: '' 
+          }
+          this.feedbackForm.comprehensive_evaluation.comments = 
+            this.ensureCommentsObject(compEval.comments, defaultCompComments)
         }
       }
     },
@@ -321,74 +303,60 @@ export default {
       this.$refs.feedbackForm.resetFields()
       this.initFormData()
     },
-    async generatePreparationNotes() {
-      try {
-        this.$confirm('确定要使用AI生成面试准备材料吗？', '提示', {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'info'
-        }).then(async () => {
-          this.$message({
-            type: 'info',
-            message: '正在生成准备材料...'
-          });
-          
-          // 这里可以调用后端API生成面试准备材料
-          // 简单模拟一下AI生成过程
-          setTimeout(() => {
-            const candidateName = this.interview.candidateName || '候选人';
-            const position = this.interview.candidatePosition || '该职位';
-            
-            this.feedbackForm.preparation_notes = 
-`# ${candidateName}面试准备材料
-
-## 职位要求分析
-- 分析${position}所需的关键技能和经验
-- 准备针对性的技术问题
-- 关注候选人简历中的技能匹配度
-
-## 技术评估要点
-1. 编码能力评估
-   - 算法基础
-   - 代码质量和规范
-   - 问题解决思路
-
-2. 系统设计能力
-   - 架构设计原则
-   - 性能和可扩展性考量
-   - 微服务vs单体应用的权衡
-
-3. 技术广度和深度
-   - 对技术栈的熟悉程度
-   - 对新技术的学习能力
-   - 技术选型的判断力
-
-## 行为面试问题
-- 描述一个您克服的技术挑战
-- 如何处理项目中的冲突
-- 团队协作经历分享
-
-## 候选人背景调研
-- 之前公司的技术栈和项目规模
-- 行业经验和领域知识
-- 职业发展轨迹分析
-
-## 准备的问题清单
-1. 技术问题：...
-2. 项目经验问题：...
-3. 团队协作问题：...
-4. 职业发展问题：...`;
-            
-            this.$message({
-              type: 'success',
-              message: '面试准备材料生成成功'
-            });
-          }, 1500);
-        });
-      } catch (error) {
-        console.error('生成准备材料失败:', error);
-        this.$message.error('生成准备材料失败');
+    // 添加时间戳
+    addTimestamp() {
+      const now = new Date()
+      const timestamp = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
+      this.feedbackForm.process_record += `\n[${timestamp}] `
+    },
+    
+    // 记录关键点
+    saveKeyPoint() {
+      this.feedbackForm.process_record += '\n【关键点】 '
+    },
+    
+    // 记录面试题目
+    recordQuestion() {
+      this.feedbackForm.process_record += '\n【题目不足】 '
+    },
+    
+    // 记录难题
+    recordDifficulity() {
+      this.feedbackForm.process_record += '\n【难题】 '
+    },
+    
+    // 开始记录
+    startRecording() {
+      if (!this.isRecording) {
+        this.isRecording = true
+        this.recordingTime = 0
+        this.timer = setInterval(() => {
+          this.recordingTime++
+        }, 1000)
       }
+    },
+    
+    // 停止记录
+    stopRecording() {
+      if (this.isRecording) {
+        this.isRecording = false
+        clearInterval(this.timer)
+      }
+    },
+    
+    // 格式化时间
+    formatTime(seconds) {
+      const hours = Math.floor(seconds / 3600)
+      const minutes = Math.floor((seconds % 3600) / 60)
+      const secs = seconds % 60
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    },
+    
+    // 返回上一页
+    goBack() {
+      this.$emit('back')
+      // 或者使用路由返回
+      // this.$router.back()
     }
   }
 }
@@ -396,37 +364,133 @@ export default {
 
 <style lang="scss" scoped>
 .interview-feedback-form {
-  .feedback-card {
-    margin-bottom: 20px;
+  background-color: #f5f7fa;
+  min-height: 100vh;
+  padding: 0 0 20px 0;
+  
+  .page-header {
+    background-color: white;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     
-    ::v-deep .el-card__header {
-      padding: 15px 20px;
+    .title {
+      font-size: 18px;
       font-weight: 500;
-      background-color: #f5f7fa;
-    }
-    
-    ::v-deep .el-form-item {
-      margin-bottom: 22px;
+      color: #303133;
       
-      &:last-child {
-        margin-bottom: 0;
+      i {
+        margin-right: 5px;
       }
     }
+    
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      
+      .el-button {
+        font-weight: 500;
+        padding: 10px 15px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+  
+  .action-toolbar {
+    background-color: white;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .timer-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      
+      .timer {
+        font-family: monospace;
+        font-size: 18px;
+        background: #f0f9eb;
+        padding: 5px 10px;
+        border-radius: 4px;
+        min-width: 80px;
+        text-align: center;
+      }
+    }
+  }
+  
+  .record-textarea {
+    margin-bottom: 15px;
+    
+    ::v-deep .el-textarea__inner {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      background-color: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+  }
+  
+  .section-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: #303133;
+    margin-bottom: 15px;
+    padding-left: 10px;
+    border-left: 3px solid #409EFF;
+  }
+  
+  .quick-scores-section, .summary-section, .recommendation-section {
+    background-color: white;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  }
+  
+  .score-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 30px;
+    
+    .score-item {
+      flex-basis: calc(20% - 30px);
+      min-width: 150px;
+      
+      .score-label {
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #606266;
+      }
+    }
+  }
+  
+  .recommendation-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 10px;
   }
   
   .form-actions {
     text-align: center;
     margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid #ebeef5;
     
     .el-button {
-      min-width: 120px;
+      min-width: 150px;
     }
   }
-  
-  ::v-deep .el-rate {
-    margin-top: 8px;
-  }
 }
-</style> 
+</style>

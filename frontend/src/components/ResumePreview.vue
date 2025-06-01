@@ -364,7 +364,7 @@ export default {
   
   ::v-deep .el-dialog__headerbtn {
     top: 15px;
-    right: 15px;
+    right: 25px;
     font-size: 18px;
     z-index: 10;
   }
@@ -389,6 +389,7 @@ export default {
       margin-left: auto;
       display: flex;
       align-items: center;
+      margin-right: 40px;
       
       .action-button {
         display: flex;
@@ -397,7 +398,7 @@ export default {
         width: 32px;
         height: 32px;
         border-radius: 4px;
-        margin-left: 8px;
+        margin-left: 16px;
         background-color: #f5f7fa;
         cursor: pointer;
         transition: all 0.3s;

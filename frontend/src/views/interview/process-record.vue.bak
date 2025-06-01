@@ -32,8 +32,28 @@
               结束面试
             </el-button>
           </div>
+          <el-divider direction="vertical"></el-divider>
+          <el-button 
+            type="primary" 
+            size="small" 
+            icon="el-icon-document-copy"
+            @click="saveDraft"
+            :disabled="!isFormModified"
+          >
+            保存草稿
+          </el-button>
+          <el-button
+            type="success"
+            size="small"
+            icon="el-icon-check"
+            @click="submitRecord"
+            :disabled="!hasFormContent"
+          >
+            完成记录
+          </el-button>
         </div>
       </div>
+
       <div v-loading="loading">
         <!-- 候选人基本信息 -->
         <interview-basic-info 
@@ -51,7 +71,9 @@
             </el-button>
           </template>
         </interview-basic-info>
+
         <el-divider content-position="center">面试过程</el-divider>
+
         <!-- 两栏布局：左侧记录区，右侧面试指导 -->
         <el-row :gutter="0" class="interview-content-row">
           <!-- 左侧记录区 -->
@@ -59,6 +81,7 @@
             <div class="column-title">
               <i class="el-icon-edit"></i> 面试记录
             </div>
+            
             <!-- 面试记录工具栏 -->
             <div class="record-toolbar">
               <el-button-group>
@@ -67,6 +90,7 @@
                 <el-button size="small" icon="el-icon-warning-outline" @click="addSection('不足')">记录不足</el-button>
                 <el-button size="small" icon="el-icon-question" @click="addSection('疑问')">记录疑问</el-button>
               </el-button-group>
+              
               <div class="timer-section">
                 <i class="el-icon-time"></i>
                 <span class="timer">{{ formatTime(elapsedTime) }}</span>
@@ -90,6 +114,7 @@
                 </el-button>
               </div>
             </div>
+
             <!-- 使用评估表单组件替代原来的直接嵌入表单 -->
             <interview-evaluation-form
               ref="evaluationForm"
@@ -99,16 +124,19 @@
               :current-user="currentUser"
               @content-change="handleFormContentChange"
               @rating-change="handleFormContentChange"
+              
               @submit-record-success="handleSubmitSuccess"
               @save-draft-success="isFormModified = false"
               @loading-change="loading = $event"
               @go-back="$router.back()"
             />
           </el-col>
+          
           <!-- 可拖动分隔线 -->
           <el-tooltip content="拖动调整宽度" placement="top" :open-delay="500" :enterable="false">
             <div class="resizer" @mousedown="startResize" :class="{ 'active': isResizing }"></div>
           </el-tooltip>
+          
           <!-- 右侧面试准备内容 -->
           <el-col :span="24 - leftColSpan" class="guide-column">
             <div class="column-title">
@@ -117,6 +145,7 @@
                 <i class="el-icon-success"></i> AI生成
               </el-tag>
             </div>
+            
             <div v-loading="preparationInfo.loading" class="preparation-notes-container">
               <div class="preparation-scroll-area">
                 <div v-if="preparationInfo.preparation_notes" class="preparation-notes">
@@ -133,6 +162,7 @@
                   </div>
                   <div v-html="formattedPreparationNotes" class="preparation-content"></div>
                 </div>
+                
                 <div v-else class="no-preparation-notes">
                   <i class="el-icon-document" style="font-size: 48px; color: #DCDFE6; margin-bottom: 15px;"></i>
                   <div class="empty-tip">
@@ -140,6 +170,7 @@
                     <p>您可以在面试准备页面生成面试指导内容</p>
                   </div>
                 </div>
+                
                 <!-- 关注点列表 -->
                 <div v-if="preparationInfo.focus_points && preparationInfo.focus_points.length > 0" class="focus-points-container">
                   <h4>关注点</h4>
@@ -154,6 +185,7 @@
                   </el-tag>
                 </div>
               </div>
+              
               <!-- 底部操作栏 -->
               <div class="preparation-actions">
                 <el-button 
@@ -170,6 +202,7 @@
         </el-row>
       </div>
     </el-card>
+
     <!-- 保存成功对话框 -->
     <el-dialog
       title="保存成功"
@@ -185,6 +218,7 @@
         <el-button type="primary" @click="handleSaveSuccess">确定</el-button>
       </span>
     </el-dialog>
+    
     <!-- 全屏查看面试指导对话框 -->
     <el-dialog
       title="面试准备指导"
@@ -211,12 +245,14 @@
     </el-dialog>
   </div>
 </template>
+
 <script>
-import { getInterviewDetail, getInterviewPreparation, updateInterviewStatus } from '@/api/interview'
+import { getInterviewDetail, submitInterviewerFeedback, getInterviewPreparation, updateInterviewStatus } from '@/api/interview'
 import { parseTime } from '@/utils'
 import MarkdownIt from 'markdown-it'
 import InterviewEvaluationForm from '@/components/Interview/InterviewEvaluationForm'
 import InterviewBasicInfo from '@/components/InterviewBasicInfo'
+
 export default {
   name: 'InterviewProcessRecord',
   components: {
@@ -309,10 +345,19 @@ export default {
       }
     },
     hasFormContent() {
+      console.log('开始检查表单内容是否为空');
       if (!this.$refs.evaluationForm) {
+        console.error('未找到评估表单引用');
         return false;
       }
-      return this.$refs.evaluationForm.hasContent();
+      const formData = this.$refs.evaluationForm.getFormData();
+      console.log('获取到的表单数据:', formData);
+      return (
+        formData.process_record.trim() !== '' ||
+        formData.summary.trim() !== '' ||
+        formData.strengths.trim() !== '' ||
+        formData.weaknesses.trim() !== ''
+      );
     },
     formattedPreparationNotes() {
       if (!this.preparationInfo.preparation_notes) return ''
@@ -333,6 +378,7 @@ export default {
     document.addEventListener('mousemove', this.resize)
     document.addEventListener('mouseup', this.endResize)
     document.documentElement.style.setProperty('--left-col-span', this.leftColSpan)
+    
     this.$nextTick(() => {
       this.updateScrollAreaHeight()
       window.addEventListener('resize', this.updateScrollAreaHeight)
@@ -353,9 +399,12 @@ export default {
           this.$message.error('未找到面试ID')
           return
         }
+
         const response = await getInterviewDetail(interviewId)
+        
         if (response) {
           const data = response
+          
           this.interview = {
             id: data.id,
             candidateName: data.resume?.name || '未知候选人',
@@ -366,10 +415,12 @@ export default {
             interviewers: data.interviewers || [],
             status: data.status || 'scheduled'
           }
+          
           this.fetchInterviewPreparation(interviewId)
         } else {
           this.$message.error('无法获取面试详情')
         }
+        
         if (this.interview.status === 'in_progress') {
           this.startTimer()
         }
@@ -384,6 +435,7 @@ export default {
       this.preparationInfo.loading = true
       try {
         const response = await getInterviewPreparation(interviewId)
+        
         if (response) {
           this.preparationInfo = {
             ...this.preparationInfo,
@@ -404,9 +456,11 @@ export default {
       if (!timestamp) {
         return '暂无数据'
       }
+      
       if (typeof timestamp === 'string' && timestamp.includes('NaN')) {
         return timestamp
       }
+      
       try {
         if (typeof timestamp === 'string' && timestamp.includes('T')) {
           const date = new Date(timestamp)
@@ -416,12 +470,14 @@ export default {
             const day = String(date.getDate()).padStart(2, '0')
             const hours = String(date.getHours()).padStart(2, '0')
             const minutes = String(date.getMinutes()).padStart(2, '0')
+            
             const formattedTime = `${year}-${month}-${day} ${hours}:${minutes}`
             return formattedTime
           } else {
             return timestamp
           }
         }
+        
         const result = parseTime(timestamp, '{y}-{m}-{d} {h}:{i}')
         return result || timestamp
       } catch (error) {
@@ -446,6 +502,7 @@ export default {
     },
     startTimer() {
       if (this.timerRunning) return
+      
       this.timerRunning = true
       this.timerInterval = setInterval(() => {
         this.elapsedTime += 1
@@ -466,11 +523,13 @@ export default {
       const hours = Math.floor(seconds / 3600)
       const minutes = Math.floor((seconds % 3600) / 60)
       const secs = seconds % 60
+      
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
     },
     addTimestamp() {
       const now = new Date()
       const timestamp = `[${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}] `
+      
       this.insertAtCursor(timestamp)
     },
     addSection(sectionName) {
@@ -479,35 +538,44 @@ export default {
     },
     insertAtCursor(text) {
       if (!this.$refs.evaluationForm) return
+      
       // 获取当前表单数据
       const formData = this.$refs.evaluationForm.getFormData()
       let processRecord = formData.process_record
+      
       // 找到文本域元素
       const textarea = document.querySelector('.record-content textarea')
       if (!textarea) {
         // 如果找不到元素，直接追加文本
         processRecord += text
+        
         // 更新表单数据
         this.$refs.evaluationForm.setFormData({
           processRecord: processRecord
         })
+        
         this.isFormModified = true
         return
       }
+      
       // 获取光标位置
       const start = textarea.selectionStart
       const end = textarea.selectionEnd
+      
       // 在光标位置插入文本
       const newText = processRecord.substring(0, start) + text + processRecord.substring(end)
+      
       // 更新表单数据
       this.$refs.evaluationForm.setFormData({
         processRecord: newText
       })
+      
       // 更新光标位置
       this.$nextTick(() => {
         textarea.focus()
         textarea.setSelectionRange(start + text.length, start + text.length)
       })
+      
       this.isFormModified = true
     },
     handleFormContentChange() {
@@ -517,8 +585,10 @@ export default {
       try {
         const interviewId = this.$route.params.id
         const draftJson = localStorage.getItem(`interview_draft_${interviewId}_${this.currentUser.id}`)
+        
         if (draftJson && this.$refs.evaluationForm) {
           const draft = JSON.parse(draftJson)
+          
           // 使用组件提供的方法设置表单数据
           this.$refs.evaluationForm.setFormData({
             processRecord: draft.recordContent || draft.processRecord || '',
@@ -539,6 +609,7 @@ export default {
               comments: ''
             }
           })
+          
           this.isFormModified = false
         }
       } catch (error) {
@@ -549,9 +620,12 @@ export default {
       const textarea = document.createElement('textarea')
       textarea.value = this.preparationInfo.preparation_notes
       document.body.appendChild(textarea)
+      
       textarea.select()
       document.execCommand('copy')
+      
       document.body.removeChild(textarea)
+      
       this.$message.success('面试指导内容已复制到剪贴板')
     },
     toggleFullScreen() {
@@ -562,8 +636,10 @@ export default {
       this.startX = event.clientX
       document.body.style.cursor = 'col-resize'
       document.body.style.userSelect = 'none'
+      
       this.initialLeftColSpan = this.leftColSpan
       this.containerWidth = this.$el.querySelector('.interview-content-row').offsetWidth
+      
       document.documentElement.style.setProperty('--left-col-span', this.leftColSpan)
     },
     resize(event) {
@@ -571,8 +647,11 @@ export default {
         event.preventDefault()
         const dx = event.clientX - this.startX
         const percentDelta = (dx / this.containerWidth)
+        
         const spanChange = Math.floor(percentDelta * 24)
+        
         const newSpan = Math.max(10, Math.min(20, this.initialLeftColSpan + spanChange))
+        
         if (newSpan !== this.leftColSpan) {
           this.leftColSpan = newSpan
           document.documentElement.style.setProperty('--left-col-span', this.leftColSpan)
@@ -618,14 +697,18 @@ export default {
       if (this.interview.status !== 'scheduled') {
         return
       }
+      
       this.statusUpdating = true
       try {
         const interviewId = this.$route.params.id
+        
         await updateInterviewStatus(interviewId, {
           status: 'in_progress'
         })
+        
         this.interview.status = 'in_progress'
         this.$message.success('面试已开始')
+        
         this.startTimer()
       } catch (error) {
         console.error('更新面试状态失败:', error)
@@ -638,14 +721,18 @@ export default {
       if (this.interview.status !== 'in_progress') {
         return
       }
+      
       this.statusUpdating = true
       try {
         const interviewId = this.$route.params.id
+        
         await updateInterviewStatus(interviewId, {
           status: 'completed'
         })
+        
         this.interview.status = 'completed'
         this.$message.success('面试已完成')
+        
         this.pauseTimer()
       } catch (error) {
         console.error('更新面试状态失败:', error)
@@ -688,72 +775,87 @@ export default {
   }
 }
 </script>
+
 <style lang="scss" scoped>
 .app-container {
   padding: 20px;
 }
+
 .header-container {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .page-title {
   display: flex;
   align-items: center;
   font-size: 18px;
   font-weight: 500;
+  
   i {
     margin-right: 8px;
     color: #409EFF;
   }
 }
+
 .header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
 .interview-status-control {
   display: flex;
   align-items: center;
   gap: 10px;
+  
   .el-tag {
     min-width: 60px;
     text-align: center;
   }
 }
+
 .el-divider--vertical {
   height: 20px;
   margin: 0 10px;
 }
+
 .candidate-info-card {
   margin-bottom: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
   transition: all 0.3s;
+  
   &:hover {
     box-shadow: 0 4px 15px 0 rgba(0, 0, 0, 0.08);
   }
 }
+
 .info-header {
   display: flex;
   align-items: center;
   margin-bottom: 15px;
   padding-bottom: 10px;
   border-bottom: 1px solid #ebeef5;
+  
   i {
     margin-right: 8px;
     color: #409EFF;
     font-size: 18px;
   }
+  
   span {
     font-weight: 500;
     font-size: 16px;
     color: #303133;
   }
 }
+
 .info-row {
   margin-bottom: 15px;
 }
+
 .info-item {
   margin-bottom: 15px;
   display: flex;
@@ -761,9 +863,11 @@ export default {
   padding: 8px 10px;
   border-radius: 6px;
   transition: background-color 0.3s;
+  
   &:hover {
     background-color: #f9fafc;
   }
+  
   .info-icon {
     margin-right: 12px;
     color: #409EFF;
@@ -774,29 +878,35 @@ export default {
     justify-content: center;
     background-color: rgba(64, 158, 255, 0.1);
     border-radius: 50%;
+    
     i {
       font-size: 14px;
     }
   }
+  
   .info-content-wrapper {
     flex: 1;
   }
+  
   .info-label {
     font-weight: 500;
     color: #909399;
     margin-bottom: 5px;
     font-size: 13px;
   }
+  
   .info-content {
     color: #303133;
     font-size: 14px;
     word-break: break-all;
+    
     .el-tag {
       margin-right: 5px;
       margin-bottom: 5px;
     }
   }
 }
+
 .record-toolbar {
   display: flex;
   justify-content: space-between;
@@ -806,28 +916,34 @@ export default {
   background-color: #f8f9fa;
   border-radius: 4px;
 }
+
 .timer-section {
   display: flex;
   align-items: center;
+  
   .timer {
     font-family: monospace;
     font-size: 16px;
     margin: 0 10px;
     font-weight: bold;
   }
+  
   i {
     color: #409EFF;
     font-size: 18px;
   }
 }
+
 .record-content {
   margin-bottom: 20px;
 }
+
 .record-ratings {
   margin: 20px 0;
   padding: 15px;
   background-color: #f8f9fa;
   border-radius: 4px;
+  
   .ratings-title {
     font-weight: 500;
     font-size: 16px;
@@ -835,8 +951,10 @@ export default {
     color: #303133;
   }
 }
+
 .record-summary, .record-recommendation {
   margin-bottom: 20px;
+  
   .summary-title, .recommendation-title {
     font-weight: 500;
     font-size: 16px;
@@ -844,24 +962,30 @@ export default {
     color: #303133;
   }
 }
+
 .record-actions {
   display: flex;
   justify-content: center;
   margin-top: 30px;
+  
   .el-button {
     min-width: 100px;
     margin: 0 10px;
   }
 }
+
 .templates-container {
   padding: 20px;
+  
   .templates-category {
     margin-bottom: 25px;
+    
     h3 {
       border-bottom: 1px solid #EBEEF5;
       padding-bottom: 10px;
       margin-bottom: 10px;
     }
+    
     .el-button {
       display: block;
       text-align: left;
@@ -869,54 +993,67 @@ export default {
     }
   }
 }
+
 .success-dialog-content {
   display: flex;
   flex-direction: column;
   align-items: center;
+  
   .success-icon {
     font-size: 56px;
     color: #67C23A;
     margin-bottom: 20px;
   }
+  
   .success-message {
     font-size: 18px;
   }
 }
+
 @media (max-width: 768px) {
   .record-toolbar {
     flex-direction: column;
+    
     .el-button-group {
       margin-bottom: 10px;
     }
   }
+  
   .record-ratings {
     .el-form-item {
       margin-right: 0;
     }
   }
+  
   .interview-content-row {
     flex-direction: column;
   }
+  
   .record-column, .guide-column {
     width: 100% !important;
   }
+  
   .resizer {
     display: none;
   }
+  
   .preparation-scroll-area {
     max-height: 350px;
   }
 }
+
 .interview-content-row {
   margin-bottom: 20px;
   position: relative;
   min-height: 500px;
   display: flex;
 }
+
 .record-column {
   padding-right: 10px;
   position: relative;
 }
+
 .guide-column {
   padding-left: 10px;
   position: relative;
@@ -924,62 +1061,77 @@ export default {
   display: flex;
   flex-direction: column;
 }
+
 .column-title {
   font-weight: 500;
   font-size: 16px;
   margin-bottom: 10px;
   color: #303133;
 }
+
 .guide-content {
   padding: 10px;
 }
+
 .guide-help-icon {
   margin-left: 5px;
   color: #409EFF;
   cursor: pointer;
 }
+
 .question-list {
   padding-left: 20px;
 }
+
 .guide-section-title {
   font-weight: 500;
   font-size: 16px;
   margin-bottom: 10px;
   color: #303133;
 }
+
 .template-item {
   padding: 10px;
   cursor: pointer;
   border-bottom: 1px solid #EBEEF5;
+  
   &:last-child {
     border-bottom: none;
   }
+  
   .template-title {
     font-weight: 500;
     font-size: 16px;
     margin-bottom: 5px;
     color: #303133;
   }
+  
   .template-content {
     color: #606266;
   }
 }
+
 .criteria-section {
   margin-bottom: 15px;
+  
   h4 {
     margin-bottom: 10px;
     color: #303133;
   }
+  
   .criteria-description {
     color: #606266;
+    
     div {
       padding: 5px 0;
     }
+    
     strong {
       color: #303133;
     }
   }
 }
+
 .preparation-notes-container {
   padding: 10px;
   background-color: #f8f9fa;
@@ -989,35 +1141,44 @@ export default {
   flex-direction: column;
   flex: 1;
 }
+
 .preparation-scroll-area {
   overflow-y: auto;
   flex: 1;
   max-height: var(--scroll-area-height, 600px);
   padding-right: 5px;
+  
   &::-webkit-scrollbar {
     width: 6px;
   }
+  
   &::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 3px;
   }
+  
   &::-webkit-scrollbar-thumb {
     background: #d0d0d0;
     border-radius: 3px;
   }
+  
   &::-webkit-scrollbar-thumb:hover {
     background: #a0a0a0;
   }
+  
   scrollbar-width: thin;
   scrollbar-color: #d0d0d0 #f1f1f1;
 }
+
 .preparation-notes {
   margin-bottom: 10px;
 }
+
 .preparation-content {
   color: #606266;
   line-height: 1.6;
   padding: 10px;
+  
   h1 {
     font-size: 20px;
     font-weight: 600;
@@ -1026,36 +1187,44 @@ export default {
     border-bottom: 1px solid #EBEEF5;
     color: #303133;
   }
+  
   h2 {
     font-size: 18px;
     font-weight: 500;
     margin: 16px 0 10px 0;
     color: #303133;
   }
+  
   h3 {
     font-size: 16px;
     font-weight: 500;
     margin: 12px 0 8px 0;
     color: #303133;
   }
+  
   p {
     margin: 8px 0;
   }
+  
   strong {
     font-weight: 600;
     color: #409EFF;
   }
+  
   em {
     font-style: italic;
     color: #606266;
   }
+  
   ul, ol {
     padding-left: 20px;
     margin: 8px 0;
   }
+  
   li {
     margin: 4px 0;
   }
+  
   pre {
     margin: 10px 0;
     padding: 10px;
@@ -1063,9 +1232,11 @@ export default {
     border-radius: 4px;
     overflow-x: auto;
   }
+  
   code {
     font-family: 'Courier New', Courier, monospace;
   }
+  
   p code {
     padding: 2px 5px;
     margin: 0 2px;
@@ -1073,6 +1244,7 @@ export default {
     border-radius: 3px;
     color: #E6A23C;
   }
+  
   blockquote {
     padding: 8px 16px;
     margin: 10px 0;
@@ -1081,26 +1253,31 @@ export default {
     color: #606266;
     font-style: italic;
   }
+  
   table {
     border-collapse: collapse;
     margin: 10px 0;
     width: 100%;
   }
+  
   th, td {
     border: 1px solid #EBEEF5;
     padding: 8px;
     text-align: left;
   }
+  
   th {
     background-color: #f5f7fa;
     font-weight: 500;
   }
+  
   hr {
     margin: 15px 0;
     border: none;
     border-top: 1px solid #EBEEF5;
   }
 }
+
 .no-preparation-notes {
   text-align: center;
   padding: 40px 20px;
@@ -1111,12 +1288,15 @@ export default {
   align-items: center;
   justify-content: center;
   min-height: 200px;
+  
   .empty-tip {
     font-size: 14px;
     color: #909399;
     margin-top: 5px;
+    
     p {
       margin: 5px 0;
+      
       &:first-child {
         font-size: 16px;
         color: #606266;
@@ -1125,67 +1305,81 @@ export default {
     }
   }
 }
+
 .focus-points-container {
   margin-top: 10px;
   margin-bottom: 10px;
 }
+
 .focus-point-tag {
   margin-right: 5px;
 }
+
 .preparation-actions {
   margin-top: 10px;
   text-align: right;
   padding-top: 5px;
   border-top: 1px solid #EBEEF5;
 }
+
 .preparation-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
 }
+
 .preparation-title {
   font-weight: 500;
   font-size: 16px;
   color: #303133;
 }
+
 .preparation-actions-bar {
   display: flex;
   align-items: center;
 }
+
 .action-icon {
   margin-left: 5px;
   color: #409EFF;
   cursor: pointer;
 }
+
 .show-full-screen-dialog {
   width: 80%;
   max-width: 800px;
 }
+
 .fullscreen-dialog {
   .el-dialog {
     max-width: 1000px;
   }
+  
   .el-dialog__body {
     padding: 0;
   }
 }
+
 .fullscreen-content {
   padding: 10px 20px;
   max-height: 70vh;
   overflow-y: auto;
+  
   .preparation-content {
     padding: 15px;
     background-color: #fff;
     border-radius: 4px;
   }
 }
+
 .no-content {
   padding: 40px;
   text-align: center;
   color: #909399;
   font-size: 16px;
 }
+
 .resizer {
   width: 6px;
   background-color: #EBEEF5;
@@ -1199,9 +1393,11 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  
   &:hover, &:active, &.active {
     background-color: #409EFF;
   }
+  
   &::after {
     content: "";
     height: 40px;
@@ -1209,45 +1405,55 @@ export default {
     background-color: #909399;
     display: none;
   }
+  
   &:hover::after, &.active::after {
     display: block;
   }
 }
+
 .technical-evaluation, .comprehensive-evaluation {
   margin: 20px 0;
   padding: 15px;
   background-color: #f8f9fa;
   border-radius: 4px;
+  
   .evaluation-title {
     font-weight: 500;
     font-size: 16px;
     margin-bottom: 15px;
     color: #303133;
+    
     i {
       color: #409EFF;
       margin-right: 5px;
     }
   }
 }
+
 .candidate-evaluation {
   margin: 20px 0;
+  
   .evaluation-block {
     background-color: #f8f9fa;
     border-radius: 4px;
     padding: 15px;
     height: 100%;
+    
     .block-title {
       font-weight: 500;
       font-size: 16px;
       margin-bottom: 10px;
       color: #303133;
+      
       i {
         margin-right: 5px;
       }
     }
+    
     .el-icon-star-on {
       color: #E6A23C;
     }
+    
     .el-icon-warning {
       color: #F56C6C;
     }

@@ -18,15 +18,25 @@
         <!-- 候选人联系方式按钮 - 已移动到个人资料卡中 -->
 
         <!-- 面试官反馈表单 -->
-        <interview-feedback-form
-          v-if="!showSummary && interview && interview.id"
-          :interview="interview"
-          :interviewer="currentUser"
-          :existing-feedback="existingFeedback"
-          :submitting="submitting"
-          @submit="handleSubmitFeedback"
-          @cancel="handleCancel"
-        />
+        <div v-if="!showSummary && interview && interview.id">
+          <div class="summary-header">
+            <h3>面试官反馈表单</h3>
+            <div>
+              <el-button type="success" size="medium" icon="el-icon-view" @click="handleBackToSummary">
+                查看反馈汇总
+              </el-button>
+            </div>
+          </div>
+          
+          <interview-evaluation-form
+            :initialData="existingFeedback"
+            :interviewId="interview.id"
+            :currentUser="currentUser"
+            @submit="handleSubmitFeedback"
+            @save-draft="handleSaveDraft"
+            @go-back="handleBackToSummary"
+          />
+        </div>
 
         <!-- 反馈汇总 -->
         <div v-if="showSummary">
@@ -36,7 +46,7 @@
               <el-button type="primary" size="small" icon="el-icon-refresh" @click="refreshSummary" plain>
                 刷新数据
               </el-button>
-              <el-button type="info" size="small" icon="el-icon-back" @click="showSummary = false" plain>
+              <el-button type="success" size="medium" icon="el-icon-back" @click="handleBackToMyFeedback">
                 返回我的评价
               </el-button>
             </div>
@@ -259,14 +269,14 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import InterviewFeedbackForm from '@/components/InterviewFeedbackForm'
+import InterviewEvaluationForm from '@/components/Interview/InterviewEvaluationForm'
 import InterviewBasicInfo from '@/components/InterviewBasicInfo'
 import FeedbackDetailDialog from '@/components/FeedbackDetailDialog'
 
 export default {
   name: 'InterviewFeedback',
   components: {
-    InterviewFeedbackForm,
+    InterviewEvaluationForm,
     InterviewBasicInfo,
     FeedbackDetailDialog
   },
@@ -355,31 +365,206 @@ export default {
         const interviewId = this.$route.params.id
         const userId = this.user_id || ''
         
+        console.log('开始获取用户反馈, interviewId:', interviewId, 'userId:', userId)
+        
         if (!userId) {
           console.log('未获取到用户ID，无法获取反馈')
           return
         }
         
         // 使用Vuex store获取面试官反馈
+        console.log('调用store action: interview/getInterviewerFeedback, 参数:', { interviewId, interviewerId: userId })
         const response = await this.$store.dispatch('interview/getInterviewerFeedback', {
           interviewId,
           interviewerId: userId
         })
         
-        console.log('获取到的反馈数据:', response)
+        console.log('获取到的反馈数据(raw):', response)
+        console.log('反馈数据类型:', typeof response)
+        console.log('反馈数据结构:', response ? Object.keys(response) : 'null')
+        
+        // 检查技术评估和综合评估的原始结构
+        if (response && response.technicalEvaluation) {
+          console.log('原始技术评估字段:', Object.keys(response.technicalEvaluation))
+          console.log('技术评估值示例:',
+            '编码能力:', response.technicalEvaluation.codingAbility,
+            '问题解决:', response.technicalEvaluation.problemSolving
+          )
+        }
+        
+        if (response && response.comprehensiveEvaluation) {
+          console.log('原始综合评估字段:', Object.keys(response.comprehensiveEvaluation))
+        }
+        
         if (response) {
-          this.existingFeedback = response
+          // 转换数据格式，从驼峰式转为下划线式
+          const convertedFeedback = this.convertFeedbackFormat(response)
+          console.log('转换后的反馈数据:', convertedFeedback)
+          
+          // 检查转换后的数据类型
+          if (convertedFeedback.technical_evaluation) {
+            console.log('转换后技术评估类型:',
+              '编码能力:', typeof convertedFeedback.technical_evaluation.coding_ability,
+              '问题解决:', typeof convertedFeedback.technical_evaluation.problem_solving,
+              '算法理解:', typeof convertedFeedback.technical_evaluation.algorithm_understanding
+            )
+          }
+          
+          if (convertedFeedback.comprehensive_evaluation) {
+            console.log('转换后综合评估类型:',
+              '沟通能力:', typeof convertedFeedback.comprehensive_evaluation.communication,
+              '团队协作:', typeof convertedFeedback.comprehensive_evaluation.teamwork
+            )
+          }
+          
+          // 检查其他字段
+          console.log('其他字段类型:',
+            '总体反馈:', typeof convertedFeedback.feedback,
+            '综合得分:', typeof convertedFeedback.evaluation_score,
+            '优势:', typeof convertedFeedback.strengths,
+            '劣势:', typeof convertedFeedback.weaknesses,
+            '招聘建议:', typeof convertedFeedback.hiring_recommendation,
+            '准备笔记:', typeof convertedFeedback.preparation_notes
+          )
+          
+          this.existingFeedback = convertedFeedback
+          console.log('设置existingFeedback后:', this.existingFeedback)
           
           // 如果是管理员或已经完成了自己的反馈，默认显示汇总页
-          if (this.roles.includes('admin') || this.roles.includes('tenant_admin') || 
-              (this.existingFeedback && this.existingFeedback.status === 'completed')) {
+          const isAdmin = this.roles.includes('admin') || this.roles.includes('tenant_admin')
+          const isCompleted = this.existingFeedback && this.existingFeedback.status === 'completed'
+          
+          console.log('用户角色:', this.roles)
+          console.log('是否管理员:', isAdmin)
+          console.log('反馈是否完成:', isCompleted)
+          console.log('当前showSummary状态:', this.showSummary)
+          
+          if (isAdmin || isCompleted) {
             this.showSummary = true
+            console.log('设置showSummary=true (管理员或已完成)')
           }
+          
+          console.log('设置后的showSummary状态:', this.showSummary)
+        } else {
+          console.log('未找到现有反馈数据')
         }
       } catch (error) {
-        // 可能是没有反馈，正常情况
+        console.error('获取反馈出错:', error)
+        console.log('错误详情:', error.message)
+        if (error.response) {
+          console.log('错误响应:', error.response.status, error.response.data)
+        }
         console.log('未找到现有反馈')
       }
+    },
+    // 修改数据格式转换函数
+    convertFeedbackFormat(feedback) {
+      if (!feedback) return null
+      
+      // 检查preparation_notes类型
+      const prepNotes = feedback.preparationNotes || ''
+      console.log('preparationNotes原始类型:', typeof feedback.preparationNotes)
+      if (typeof prepNotes !== 'string' && prepNotes !== null) {
+        console.warn('preparationNotes不是字符串类型!', prepNotes)
+      }
+      
+      // 创建一个新对象来存储转换后的数据
+      const converted = {
+        feedback: feedback.feedback || '',
+        evaluation_score: Number(feedback.evaluationScore || 0),
+        strengths: feedback.strengths || '',
+        weaknesses: feedback.weaknesses || '',
+        hiring_recommendation: feedback.hiringRecommendation || '',
+        preparation_notes: typeof prepNotes === 'string' ? prepNotes : 
+                          (prepNotes ? JSON.stringify(prepNotes) : ''),
+        process_record: feedback.processRecord || '',
+        interview_id: feedback.interviewId || '',
+        interviewer_id: feedback.interviewerId || '',
+        status: feedback.status || '',
+        created_at: feedback.createdAt || '',
+        updated_at: feedback.updatedAt || '',
+        interviewer_name: feedback.interviewerName || '',
+        interviewer_title: feedback.interviewerTitle || ''
+      }
+      
+      // 处理技术评估 - 确保每个值都是Number类型
+      if (feedback.technicalEvaluation) {
+        console.log('技术评估原始字段:', Object.keys(feedback.technicalEvaluation))
+        
+        // 映射字段名 - 注意算法理解字段的多种可能形式
+        const algorithmField = 
+          feedback.technicalEvaluation.algorithmUnderstanding !== undefined ? 'algorithmUnderstanding' :
+          feedback.technicalEvaluation.algorithm !== undefined ? 'algorithm' : null;
+        
+        console.log('检测到的算法字段名:', algorithmField, 
+                    '值:', algorithmField ? feedback.technicalEvaluation[algorithmField] : 'undefined')
+        
+        converted.technical_evaluation = {
+          coding_ability: Number(feedback.technicalEvaluation.codingAbility || 0),
+          problem_solving: Number(feedback.technicalEvaluation.problemSolving || 0),
+          system_design: Number(feedback.technicalEvaluation.systemDesign || 0),
+          algorithm_understanding: algorithmField ? 
+            Number(feedback.technicalEvaluation[algorithmField] || 0) : 0,
+          knowledge_depth: Number(feedback.technicalEvaluation.knowledgeDepth || 0),
+          knowledge_breadth: Number(feedback.technicalEvaluation.knowledgeBreadth || 0),
+          comments: feedback.technicalEvaluation.comments || ''
+        }
+        
+        console.log('转换后的技术评估数据:', converted.technical_evaluation)
+      } else {
+        converted.technical_evaluation = {
+          coding_ability: 0,
+          problem_solving: 0,
+          system_design: 0,
+          algorithm_understanding: 0,
+          knowledge_depth: 0,
+          knowledge_breadth: 0,
+          comments: ''
+        }
+      }
+      
+      // 处理综合评估 - 确保每个值都是Number类型
+      if (feedback.comprehensiveEvaluation) {
+        console.log('综合评估原始字段:', Object.keys(feedback.comprehensiveEvaluation))
+        
+        // 映射字段名
+        const learningAbilityField = 
+          feedback.comprehensiveEvaluation.learningAbility !== undefined ? 'learningAbility' :
+          feedback.comprehensiveEvaluation.learning_ability !== undefined ? 'learning_ability' : null;
+          
+        const pressureHandlingField = 
+          feedback.comprehensiveEvaluation.pressureHandling !== undefined ? 'pressureHandling' :
+          feedback.comprehensiveEvaluation.pressure_handling !== undefined ? 'pressure_handling' : null;
+          
+        const cultureFitField = 
+          feedback.comprehensiveEvaluation.cultureFit !== undefined ? 'cultureFit' :
+          feedback.comprehensiveEvaluation.culture_fit !== undefined ? 'culture_fit' : null;
+        
+        converted.comprehensive_evaluation = {
+          communication: Number(feedback.comprehensiveEvaluation.communication || 0),
+          teamwork: Number(feedback.comprehensiveEvaluation.teamwork || 0),
+          learning_ability: learningAbilityField ? 
+            Number(feedback.comprehensiveEvaluation[learningAbilityField] || 0) : 0,
+          pressure_handling: pressureHandlingField ? 
+            Number(feedback.comprehensiveEvaluation[pressureHandlingField] || 0) : 0,
+          culture_fit: cultureFitField ? 
+            Number(feedback.comprehensiveEvaluation[cultureFitField] || 0) : 0,
+          comments: feedback.comprehensiveEvaluation.comments || ''
+        }
+        
+        console.log('转换后的综合评估数据:', converted.comprehensive_evaluation)
+      } else {
+        converted.comprehensive_evaluation = {
+          communication: 0,
+          teamwork: 0,
+          learning_ability: 0,
+          pressure_handling: 0,
+          culture_fit: 0,
+          comments: ''
+        }
+      }
+      
+      return converted
     },
     async refreshSummary() {
       await this.getInterviewSummary()
@@ -427,6 +612,8 @@ export default {
       this.submitting = true
       try {
         const interviewId = this.$route.params.id
+        console.log('提交反馈数据:', feedbackData)
+        
         // 使用Vuex store提交面试官反馈
         await this.$store.dispatch('interview/submitInterviewerFeedback', {
           id: interviewId,
@@ -436,10 +623,12 @@ export default {
         this.$message.success('反馈提交成功')
         
         // 刷新数据
+        console.log('提交成功后刷新数据')
         await this.getExistingFeedback()
         await this.getInterviewSummary()
         
         // 显示汇总页
+        console.log('设置showSummary=true (提交成功后)')
         this.showSummary = true
       } catch (error) {
         console.error('提交反馈失败:', error)
@@ -447,6 +636,10 @@ export default {
       } finally {
         this.submitting = false
       }
+    },
+    handleSaveDraft(feedbackData) {
+      console.log('保存草稿:', feedbackData)
+      this.$message.success('草稿已保存')
     },
     handleCancel() {
       this.$router.push('/interview/record')
@@ -513,6 +706,23 @@ export default {
     viewResume() {
       // 查看简历功能，可根据实际需求实现
       this.$message.info('查看简历功能待实现')
+    },
+    handleBackToMyFeedback() {
+      console.log('点击返回我的评价按钮')
+      console.log('切换前showSummary:', this.showSummary)
+      console.log('当前existingFeedback:', this.existingFeedback)
+      // 当点击"返回我的评价"按钮时，我们应该从汇总页面返回到个人评价页面
+      this.showSummary = false
+      console.log('切换后showSummary:', this.showSummary)
+      
+      // 不要重新获取数据，因为这会导致showSummary被重置
+      // this.getExistingFeedback()
+    },
+    
+    // 添加一个新方法，处理从个人评价返回到汇总页面
+    handleBackToSummary() {
+      console.log('从个人评价返回到汇总页面')
+      this.showSummary = true
     }
   }
 }
@@ -555,6 +765,21 @@ export default {
     font-size: 18px;
     color: #303133;
     font-weight: 600;
+  }
+  
+  .el-button {
+    transition: all 0.3s;
+    
+    &.el-button--success {
+      font-weight: 500;
+      padding: 10px 16px;
+      box-shadow: 0 2px 8px rgba(103, 194, 58, 0.3);
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(103, 194, 58, 0.4);
+      }
+    }
   }
 }
 

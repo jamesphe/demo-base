@@ -70,14 +70,101 @@
                 <!-- 新增行业选择 -->
                 <div class="industry-selector">
                   <span class="industry-label">行业领域：</span>
-                  <el-select v-model="preparationForm.industry" placeholder="选择行业领域" @change="handleIndustryChange" size="small">
-                    <el-option
-                      v-for="item in industryOptions"
-                      :key="item.value"
-                      :label="item.label"
-                      :value="item.value">
-                      <span style="float: left;"><i :class="item.icon"></i> {{ item.label }}</span>
-                    </el-option>
+                  <el-select 
+                    v-model="preparationForm.industry" 
+                    placeholder="选择行业领域" 
+                    @change="handleIndustryChange" 
+                    size="small"
+                    filterable
+                    style="width: 240px;">
+                    <el-option-group label="通用">
+                      <el-option
+                        :key="''"
+                        label="通用 (不限行业)"
+                        value="">
+                        <span style="float: left;"><i class="el-icon-office-building"></i> 通用 (不限行业)</span>
+                      </el-option>
+                    </el-option-group>
+
+                    <el-option-group label="IT/互联网">
+                      <el-option
+                        v-for="item in industryOptions.filter(i => i.value && i.value.startsWith('it'))"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                        <span style="float: left;"><i :class="item.icon"></i> {{ item.label }}</span>
+                      </el-option>
+                    </el-option-group>
+
+                    <el-option-group label="金融">
+                      <el-option
+                        v-for="item in industryOptions.filter(i => i.value && i.value.startsWith('finance'))"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                        <span style="float: left;"><i :class="item.icon"></i> {{ item.label }}</span>
+                      </el-option>
+                    </el-option-group>
+
+                    <el-option-group label="医疗健康">
+                      <el-option
+                        v-for="item in industryOptions.filter(i => i.value && i.value.startsWith('healthcare'))"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                        <span style="float: left;"><i :class="item.icon"></i> {{ item.label }}</span>
+                      </el-option>
+                    </el-option-group>
+
+                    <el-option-group label="制造业">
+                      <el-option
+                        v-for="item in industryOptions.filter(i => i.value && i.value.startsWith('manufacturing'))"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                        <span style="float: left;"><i :class="item.icon"></i> {{ item.label }}</span>
+                      </el-option>
+                    </el-option-group>
+
+                    <el-option-group label="教育">
+                      <el-option
+                        v-for="item in industryOptions.filter(i => i.value && i.value.startsWith('education'))"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                        <span style="float: left;"><i :class="item.icon"></i> {{ item.label }}</span>
+                      </el-option>
+                    </el-option-group>
+
+                    <el-option-group label="零售/消费品">
+                      <el-option
+                        v-for="item in industryOptions.filter(i => i.value && i.value.startsWith('retail'))"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                        <span style="float: left;"><i :class="item.icon"></i> {{ item.label }}</span>
+                      </el-option>
+                    </el-option-group>
+
+                    <el-option-group label="媒体/广告/设计">
+                      <el-option
+                        v-for="item in industryOptions.filter(i => i.value && i.value.startsWith('media'))"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                        <span style="float: left;"><i :class="item.icon"></i> {{ item.label }}</span>
+                      </el-option>
+                    </el-option-group>
+
+                    <el-option-group label="其他领域">
+                      <el-option
+                        v-for="item in industryOptions.filter(i => i.value && !['', 'it', 'finance', 'healthcare', 'manufacturing', 'education', 'retail', 'media'].some(prefix => i.value.startsWith(prefix)))"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value">
+                        <span style="float: left;"><i :class="item.icon"></i> {{ item.label }}</span>
+                      </el-option>
+                    </el-option-group>
                   </el-select>
                   <el-tooltip content="选择行业可获得更针对性的面试指导" placement="top" effect="light">
                     <i class="el-icon-question industry-help"></i>
@@ -116,14 +203,6 @@
                         </div>
                       </div>
                     </div>
-                    <div class="industry-tips" v-if="preparationForm.industry">
-                      <div class="industry-tips-title"><i class="el-icon-info-circle"></i> {{ getIndustryText(preparationForm.industry) }}行业面试特点：</div>
-                      <ul class="industry-tips-list">
-                        <li v-for="(tip, index) in getIndustryTips(preparationForm.industry, preparationForm.role)" :key="index">
-                          {{ tip }}
-                        </li>
-                      </ul>
-                    </div>
                   </div>
                 </div>
               </el-form-item>
@@ -146,31 +225,18 @@
                 </el-button>
               </div>
               <el-form-item>
-                <div class="focus-controls">
-                  <el-button 
-                    type="primary" 
-                    icon="el-icon-magic-stick"
-                    @click="generateIndustryRoleFocusPoints(preparationForm.industry, preparationForm.role)"
-                    :disabled="!preparationForm.role"
-                    :loading="generatingFocus">
-                    生成面试关注点
-                  </el-button>
-                  <el-tooltip content="根据您选择的角色和行业自动生成面试关注点内容" placement="top">
-                    <i class="el-icon-question help-icon"></i>
-                  </el-tooltip>
-                </div>
-                
                 <el-input
                   type="textarea"
                   :rows="12"
-                  placeholder="请输入面试关注点内容，或点击上方按钮自动生成..."
+                  placeholder="请输入面试关注点内容..."
                   v-model="preparationForm.focusContent"
                   class="focus-editor"
+                  @input="handleFocusContentInput"
                 />
                 
                 <div class="focus-tip">
                   <i class="el-icon-info"></i>
-                  <span>提示：系统会根据您选择的角色({{ getRoleText(preparationForm.role) }})和行业({{ getIndustryText(preparationForm.industry) || '通用' }})自动生成内容</span>
+                  <span>提示：请在此输入您希望在面试中特别关注的问题和要点</span>
                 </div>
                 
                 <div class="focus-actions">
@@ -268,6 +334,23 @@
                   <div v-else-if="interviewGuide" class="markdown-content" v-html="renderedGuide"></div>
                 </div>
               </div>
+              <div v-else-if="showGeneratingAnimation" class="generating-animation">
+                <div class="animation-container">
+                  <div class="brain-animation">
+                    <i class="el-icon-loading"></i>
+                    <i class="el-icon-cpu pulse-icon"></i>
+                  </div>
+                  <div class="animation-text">
+                    <p class="main-text">AI正在生成您的面试指导文档</p>
+                    <p class="sub-text">这可能需要10-20秒，请耐心等待...</p>
+                    <div class="progress-dots">
+                      <span class="dot dot1"></span>
+                      <span class="dot dot2"></span>
+                      <span class="dot dot3"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div v-else class="empty-tip">
                 <div class="empty-content">
                   <i class="el-icon-document"></i>
@@ -325,6 +408,7 @@ export default {
         typographer: true,
         html: false
       }),
+      showGeneratingAnimation: false,
       defaultFocusPoints: {
         technical: {
           technical: '## 技术评估要点\n1. 技术深度考察方法\n2. 编码能力测试设计\n3. 系统设计问题准备\n4. 算法能力评估标准\n5. 技术广度探索方式\n\n## 面试技巧\n1. 如何引导候选人深入思考\n2. 技术难题的层层递进\n3. 判断技术潜力的指标\n4. 识别简历技术夸大的方法\n5. 技术岗位特定问题库\n\n## 评分标准\n1. 技术问题评分量表\n2. 编码质量评判依据\n3. 技术交流表达能力标准\n4. 学习能力评估方法\n5. 技术创新思维判断',
@@ -395,17 +479,67 @@ export default {
       lastAddedCategoryTag: '',
       industryOptions: [
         { value: '', label: '通用 (不限行业)', icon: 'el-icon-office-building' },
-        { value: 'it', label: 'IT/互联网/软件', icon: 'el-icon-monitor' },
-        { value: 'finance', label: '金融/银行/保险', icon: 'el-icon-money' },
-        { value: 'healthcare', label: '医疗/制药/生物', icon: 'el-icon-first-aid-kit' },
-        { value: 'manufacturing', label: '制造/工程/能源', icon: 'el-icon-cpu' },
-        { value: 'education', label: '教育/培训/科研', icon: 'el-icon-reading' },
-        { value: 'retail', label: '零售/消费品/电商', icon: 'el-icon-shopping-cart-full' },
-        { value: 'media', label: '媒体/广告/设计', icon: 'el-icon-picture' },
+        // IT/互联网细分
+        { value: 'it', label: 'IT/互联网 (总类)', icon: 'el-icon-monitor' },
+        { value: 'it_software', label: '软件开发', icon: 'el-icon-monitor' },
+        { value: 'it_internet', label: '互联网产品', icon: 'el-icon-data-line' },
+        { value: 'it_hardware', label: '硬件/通信', icon: 'el-icon-cpu' },
+        { value: 'it_ai', label: '人工智能/算法', icon: 'el-icon-data-analysis' },
+        { value: 'it_bigdata', label: '大数据/云计算', icon: 'el-icon-cloudy' },
+        
+        // 金融细分
+        { value: 'finance', label: '金融 (总类)', icon: 'el-icon-money' },
+        { value: 'finance_bank', label: '银行', icon: 'el-icon-money' },
+        { value: 'finance_insurance', label: '保险', icon: 'el-icon-umbrella' },
+        { value: 'finance_security', label: '证券/投资', icon: 'el-icon-data-line' },
+        { value: 'finance_fintech', label: '金融科技', icon: 'el-icon-coin' },
+        
+        // 医疗健康细分
+        { value: 'healthcare', label: '医疗健康 (总类)', icon: 'el-icon-first-aid-kit' },
+        { value: 'healthcare_hospital', label: '医院/临床', icon: 'el-icon-first-aid-kit' },
+        { value: 'healthcare_pharma', label: '制药/生物', icon: 'el-icon-wind-power' },
+        { value: 'healthcare_device', label: '医疗器械', icon: 'el-icon-mouse' },
+        { value: 'healthcare_biotech', label: '生物技术', icon: 'el-icon-toilet-paper' },
+        
+        // 制造业细分
+        { value: 'manufacturing', label: '制造业 (总类)', icon: 'el-icon-cpu' },
+        { value: 'manufacturing_auto', label: '汽车制造', icon: 'el-icon-truck' },
+        { value: 'manufacturing_electronics', label: '电子制造', icon: 'el-icon-mobile-phone' },
+        { value: 'manufacturing_chem', label: '化工/材料', icon: 'el-icon-data-board' },
+        { value: 'manufacturing_machine', label: '机械设备', icon: 'el-icon-set-up' },
+        
+        // 教育细分
+        { value: 'education', label: '教育 (总类)', icon: 'el-icon-reading' },
+        { value: 'education_k12', label: 'K12教育', icon: 'el-icon-reading' },
+        { value: 'education_higher', label: '高等教育', icon: 'el-icon-notebook-2' },
+        { value: 'education_training', label: '职业培训', icon: 'el-icon-aim' },
+        { value: 'education_online', label: '在线教育', icon: 'el-icon-video-camera' },
+        
+        // 零售/消费品
+        { value: 'retail', label: '零售/消费品 (总类)', icon: 'el-icon-shopping-cart-full' },
+        { value: 'retail_ecommerce', label: '电子商务', icon: 'el-icon-shopping-bag-1' },
+        { value: 'retail_fmcg', label: '快消品', icon: 'el-icon-shopping-cart-1' },
+        { value: 'retail_luxury', label: '奢侈品/服饰', icon: 'el-icon-present' },
+        { value: 'retail_fresh', label: '生鲜/餐饮', icon: 'el-icon-food' },
+        
+        // 媒体/广告/设计
+        { value: 'media', label: '媒体/广告 (总类)', icon: 'el-icon-picture' },
+        { value: 'media_ads', label: '广告/营销', icon: 'el-icon-data-board' },
+        { value: 'media_publish', label: '出版/内容', icon: 'el-icon-document' },
+        { value: 'media_entertainment', label: '娱乐/游戏', icon: 'el-icon-film' },
+        { value: 'media_design', label: '设计/创意', icon: 'el-icon-brush' },
+        
+        // 其他重要领域
         { value: 'government', label: '政府/公共事业', icon: 'el-icon-school' },
-        { value: 'consulting', label: '咨询/专业服务', icon: 'el-icon-service' }
+        { value: 'consulting', label: '咨询/专业服务', icon: 'el-icon-service' },
+        { value: 'real_estate', label: '房地产/建筑', icon: 'el-icon-house' },
+        { value: 'energy', label: '能源/环保', icon: 'el-icon-lightning' },
+        { value: 'logistics', label: '物流/运输', icon: 'el-icon-truck' },
+        { value: 'agriculture', label: '农业/食品', icon: 'el-icon-cherry' },
+        { value: 'tourism', label: '旅游/酒店', icon: 'el-icon-place' }
       ],
       generatingFocus: false,
+      userHasEditedFocusPoints: false, // 添加标记，记录用户是否已编辑过关注点
     }
   },
   computed: {
@@ -433,14 +567,13 @@ export default {
   watch: {
     'preparationForm.role': {
       handler(newRole) {
+        // 移除角色变化自动更新关注点的逻辑
+        // 如果是首次加载且关注点为空，可以设置默认值
         if (newRole === 'other') {
-          this.clearFocusPoints()
-          return
-        }
-        
-        const defaultPoints = this.defaultFocusPoints[newRole]
-        if (defaultPoints) {
-          this.preparationForm.focusContent = defaultPoints.technical
+          // 只在other角色时需要清空，否则保持用户当前输入的内容
+          if (!this.userHasEditedFocusPoints && this.preparationForm.focusContent === '') {
+            this.clearFocusPoints();
+          }
         }
       },
       immediate: true
@@ -485,6 +618,20 @@ export default {
     // 在DOM挂载后检查内容是否正确显示
     this.$nextTick(() => {
       this.checkGuideDisplay();
+      
+      // 额外检查 - 确保面试指导文档已正确加载
+      if (this.preparation && !this.interviewGuide) {
+        console.log('在mounted中检测到preparation但未设置interviewGuide，尝试再次设置');
+        
+        // 先检查下划线格式的字段，再检查驼峰格式的字段
+        if (this.preparation.preparation_notes) {
+          this.interviewGuide = this.preparation.preparation_notes;
+          console.log('使用preparation_notes设置interviewGuide');
+        } else if (this.preparation.preparationNotes) {
+          this.interviewGuide = this.preparation.preparationNotes;
+          console.log('使用preparationNotes设置interviewGuide');
+        }
+      }
     });
   },
   methods: {
@@ -603,10 +750,11 @@ export default {
           }))
         }
         
-        // 检查响应中是否有preparationNotes，如果有则直接设置到interviewGuide
-        if (response?.preparationNotes) {
-          console.log('在面试详情中发现preparationNotes，直接设置为interviewGuide')
-          this.interviewGuide = response.preparationNotes
+        // 检查各种可能的字段名，用于面试指导文档
+        // 只检查下划线命名的字段
+        if (response?.preparation_notes) {
+          console.log('在面试详情中发现preparation_notes，设置为interviewGuide')
+          this.interviewGuide = response.preparation_notes
         }
         
         return Promise.resolve(response || {})
@@ -620,42 +768,42 @@ export default {
     async getPreparationInfo() {
       try {
         const interviewId = this.$route.params.id
+        console.log('开始获取面试准备信息，面试ID:', interviewId)
         
         // 处理可能的后端500错误
         let preparation
         try {
           preparation = await this.getInterviewPreparation(interviewId)
           console.log('获取到的preparation数据:', preparation)
+          
           // 检查preparation是否为undefined
           if (!preparation) {
             console.log('preparation数据为空')
-            this.preparationForm = {
-              ...this.preparationForm,
-              focusContent: this.defaultFocusPoints[this.preparationForm.role]?.technical || ''
-            }
+            // 不再自动设置默认的关注点内容
             return Promise.resolve({})
           }
           
           // 检查字段名（驼峰式或下划线式）
           console.log('API返回字段:', Object.keys(preparation))
-          const hasPreparationNotes = !!preparation.preparationNotes
-          const hasSnakeCase = !!preparation.preparation_notes
-          console.log('是否有preparationNotes:', hasPreparationNotes)
-          console.log('是否有preparation_notes:', hasSnakeCase)
+          
+          // 处理字段兼容性，确保preparation_notes存在
+          if (preparation.preparationNotes && !preparation.preparation_notes) {
+            console.log('检测到preparationNotes字段，添加preparation_notes兼容字段')
+            preparation.preparation_notes = preparation.preparationNotes
+          }
+          
+          const hasPreparationNotes = !!(preparation && (preparation.preparation_notes || preparation.preparationNotes))
+          console.log('是否有面试准备笔记:', hasPreparationNotes)
           
           // 尝试输出前10个字符检查格式
-          if (preparation.preparationNotes) {
-            console.log('preparationNotes前10个字符:', preparation.preparationNotes.substring(0, 10))
-          } else if (preparation.preparation_notes) {
+          if (preparation.preparation_notes) {
             console.log('preparation_notes前10个字符:', preparation.preparation_notes.substring(0, 10))
+          } else if (preparation.preparationNotes) {
+            console.log('preparationNotes前10个字符:', preparation.preparationNotes.substring(0, 10))
           }
         } catch (apiError) {
           console.error('API调用失败:', apiError)
-          // 如果是服务器错误或API调用失败，使用默认值
-          this.preparationForm = {
-            ...this.preparationForm,
-            focusContent: this.defaultFocusPoints[this.preparationForm.role]?.technical || ''
-          }
+          // 如果是服务器错误或API调用失败，不再自动设置默认值
           return Promise.resolve({})
         }
         
@@ -671,36 +819,21 @@ export default {
             ...this.preparationForm,
             focusContent: preparation.focusPoints.content || preparation.focusPoints.technical || '',
           }
-        } else {
-          // 如果没有focusPoints，使用默认值
-          this.preparationForm = {
-            ...this.preparationForm,
-            focusContent: this.defaultFocusPoints[this.preparationForm.role]?.technical || ''
+          // 如果从服务器加载了关注点，标记为用户已编辑（防止后续被自动修改）
+          if (preparation.focusPoints.content || preparation.focusPoints.technical) {
+            this.userHasEditedFocusPoints = true;
           }
         }
         
-        // 检查多种可能的字段名
-        const hasInterviewGuide = !!(preparation && preparation.interviewGuide)
-        const hasPreparationNotes = !!(preparation && preparation.preparationNotes)
-        const hasPreparationNotesSnake = !!(preparation && preparation.preparation_notes)
-        
-        console.log('是否有interviewGuide:', hasInterviewGuide)
-        console.log('是否有preparationNotes:', hasPreparationNotes)
-        console.log('是否有preparation_notes:', hasPreparationNotesSnake)
-        
-        if (preparation.interviewGuide) {
-          this.interviewGuide = preparation.interviewGuide
-          console.log('设置interviewGuide:', this.interviewGuide.substring(0, 50) + '...')
-        } else if (preparation.preparationNotes) {
-          // 如果没有interviewGuide但有preparationNotes，则使用preparationNotes
-          console.log('准备设置preparationNotes到interviewGuide')
-          this.interviewGuide = preparation.preparationNotes
-          console.log('使用preparationNotes设置interviewGuide:', this.interviewGuide.substring(0, 50) + '...')
-        } else if (preparation.preparation_notes) {
-          // 使用下划线形式的字段名
-          console.log('准备设置preparation_notes到interviewGuide')
+        // 简化检查逻辑，优先检查preparation_notes字段，再检查preparationNotes字段
+        if (preparation.preparation_notes) {
+          console.log('设置preparation_notes到interviewGuide')
           this.interviewGuide = preparation.preparation_notes
-          console.log('使用preparation_notes设置interviewGuide:', this.interviewGuide.substring(0, 50) + '...')
+          console.log('已设置interviewGuide:', this.interviewGuide.substring(0, 50) + '...')
+        } else if (preparation.preparationNotes) {
+          console.log('设置preparationNotes到interviewGuide')
+          this.interviewGuide = preparation.preparationNotes
+          console.log('已设置interviewGuide:', this.interviewGuide.substring(0, 50) + '...')
         }
         
         // 设置角色信息
@@ -727,12 +860,8 @@ export default {
         
         return Promise.resolve(preparation)
       } catch (error) {
-        console.error('获取面试准备信息失败:', error)
-        // 使用默认值
-        this.preparationForm = {
-          ...this.preparationForm,
-          focusContent: this.defaultFocusPoints[this.preparationForm.role]?.technical || ''
-        }
+        console.error('获取面试准备信息失败详细错误:', error)
+        console.log('错误堆栈:', error.stack)
         return Promise.reject(error)
       }
     },
@@ -769,330 +898,22 @@ export default {
         return Promise.resolve(null) // 返回resolve而不是reject，这样不会中断链式调用
       }
     },
+    
     applyTemplate(templateKey) {
-      if (templateKey === 'custom' && this.customTemplate) {
-        this.preparationForm.focusContent = this.customTemplate;
-        return;
-      }
-      
-      if (templateKey === 'general') {
-        this.preparationForm.focusContent = '# 面试关注点\n\n## 面试准备\n1. 候选人简历重点分析\n2. 岗位关键要求梳理\n3. 面试流程与时间规划\n\n## 评估标准\n1. 专业能力评估方法\n2. 通用素质判断标准\n3. 团队匹配度考量因素\n\n## 面试技巧\n1. 有效提问方式\n2. 积极倾听的方法\n3. 候选人潜力发掘技巧\n4. 面试记录与评分标准';
-        return;
-      }
-      
-      if (templateKey === 'behavior') {
-        this.preparationForm.focusContent = '# 行为面试官指南\n\n## 面试准备\n1. 结构化问题设计\n2. STAR法则应用策略\n3. 行为评估维度确定\n\n## 提问技巧\n1. 开放性问题设计方法\n2. 深入追问的时机把握\n3. 情景模拟问题准备\n\n## 行为分析\n1. 过往行为模式识别\n2. 一致性与真实性判断\n3. 行为背后动机分析\n\n## 评分标准\n1. 客观评分量表设计\n2. 行为表现等级划分\n3. 面试记录规范化方法';
-        return;
-      }
-      
-      if (templateKey === 'culture') {
-        this.preparationForm.focusContent = '# 文化面试官指南\n\n## 企业文化准备\n1. 核心价值观梳理\n2. 企业文化特色提炼\n3. 团队工作方式总结\n\n## 面试策略\n1. 文化价值观阐述方法\n2. 企业使命愿景传达\n3. 团队氛围真实呈现\n\n## 匹配度评估\n1. 价值观契合度问题设计\n2. 工作方式适应性评估\n3. 文化认同感测试方法\n\n## 决策依据\n1. 文化匹配评分标准\n2. 潜在文化冲突识别\n3. 长期融入度预测方法';
-        return;
-      }
-      
-      const defaultPoints = this.defaultFocusPoints[templateKey];
-      if (defaultPoints) {
-        this.preparationForm.focusContent = defaultPoints.technical;
-      }
-    },
-    
-    addQuickTag(content, label) {
-      // 如果当前没有内容或内容为空，则先添加标题
-      if (!this.preparationForm.focusContent || this.preparationForm.focusContent.trim() === '') {
-        this.preparationForm.focusContent = '# 面试关注点';
-      }
-      
-      // 添加快速标签内容
-      this.preparationForm.focusContent += content;
-      
-      // 记录最后添加的标签
-      this.lastAddedTag = label;
-      
-      // 显示提示
-      this.$message.success('已添加关注点');
-      
-      // 短暂延时后恢复高亮
-      setTimeout(() => {
-        this.lastAddedTag = '';
-      }, 2000);
-    },
-    
-    async handleSaveFocusPoints() {
-      try {
-        await this.$store.dispatch('interview/saveInterviewerFocusPoints', {
-          content: this.preparationForm.focusContent
-        })
-        
-        // 保存为自定义模板
-        this.customTemplate = this.preparationForm.focusContent;
-        this.hasCustomTemplate = true;
-        
-        this.$message.success('关注点保存成功')
-      } catch (error) {
-        // 显示具体的错误信息，包括后端403状态的详细信息
-        const errorDetail = error.response?.data?.detail || '保存关注点失败';
-        this.$message.error(errorDetail);
-      }
-    },
-    async generateInterviewGuide() {
-      // 如果已经在生成中，不要重复生成
-      if (this.isGenerating) {
-        this.$message.info('正在生成中，请稍候...');
-        return;
-      }
-
-      try {
-        // 设置生成状态
-        this.isGenerating = true;
-        this.guideLoading = true;
-        this.generatingGuide = true;
-        
-        // 清空当前的面试指南内容
-        this.interviewGuide = '';
-        
-        const interviewId = this.$route.params.id;
-        
-        // 使用 resumeId 或 resume_id
-        const resumeId = this.interview.resumeId || this.interview.resume_id;
-        const jobId = this.interview.jobId || this.interview.job_id;
-        
-        if (!resumeId || !jobId) {
-          this.$message.error('缺少必要的面试信息，无法生成面试指南');
-          this.guideLoading = false;
-          this.isGenerating = false;
-          this.generatingGuide = false;
-          return;
-        }
-        
-        const guideElement = this.$refs.guideContent;
-        
-        // 构建请求数据
-        const requestData = {
-          resumeId: resumeId,
-          jobId: jobId,
-          role: this.getRoleText(this.preparationForm.role === 'other' ? 
-                this.preparationForm.otherRole : this.preparationForm.role),
-          focusPoints: {
-            content: this.preparationForm.focusContent
-          },
-          industry: this.preparationForm.industry ? this.getIndustryText(this.preparationForm.industry) : '通用'
-        };
-        
-        this.$message.info('开始生成面试指南，这可能需要一些时间...');
-        
-        // 使用流式生成API
-        await this.$store.dispatch('ai/streamGenerateInterviewGuide', {
-          data: requestData,
-          onChunk: (chunk) => {
-            // 流式接收数据块并更新UI
-            if (chunk && chunk.length > 0) {
-              // 更新面试指南内容
-              this.interviewGuide += chunk;
-              
-              // 确保DOM更新后滚动到底部
-              this.$nextTick(() => {
-                if (guideElement) {
-                  guideElement.scrollTop = guideElement.scrollHeight;
-                } else {
-                  // 尝试查找备用元素
-                  const container = document.querySelector('.guide-content');
-                  if (container) {
-                    container.scrollTop = container.scrollHeight;
-                  }
-                }
-              });
-            }
-          }
+      // 如果用户已经编辑过关注点，询问是否确认替换
+      if (this.userHasEditedFocusPoints && this.preparationForm.focusContent.trim() !== '') {
+        this.$confirm('应用模板将替换当前关注点内容，是否继续?', '提示', {
+          confirmButtonText: '继续',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          this.doApplyTemplate(templateKey);
+        }).catch(() => {
+          // 用户取消操作
         });
-        
-        if (this.interviewGuide && this.interviewGuide.trim().length > 0) {
-          this.$message.success('面试指南生成完成');
-        } else {
-          this.$message.warning('面试指南生成完成，但内容为空');
-        }
-      } catch (error) {
-        // 针对特定错误类型提供更友好的提示
-        let errorMessage = '未知错误';
-        if (error.message && error.message.includes('超时')) {
-          errorMessage = '请求超时，请稍后重试';
-        } else if (error.message && error.message.includes('网络')) {
-          errorMessage = '网络连接错误，请检查网络连接并重试';
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        this.$message.error(`生成面试指南失败: ${errorMessage}`);
-        
-        // 恢复之前的内容，如果有的话
-        if (!this.interviewGuide && this.preparation && this.preparation.interviewGuide) {
-          this.interviewGuide = this.preparation.interviewGuide;
-          this.$message.info('已恢复之前保存的面试指南');
-        }
-      } finally {
-        this.guideLoading = false;
-        this.isGenerating = false;
-        this.generatingGuide = false;
-      }
-    },
-    exportToPDF() {
-      if (!this.interviewGuide) {
-        this.$message.warning('没有可导出的文档')
-        return
-      }
-      
-      const element = document.createElement('div')
-      element.innerHTML = `
-        <div style="padding: 20px;">
-          <h1 style="text-align: center; margin-bottom: 30px;">面试指导文档</h1>
-          
-          <div style="margin-bottom: 30px; border: 1px solid #ebeef5; padding: 15px; border-radius: 5px;">
-            <h2 style="margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #ebeef5; padding-bottom: 10px;">基本信息</h2>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="width: 120px; font-weight: bold; padding: 8px 0;">候选人：</td>
-                <td style="padding: 8px 0;">${this.interview.candidateName || '-'}</td>
-                <td style="width: 120px; font-weight: bold; padding: 8px 0;">应聘职位：</td>
-                <td style="padding: 8px 0;">${this.interview.candidatePosition || '-'}</td>
-              </tr>
-              <tr>
-                <td style="font-weight: bold; padding: 8px 0;">所属部门：</td>
-                <td style="padding: 8px 0;">${this.interview.job?.department || '-'}</td>
-                <td style="font-weight: bold; padding: 8px 0;">面试类型：</td>
-                <td style="padding: 8px 0;">${this.getInterviewTypeText(this.interview.type)}</td>
-              </tr>
-              <tr>
-                <td style="font-weight: bold; padding: 8px 0;">面试时间：</td>
-                <td style="padding: 8px 0;">${this.formatDateTime(this.interview.time)}</td>
-                <td style="font-weight: bold; padding: 8px 0;">面试地点：</td>
-                <td style="padding: 8px 0;">${this.interview.location || '-'}</td>
-              </tr>
-              <tr>
-                <td style="font-weight: bold; padding: 8px 0;">最高学历：</td>
-                <td style="padding: 8px 0;">${this.interview.resume?.highestEducation || '-'}</td>
-                <td style="font-weight: bold; padding: 8px 0;">专业：</td>
-                <td style="padding: 8px 0;">${this.interview.resume?.major || '-'}</td>
-              </tr>
-              <tr>
-                <td style="font-weight: bold; padding: 8px 0;">联系电话：</td>
-                <td style="padding: 8px 0;">${this.interview.resume?.phone || '-'}</td>
-                <td style="font-weight: bold; padding: 8px 0;">邮箱：</td>
-                <td style="padding: 8px 0;">${this.interview.resume?.email || '-'}</td>
-              </tr>
-            </table>
-          </div>
-          
-          <h2 style="margin-bottom: 15px;">面试指导内容</h2>
-          <div class="markdown-content">${this.renderedGuide}</div>
-          
-          <div style="margin-top: 30px; font-size: 12px; color: #909399; text-align: center;">
-            此文档由 AI 面试助手自动生成于 ${new Date().toLocaleString('zh-CN')}
-          </div>
-        </div>
-      `
-      
-      // 添加CSS样式，确保PDF中Markdown内容正确渲染
-      const style = document.createElement('style')
-      style.textContent = `
-        .markdown-content {
-          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-          line-height: 1.6;
-          color: #333;
-        }
-        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
-          margin-top: 20px;
-          margin-bottom: 10px;
-          font-weight: 600;
-        }
-        .markdown-content h1 {
-          font-size: 22px;
-          padding-bottom: 10px;
-          border-bottom: 1px solid #eee;
-        }
-        .markdown-content h2 {
-          font-size: 18px;
-          padding-bottom: 5px;
-          border-bottom: 1px solid #eee;
-        }
-        .markdown-content h3 {
-          font-size: 16px;
-        }
-        .markdown-content ul, .markdown-content ol {
-          padding-left: 20px;
-          margin-bottom: 15px;
-        }
-        .markdown-content li {
-          margin-bottom: 5px;
-        }
-        .markdown-content p {
-          margin-bottom: 10px;
-        }
-      `
-      element.appendChild(style)
-      
-      const opt = {
-        margin: 1,
-        filename: `面试指导_${this.interview.candidateName}_${new Date().toLocaleDateString()}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-      }
-      
-      this.$message.info('正在生成PDF，请稍候...')
-      html2pdf().set(opt).from(element).save().then(() => {
-        this.$message.success('PDF导出成功')
-      }).catch(error => {
-        this.$message.error('PDF导出失败')
-      })
-    },
-    async handleSave() {
-      this.saving = true
-      try {
-        const interviewId = this.$route.params.id
-        
-        // 检查interviewId是否存在，避免传递undefined
-        if (!interviewId) {
-          throw new Error('面试ID不存在，无法保存')
-        }
-        
-        // 获取用户信息
-        const userData = await this.$store.dispatch('user/getInfo')
-        const currentUserId = userData.id || this.$store.state.user.id
-        
-        if (!currentUserId) {
-          throw new Error('无法获取当前用户ID')
-        }
-        
-        // 使用updateInterviewPreparation接口，调用新的后端API
-        await this.$store.dispatch('interview/updateInterviewPreparation', {
-          id: interviewId, // 修改参数名为id，与store action期望的参数名匹配
-          data: {
-            focusPoints: {
-              content: this.preparationForm.focusContent
-            },
-            role: this.getRoleText(this.preparationForm.role === 'other' ? 
-                  this.preparationForm.otherRole : this.preparationForm.role),
-            interviewGuide: this.interviewGuide || ''
-          }
-        })
-        
-        this.$message.success('保存成功')
-        this.$router.push('/interview/schedule')
-      } catch (error) {
-        console.error('保存失败:', error)
-        
-        // 获取后端返回的具体错误信息
-        const errorDetail = error.response?.data?.detail;
-        
-        // 根据错误类型提供不同的提示信息
-        if (error.response && error.response.status === 403) {
-          this.$message.error(errorDetail || '权限不足：您不是该面试的面试官，无法保存')
-        } else if (error.response && error.response.status === 404) {
-          this.$message.error(errorDetail || '保存失败：找不到相关记录')
-        } else {
-          this.$message.error('保存失败：' + (errorDetail || error.message || '未知错误'))
-        }
-      } finally {
-        this.saving = false
+      } else {
+        // 直接应用模板
+        this.doApplyTemplate(templateKey);
       }
     },
     handleCancel() {
@@ -1388,8 +1209,28 @@ export default {
       const guideContent = document.querySelector('.guide-content');
       const markdownContent = document.querySelector('.markdown-content');
       
+      // 检查DOM元素
       if (this.interviewGuide && (!guideContent || !markdownContent)) {
+        console.log('检测到interviewGuide存在但DOM元素未正确渲染，强制更新视图');
         this.forceUpdate();
+        return;
+      }
+      
+      // 检查数据一致性
+      if (this.preparation) {
+        const hasPreparationNotes = !!(this.preparation.preparation_notes);
+        
+        if (hasPreparationNotes && !this.interviewGuide) {
+          console.log('检测到preparation中有指导文档，但interviewGuide为空，尝试重新设置');
+          
+          // 只检查preparation_notes字段
+          if (this.preparation.preparation_notes) {
+            this.interviewGuide = this.preparation.preparation_notes;
+          }
+          
+          // 强制更新视图
+          this.forceUpdate();
+        }
       }
     },
     
@@ -1403,32 +1244,140 @@ export default {
     },
     getIndustryText(industry) {
       const industryMap = {
+        '': '通用',
         'it': '信息技术',
+        'it_software': '软件开发',
+        'it_internet': '互联网产品',
+        'it_hardware': '硬件/通信',
+        'it_ai': '人工智能/算法',
+        'it_bigdata': '大数据/云计算',
         'finance': '金融',
+        'finance_bank': '银行',
+        'finance_insurance': '保险',
+        'finance_security': '证券/投资',
+        'finance_fintech': '金融科技',
         'healthcare': '医疗健康',
+        'healthcare_hospital': '医院/临床',
+        'healthcare_pharma': '制药/生物',
+        'healthcare_device': '医疗器械',
+        'healthcare_biotech': '生物技术',
         'manufacturing': '制造业',
+        'manufacturing_auto': '汽车制造',
+        'manufacturing_electronics': '电子制造',
+        'manufacturing_chem': '化工/材料',
+        'manufacturing_machine': '机械设备',
         'education': '教育',
+        'education_k12': 'K12教育',
+        'education_higher': '高等教育',
+        'education_training': '职业培训',
+        'education_online': '在线教育',
         'retail': '零售',
+        'retail_ecommerce': '电子商务',
+        'retail_fmcg': '快消品',
+        'retail_luxury': '奢侈品/服饰',
+        'retail_fresh': '生鲜/餐饮',
         'media': '媒体',
+        'media_ads': '广告/营销',
+        'media_publish': '出版/内容',
+        'media_entertainment': '娱乐/游戏',
+        'media_design': '设计/创意',
         'government': '政府',
-        'consulting': '咨询'
+        'consulting': '咨询',
+        'real_estate': '房地产/建筑',
+        'energy': '能源/环保',
+        'logistics': '物流/运输',
+        'agriculture': '农业/食品',
+        'tourism': '旅游/酒店'
       };
-      return industryMap[industry] || '未知行业';
+      
+      // 如果直接在映射表中找到对应值，则返回该值
+      if (industryMap[industry]) {
+        return industryMap[industry];
+      }
+      
+      // 如果是以下划线分隔的值（如 it_software），尝试提取主要类别
+      const mainCategory = industry?.split('_')[0];
+      if (mainCategory && industryMap[mainCategory]) {
+        return industryMap[mainCategory];
+      }
+      
+      // 从industryOptions中查找标签
+      const option = this.industryOptions.find(item => item.value === industry);
+      if (option) {
+        return option.label;
+      }
+      
+      // 最后才返回未知行业
+      return '未知行业';
     },
     
     getIndustryIcon(industry) {
       const iconMap = {
+        '': 'el-icon-office-building',
         'it': 'el-icon-monitor',
+        'it_software': 'el-icon-monitor',
+        'it_internet': 'el-icon-data-line',
+        'it_hardware': 'el-icon-cpu',
+        'it_ai': 'el-icon-data-analysis',
+        'it_bigdata': 'el-icon-cloudy',
         'finance': 'el-icon-money',
+        'finance_bank': 'el-icon-money',
+        'finance_insurance': 'el-icon-umbrella',
+        'finance_security': 'el-icon-data-line',
+        'finance_fintech': 'el-icon-coin',
         'healthcare': 'el-icon-first-aid-kit',
+        'healthcare_hospital': 'el-icon-first-aid-kit',
+        'healthcare_pharma': 'el-icon-wind-power',
+        'healthcare_device': 'el-icon-mouse',
+        'healthcare_biotech': 'el-icon-toilet-paper',
         'manufacturing': 'el-icon-cpu',
+        'manufacturing_auto': 'el-icon-truck',
+        'manufacturing_electronics': 'el-icon-mobile-phone',
+        'manufacturing_chem': 'el-icon-data-board',
+        'manufacturing_machine': 'el-icon-set-up',
         'education': 'el-icon-reading',
+        'education_k12': 'el-icon-reading',
+        'education_higher': 'el-icon-notebook-2',
+        'education_training': 'el-icon-aim',
+        'education_online': 'el-icon-video-camera',
         'retail': 'el-icon-shopping-cart-full',
+        'retail_ecommerce': 'el-icon-shopping-bag-1',
+        'retail_fmcg': 'el-icon-shopping-cart-1',
+        'retail_luxury': 'el-icon-present',
+        'retail_fresh': 'el-icon-food',
         'media': 'el-icon-picture',
+        'media_ads': 'el-icon-data-board',
+        'media_publish': 'el-icon-document',
+        'media_entertainment': 'el-icon-film',
+        'media_design': 'el-icon-brush',
         'government': 'el-icon-school',
-        'consulting': 'el-icon-service'
+        'consulting': 'el-icon-service',
+        'real_estate': 'el-icon-house',
+        'energy': 'el-icon-lightning',
+        'logistics': 'el-icon-truck',
+        'agriculture': 'el-icon-cherry',
+        'tourism': 'el-icon-place'
       };
-      return iconMap[industry] || 'el-icon-office-building';
+      
+      // 如果直接在映射表中找到对应值，则返回该值
+      if (iconMap[industry]) {
+        return iconMap[industry];
+      }
+      
+      // 如果是以下划线分隔的值，尝试提取主要类别
+      const mainCategory = industry?.split('_')[0];
+      if (mainCategory && iconMap[mainCategory]) {
+        return iconMap[mainCategory];
+      }
+      
+      // 从industryOptions中查找图标
+      const option = this.industryOptions.find(item => item.value === industry);
+      if (option && option.icon) {
+        return option.icon;
+      }
+      
+      // 默认图标
+      return 'el-icon-office-building';
     },
     
     getIndustryTips(industry, role) {
@@ -1578,329 +1527,309 @@ export default {
     },
     
     handleIndustryChange(value) {
-      // 当行业变化时，可以根据行业自动调整面试关注点内容
-      if (value && this.preparationForm.role) {
-        // 显示消息
+      // 当行业变化时，只显示消息，不再提示生成关注点
+      if (value) {
         this.$message.success(`已选择${this.getIndustryText(value)}行业，面试指导将更有针对性`);
-        
-        // 询问用户是否要生成行业特定的面试关注点
-        this.$confirm(`是否要生成针对${this.getIndustryText(value)}行业的面试关注点?`, '提示', {
-          confirmButtonText: '生成',
-          cancelButtonText: '暂不生成',
-          type: 'info'
-        }).then(() => {
-          // 用户确认后，生成行业和角色相关的关注点
-          this.generateIndustryRoleFocusPoints(value, this.preparationForm.role);
-        }).catch(() => {
-          // 用户取消，不做任何操作
-        });
       }
     },
-
-    // 添加一个新方法用于生成行业和角色相关的面试关注点
-    generateIndustryRoleFocusPoints(industry, role) {
-      // 设置加载状态
-      this.generatingFocus = true;
-      
-      // 获取行业文本和角色文本
-      const industryText = this.getIndustryText(industry);
-      const roleText = this.getRoleText(role);
-      
-      // 根据行业和角色组合获取对应的面试关注点模板
-      const focusPointsTemplate = this.getIndustryRoleFocusPoints(industry, role);
-      
-      // 内容标题
-      const title = `# ${industryText || '通用'}行业${roleText}面试关注点`;
-      
-      // 设置内容
-      this.preparationForm.focusContent = title + '\n\n' + focusPointsTemplate;
-      
-      // 关闭加载状态
-      setTimeout(() => {
-        this.generatingFocus = false;
+    handleFocusContentInput() {
+      // 标记用户已编辑过关注点
+      this.userHasEditedFocusPoints = true;
+    },
+    async handleSaveFocusPoints() {
+      try {
+        await this.$store.dispatch('interview/saveInterviewerFocusPoints', {
+          content: this.preparationForm.focusContent
+        })
         
-        // 添加动画效果
-        this.$nextTick(() => {
-          const editor = document.querySelector('.focus-editor');
-          if (editor) {
-            editor.classList.add('highlight-animate');
-            setTimeout(() => {
-              editor.classList.remove('highlight-animate');
-            }, 2000);
+        // 保存为自定义模板
+        this.customTemplate = this.preparationForm.focusContent;
+        this.hasCustomTemplate = true;
+        
+        this.$message.success('关注点保存成功')
+      } catch (error) {
+        // 显示具体的错误信息，包括后端403状态的详细信息
+        const errorDetail = error.response?.data?.detail || '保存关注点失败';
+        this.$message.error(errorDetail);
+      }
+    },
+    
+    async generateInterviewGuide() {
+      // 如果已经在生成中，不要重复生成
+      if (this.isGenerating) {
+        this.$message.info('正在生成中，请稍候...');
+        return;
+      }
+
+      try {
+        // 设置生成状态
+        this.isGenerating = true;
+        this.guideLoading = true;
+        this.generatingGuide = true;
+        
+        // 清空当前的面试指南内容
+        this.interviewGuide = '';
+        
+        // 添加生成动画显示标志
+        this.showGeneratingAnimation = true;
+        
+        const interviewId = this.$route.params.id;
+        
+        // 使用 resumeId 或 resume_id
+        const resumeId = this.interview.resumeId || this.interview.resume_id;
+        const jobId = this.interview.jobId || this.interview.job_id;
+        
+        if (!resumeId || !jobId) {
+          this.$message.error('缺少必要的面试信息，无法生成面试指南');
+          this.guideLoading = false;
+          this.isGenerating = false;
+          this.generatingGuide = false;
+          this.showGeneratingAnimation = false;
+          return;
+        }
+        
+        const guideElement = this.$refs.guideContent;
+        
+        // 构建请求数据
+        const requestData = {
+          resumeId: resumeId,
+          jobId: jobId,
+          role: this.getRoleText(this.preparationForm.role === 'other' ? 
+                this.preparationForm.otherRole : this.preparationForm.role),
+          focusPoints: {
+            content: this.preparationForm.focusContent
+          },
+          industry: this.preparationForm.industry ? this.getIndustryText(this.preparationForm.industry) : '通用'
+        };
+        
+        this.$message.info('开始生成面试指南，这可能需要一些时间...');
+        
+        // 使用流式生成API
+        await this.$store.dispatch('ai/streamGenerateInterviewGuide', {
+          data: requestData,
+          onChunk: (chunk) => {
+            // 收到第一个数据块时，隐藏生成动画
+            if (this.showGeneratingAnimation) {
+              this.showGeneratingAnimation = false;
+            }
+            
+            // 流式接收数据块并更新UI
+            if (chunk && chunk.length > 0) {
+              // 更新面试指南内容
+              this.interviewGuide += chunk;
+              
+              // 确保DOM更新后滚动到底部
+              this.$nextTick(() => {
+                if (guideElement) {
+                  guideElement.scrollTop = guideElement.scrollHeight;
+                } else {
+                  // 尝试查找备用元素
+                  const container = document.querySelector('.guide-content');
+                  if (container) {
+                    container.scrollTop = container.scrollHeight;
+                  }
+                }
+              });
+            }
           }
         });
         
-        // 显示成功消息
-        this.$message.success(`已生成${industryText || '通用'}行业${roleText}的面试关注点`);
-      }, 500);
-    },
-
-    // 添加一个新方法用于获取行业和角色组合的面试关注点模板
-    getIndustryRoleFocusPoints(industry, role) {
-      // 定义行业和角色组合的关注点模板
-      const templates = {
-        it: {
-          technical: `## 技术深度评估
-1. 如何评估候选人在核心技术领域的掌握程度
-2. 设计编码测试来验证实际动手能力
-3. 提问系统设计问题的技巧和注意事项
-4. 技术问题的递进深入方法
-
-## IT行业特定技能考察
-1. 云服务和分布式系统知识评估方法
-2. 开源贡献和技术社区参与度考察
-3. 代码质量和工程实践评估标准
-4. 敏捷开发和DevOps理念理解检验
-
-## 技术学习能力评估
-1. 新技术学习速度和深度的判断方法
-2. 技术视野和知识广度的提问技巧
-3. 自驱学习意愿和能力的识别方式
-4. 技术潜力评估的重点关注点`,
-          
-          department_head: `## 技术团队管理能力
-1. 技术团队建设和人才培养经验考察
-2. 跨团队协作和资源协调能力评估
-3. 技术战略规划和落地执行能力判断
-4. 技术债务管理和系统演进观念评估
-
-## IT项目管理能力
-1. 敏捷方法论实践经验和理解深度
-2. 技术风险预判和解决能力评估
-3. 项目范围和进度控制能力考察
-4. 技术与业务需求平衡能力判断
-
-## 技术决策能力
-1. 架构选型和技术决策过程考察
-2. 技术创新与稳定性平衡判断
-3. 成本效益分析能力评估
-4. 技术团队激励和绩效管理方法`,
-          
-          hr: `## IT人才特点理解
-1. 技术人才特性和心理特点把握
-2. IT行业薪资结构和福利体系设计
-3. 技术人才成长路径和职业规划引导
-4. 工作模式和弹性工作制度设计理念
-
-## 技术招聘策略
-1. IT人才市场动态和招聘渠道把握
-2. 技术人才筛选要点和简历识别技巧
-3. 技术面试官团队的组织和培训方法
-4. 候选人技术背景基础判断要点
-
-## 文化契合度评估
-1. 技术团队文化特点和价值观考察
-2. 远程工作和协作能力评估方法
-3. 技术驱动型企业的文化适应性判断
-4. 创新意识和持续学习态度评估`,
-          business: `## IT业务领域知识
-1. 产品和服务生命周期理解考察
-2. 业务模式和运营策略评估
-3. 用户需求分析和产品定位能力
-4. IT解决方案商业价值判断能力
-
-## 行业洞察力评估
-1. IT行业趋势理解和判断能力
-2. 竞争格局分析和市场定位思维
-3. 数字化转型和创新模式认知
-4. 用户体验和产品思维评估
-
-## 业务决策能力
-1. 产品和项目优先级决策能力
-2. 业务风险评估和处理方法
-3. 数据驱动决策思维考察
-4. ROI分析和商业价值判断`
-        },
-        
-        finance: {
-          technical: `## 金融科技能力评估
-1. 金融领域技术应用知识考察方法
-2. 金融数据处理和分析能力评估
-3. 风控系统和反欺诈技术经验考量
-4. 支付系统和交易处理技术理解
-
-## 金融行业合规意识
-1. 金融数据安全和隐私保护意识评估
-2. 合规监管技术实现经验考察
-3. 金融系统稳定性和可靠性保障能力
-4. 金融科技创新与合规平衡理解
-
-## 高性能系统经验
-1. 高并发交易系统设计经验考察
-2. 金融级容灾和高可用设计能力
-3. 实时风控和异常监测系统经验
-4. 金融科技趋势和前沿技术理解`,
-          
-          department_head: `## 金融业务理解
-1. 金融业务流程和产品知识考察
-2. 业务与技术衔接能力评估方法
-3. 金融行业发展趋势把握程度判断
-4. 金融创新与风险控制平衡理解
-
-## 合规与风控管理
-1. 金融监管政策理解和执行能力
-2. 风险管理体系构建和优化经验
-3. 合规文化建设和团队意识培养
-4. 金融安全和数据保护管理能力
-
-## 金融团队管理
-1. 金融专业团队的协调与管理技巧
-2. 绩效考核和激励机制设计经验
-3. 跨部门协作和资源整合能力
-4. 危机处理和应急响应领导力`,
-          business: `## 金融业务知识
-1. 金融产品和服务理解深度
-2. 金融业务流程和规则认知
-3. 风险评估和控制意识考察
-4. 金融监管政策理解和应用能力
-
-## 金融市场洞察
-1. 金融市场趋势判断能力
-2. 金融创新模式和产品理解
-3. 竞争对手分析和差异化思维
-4. 客户需求洞察和服务设计能力
-
-## 金融业务决策
-1. 风险与收益平衡能力评估
-2. 金融指标分析和解读能力
-3. 合规与业务发展平衡思维
-4. 金融业务战略规划能力`
-        },
-        
-        healthcare: {
-          technical: `## 医疗信息系统能力
-1. 医疗数据标准和互操作性理解
-2. 临床信息系统开发经验考察
-3. 医疗数据安全和隐私保护意识
-4. 医疗影像处理和AI应用能力评估
-
-## 医疗行业合规性
-1. 医疗数据合规和伦理意识评估
-2. 医疗系统认证和标准符合性理解
-3. 患者数据管理和使用规范认知
-4. 医疗软件监管要求和验证流程
-
-## 专业领域知识
-1. 医疗术语和临床流程理解程度
-2. 医疗健康产品用户体验设计能力
-3. 医疗设备集成和互联互通技术
-4. 健康管理和远程医疗技术应用`,
-          business: `## 医疗业务领域知识
-1. 医疗服务流程和专业术语理解
-2. 医疗产品和解决方案知识考察
-3. 医患关系管理和服务意识评估
-4. 医疗质量管理和风险控制能力
-
-## 医疗行业洞察
-1. 医疗健康行业趋势判断能力
-2. 医疗政策和法规应用理解
-3. 医疗服务创新模式认知程度
-4. 健康管理理念和实践经验考察
-
-## 医疗业务决策
-1. 医疗资源配置和优化能力
-2. 医疗服务价值和效益分析能力
-3. 医疗业务伦理和合规决策思维
-4. 医疗健康项目规划和管理能力`
-        },
-        
-        manufacturing: {
-          technical: `## 工业技术能力
-1. 制造业自动化和信息化技术评估
-2. 工业物联网和数字孪生技术理解
-3. 生产管理系统设计和优化经验
-4. 供应链系统和ERP集成技术能力
-
-## 制造业专业知识
-1. 工艺流程和生产线设计理解
-2. 质量控制系统和标准执行能力
-3. 精益生产和持续改进工具应用
-4. 工业安全和环保技术要求认知
-
-## 行业解决方案能力
-1. 制造业痛点识别和解决方案设计
-2. 工业设备监控和预测性维护技术
-3. 生产效率优化和成本控制方法
-4. 智能制造趋势和技术路线图规划`,
-          business: `## 制造业务知识
-1. 制造流程和产业链理解深度
-2. 产品质量标准和控制方法认知
-3. 生产计划和库存管理能力考察
-4. 供应链管理和采购策略理解
-
-## 制造行业洞察
-1. 制造业趋势和技术变革认知
-2. 产品生命周期管理思维评估
-3. 制造业成本结构和效益分析能力
-4. 产能规划和资源配置逻辑理解
-
-## 制造业务决策
-1. 生产效率和质量平衡决策能力
-2. 设备投资和技术升级评估能力
-3. 精益生产和持续改进思维考察
-4. 产品创新和市场定位能力评估`
-        },
-        
-        education: {
-          technical: `## 教育技术能力
-1. 教育平台设计和用户体验评估
-2. 学习数据分析和个性化算法设计
-3. 教育资源管理和内容分发系统
-4. 在线学习和互动技术应用能力
-
-## 教育专业理解
-1. 教学流程和学习方法论理解
-2. 教育评估系统和效果测量设计
-3. 学习行为分析和干预机制设计
-4. 教育游戏化和激励系统设计能力
-
-## 教育行业趋势
-1. 教育科技发展趋势和创新方向
-2. 混合式学习技术和应用场景
-3. 人工智能在教育中的应用前景
-4. 教育数据安全和隐私保护措施`,
-          business: `## 教育业务知识
-1. 教育产品和服务设计理解
-2. 学习需求分析和教学设计能力
-3. 教育质量评估和效果测量方法
-4. 教育市场细分和目标用户定位能力
-
-## 教育行业洞察
-1. 教育行业发展趋势判断能力
-2. 教育理念和方法论应用能力
-3. 教育科技和创新模式认知程度
-4. 学习者体验和参与度设计思维
-
-## 教育业务决策
-1. 教育资源配置和课程规划能力
-2. 教育品质与规模平衡决策思维
-3. 教育效果评估和优化能力
-4. 教育服务定价和价值传递能力`
+        if (this.interviewGuide && this.interviewGuide.trim().length > 0) {
+          this.$message.success('面试指南生成完成');
+        } else {
+          this.$message.warning('面试指南生成完成，但内容为空');
         }
-      };
+      } catch (error) {
+        // 针对特定错误类型提供更友好的提示
+        let errorMessage = '未知错误';
+        if (error.message && error.message.includes('超时')) {
+          errorMessage = '请求超时，请稍后重试';
+        } else if (error.message && error.message.includes('网络')) {
+          errorMessage = '网络连接错误，请检查网络连接并重试';
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        this.$message.error(`生成面试指南失败: ${errorMessage}`);
+        
+        // 恢复之前的内容，如果有的话
+        if (!this.interviewGuide && this.preparation && this.preparation.interviewGuide) {
+          this.interviewGuide = this.preparation.interviewGuide;
+          this.$message.info('已恢复之前保存的面试指南');
+        }
+      } finally {
+        this.guideLoading = false;
+        this.isGenerating = false;
+        this.generatingGuide = false;
+        this.showGeneratingAnimation = false;
+      }
+    },
+    
+    exportToPDF() {
+      if (!this.interviewGuide) {
+        this.$message.warning('没有可导出的文档')
+        return
+      }
       
-      // 通用模板，当没有特定行业+角色组合的模板时使用
-      const defaultTemplate = `## ${this.getIndustryText(industry)}行业面试要点
-1. ${this.getIndustryText(industry)}行业知识和专业术语理解
-2. ${this.getIndustryText(industry)}行业趋势和发展方向把握
-3. ${this.getIndustryText(industry)}行业特定技能和经验评估
-4. ${this.getIndustryText(industry)}行业法规和标准认知考察
-
-## ${this.getRoleText(role)}角色职责
-1. ${this.getRoleText(role)}在面试过程中的主要职责
-2. ${this.getRoleText(role)}评估候选人的关键维度
-3. ${this.getRoleText(role)}常用面试技巧和问题设计
-4. ${this.getRoleText(role)}评分标准和决策依据
-
-## 综合能力评估
-1. 专业知识与行业经验相结合评估
-2. 沟通表达与专业深度平衡考察
-3. 学习能力与行业适应性判断方法
-4. 团队协作与专业独立性平衡评估`;
+      const element = document.createElement('div')
+      element.innerHTML = `
+        <div style="padding: 20px;">
+          <h1 style="text-align: center; margin-bottom: 30px;">面试指导文档</h1>
+          
+          <div style="margin-bottom: 30px; border: 1px solid #ebeef5; padding: 15px; border-radius: 5px;">
+            <h2 style="margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #ebeef5; padding-bottom: 10px;">基本信息</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="width: 120px; font-weight: bold; padding: 8px 0;">候选人：</td>
+                <td style="padding: 8px 0;">${this.interview.candidateName || '-'}</td>
+                <td style="width: 120px; font-weight: bold; padding: 8px 0;">应聘职位：</td>
+                <td style="padding: 8px 0;">${this.interview.candidatePosition || '-'}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: bold; padding: 8px 0;">所属部门：</td>
+                <td style="padding: 8px 0;">${this.interview.job?.department || '-'}</td>
+                <td style="font-weight: bold; padding: 8px 0;">面试类型：</td>
+                <td style="padding: 8px 0;">${this.getInterviewTypeText(this.interview.type)}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: bold; padding: 8px 0;">面试时间：</td>
+                <td style="padding: 8px 0;">${this.formatDateTime(this.interview.time)}</td>
+                <td style="font-weight: bold; padding: 8px 0;">面试地点：</td>
+                <td style="padding: 8px 0;">${this.interview.location || '-'}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: bold; padding: 8px 0;">最高学历：</td>
+                <td style="padding: 8px 0;">${this.interview.resume?.highestEducation || '-'}</td>
+                <td style="font-weight: bold; padding: 8px 0;">专业：</td>
+                <td style="padding: 8px 0;">${this.interview.resume?.major || '-'}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: bold; padding: 8px 0;">联系电话：</td>
+                <td style="padding: 8px 0;">${this.interview.resume?.phone || '-'}</td>
+                <td style="font-weight: bold; padding: 8px 0;">邮箱：</td>
+                <td style="padding: 8px 0;">${this.interview.resume?.email || '-'}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <h2 style="margin-bottom: 15px;">面试指导内容</h2>
+          <div class="markdown-content">${this.renderedGuide}</div>
+          
+          <div style="margin-top: 30px; font-size: 12px; color: #909399; text-align: center;">
+            此文档由 AI 面试助手自动生成于 ${new Date().toLocaleString('zh-CN')}
+          </div>
+        </div>
+      `
       
-      // 返回对应的模板，如果没有特定的模板，则返回通用模板
-      return (templates[industry] && templates[industry][role]) ? 
-        templates[industry][role] : defaultTemplate;
+      // 添加CSS样式，确保PDF中Markdown内容正确渲染
+      const style = document.createElement('style')
+      style.textContent = `
+        .markdown-content {
+          font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+        }
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 {
+          margin-top: 20px;
+          margin-bottom: 10px;
+          font-weight: 600;
+        }
+        .markdown-content h1 {
+          font-size: 22px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #eee;
+        }
+        .markdown-content h2 {
+          font-size: 18px;
+          padding-bottom: 5px;
+          border-bottom: 1px solid #eee;
+        }
+        .markdown-content h3 {
+          font-size: 16px;
+        }
+        .markdown-content ul, .markdown-content ol {
+          padding-left: 20px;
+          margin-bottom: 15px;
+        }
+        .markdown-content li {
+          margin-bottom: 5px;
+        }
+        .markdown-content p {
+          margin-bottom: 10px;
+        }
+      `
+      element.appendChild(style)
+      
+      const opt = {
+        margin: 1,
+        filename: `面试指导_${this.interview.candidateName}_${new Date().toLocaleDateString()}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+      }
+      
+      this.$message.info('正在生成PDF，请稍候...')
+      html2pdf().set(opt).from(element).save().then(() => {
+        this.$message.success('PDF导出成功')
+      }).catch(error => {
+        this.$message.error('PDF导出失败')
+      })
+    },
+    
+    async handleSave() {
+      this.saving = true
+      try {
+        const interviewId = this.$route.params.id
+        
+        // 检查interviewId是否存在，避免传递undefined
+        if (!interviewId) {
+          throw new Error('面试ID不存在，无法保存')
+        }
+        
+        // 获取用户信息
+        const userData = await this.$store.dispatch('user/getInfo')
+        const currentUserId = userData.id || this.$store.state.user.id
+        
+        if (!currentUserId) {
+          throw new Error('无法获取当前用户ID')
+        }
+        
+        // 使用updateInterviewPreparation接口，调用新的后端API
+        await this.$store.dispatch('interview/updateInterviewPreparation', {
+          id: interviewId, // 修改参数名为id，与store action期望的参数名匹配
+          data: {
+            focusPoints: {
+              content: this.preparationForm.focusContent
+            },
+            role: this.getRoleText(this.preparationForm.role === 'other' ? 
+                  this.preparationForm.otherRole : this.preparationForm.role),
+            interviewGuide: this.interviewGuide || ''
+          }
+        })
+        
+        this.$message.success('保存成功')
+        this.$router.push('/interview/schedule')
+      } catch (error) {
+        console.error('保存失败:', error)
+        
+        // 获取后端返回的具体错误信息
+        const errorDetail = error.response?.data?.detail;
+        
+        // 根据错误类型提供不同的提示信息
+        if (error.response && error.response.status === 403) {
+          this.$message.error(errorDetail || '权限不足：您不是该面试的面试官，无法保存')
+        } else if (error.response && error.response.status === 404) {
+          this.$message.error(errorDetail || '保存失败：找不到相关记录')
+        } else {
+          this.$message.error('保存失败：' + (errorDetail || error.message || '未知错误'))
+        }
+      } finally {
+        this.saving = false
+      }
+    },
+    
+    handleCancel() {
+      this.$router.push('/interview/schedule')
     },
   }
 }
@@ -2558,35 +2487,6 @@ export default {
         }
       }
     }
-    .industry-tips {
-      margin-top: 15px;
-      background-color: #ecf8ff;
-      border-radius: 4px;
-      padding: 12px;
-      
-      .industry-tips-title {
-        font-weight: 500;
-        color: #409EFF;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        
-        i {
-          margin-right: 5px;
-        }
-      }
-      
-      .industry-tips-list {
-        padding-left: 20px;
-        margin: 0;
-        
-        li {
-          color: #606266;
-          margin-bottom: 6px;
-          line-height: 1.6;
-        }
-      }
-    }
   }
 }
 
@@ -2682,6 +2582,114 @@ export default {
   
   &.highlight-animate {
     background-color: rgba(64, 158, 255, 0.1);
+  }
+}
+
+/* 生成动画样式 */
+.generating-animation {
+  padding: 30px 20px;
+  text-align: center;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid #e6f7ff;
+}
+
+.animation-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.brain-animation {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.brain-animation .el-icon-loading {
+  font-size: 48px;
+  color: #409EFF;
+}
+
+.brain-animation .pulse-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #409EFF;
+  font-size: 24px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.7;
+  }
+}
+
+.animation-text {
+  margin-top: 20px;
+}
+
+.animation-text .main-text {
+  font-size: 18px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.animation-text .sub-text {
+  font-size: 14px;
+  color: #909399;
+  margin-bottom: 15px;
+}
+
+.progress-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 15px;
+}
+
+.progress-dots .dot {
+  width: 10px;
+  height: 10px;
+  background-color: #409EFF;
+  border-radius: 50%;
+  opacity: 0.3;
+}
+
+.progress-dots .dot1 {
+  animation: dot-animation 1.4s infinite ease-in-out;
+}
+
+.progress-dots .dot2 {
+  animation: dot-animation 1.4s infinite ease-in-out 0.2s;
+}
+
+.progress-dots .dot3 {
+  animation: dot-animation 1.4s infinite ease-in-out 0.4s;
+}
+
+@keyframes dot-animation {
+  0%, 100% {
+    transform: scale(0.8);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
   }
 }
 </style> 

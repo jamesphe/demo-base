@@ -3,7 +3,7 @@ version: '3.8'
 name: resume-system
 services:
   resume-backend:
-    image: resume-backend
+    image: resume-backend:${VERSION:-1.0.0}
     ports:
       - "8000:8000"
     depends_on:
@@ -18,7 +18,7 @@ services:
       - REDIS_DB=0
 
   resume-celery-worker:
-    image: resume-celery-worker 
+    image: resume-celery-worker:${VERSION:-1.0.0}
     command: celery -A app.services.resume_queue_service worker --loglevel=info
     depends_on:
       - resume-db
@@ -32,7 +32,7 @@ services:
       - REDIS_DB=0
 
   resume-celery-beat:
-    image: resume-celery-beat
+    image: resume-celery-beat:${VERSION:-1.0.0}
     command: celery -A app.services.resume_queue_service beat --loglevel=info
     depends_on:
       - resume-db
@@ -46,7 +46,7 @@ services:
       - REDIS_DB=0
 
   resume-celery-flower:
-    image: resume-celery-worker
+    image: resume-celery-worker:${VERSION:-1.0.0}
     command: celery -A app.services.resume_queue_service flower --port=5555
     ports:
       - "5555:5555"
@@ -61,7 +61,7 @@ services:
       - REDIS_DB=0
 
   resume-frontend:
-    image: resume-frontend
+    image: resume-frontend:${VERSION:-1.0.0}
     ports:
       - "6110:80"
     env_file:

@@ -6,13 +6,56 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# 获取要更新的服务名称（如果有）
-SERVICE_NAME=$1
+# 默认版本
+VERSION="1.0.0"
 
-echo -e "${YELLOW}开始部署Resume系统...${NC}"
+# 显示帮助信息
+show_help() {
+    echo "用法: $0 [选项] [服务名称]"
+    echo
+    echo "选项:"
+    echo "  -h, --help             显示帮助信息"
+    echo "  -v, --version VERSION  指定要部署的版本 (默认: 1.0.0)"
+    echo "  -a, --all-except-db   部署除数据库外的所有服务"
+    echo
+    echo "服务名称可以是:"
+    echo "  resume-backend"
+    echo "  resume-frontend"
+    echo "  resume-celery-worker"
+    echo "  resume-celery-beat"
+    echo
+    echo "示例:"
+    echo "  $0                     # 部署所有服务（默认版本）"
+    echo "  $0 -v 2.0.0           # 部署所有服务（指定版本）"
+    echo "  $0 -v 2.0.0 resume-backend  # 部署指定服务（指定版本）"
+}
+
+# 解析命令行参数
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -v|--version)
+            VERSION="$2"
+            shift 2
+            ;;
+        -a|--all-except-db)
+            SERVICE_NAME="all-except-db"
+            shift
+            ;;
+        *)
+            SERVICE_NAME="$1"
+            shift
+            ;;
+    esac
+done
+
+echo -e "${YELLOW}开始部署Resume系统 (版本: $VERSION)...${NC}"
 
 # 检查是否需要重新部署除数据库外的所有服务
-if [ "$SERVICE_NAME" = "all-except-db" ] || [ "$SERVICE_NAME" = "-a" ] || [ "$SERVICE_NAME" = "--all-except-db" ]; then
+if [ "$SERVICE_NAME" = "all-except-db" ]; then
     echo -e "${YELLOW}将重新部署除数据库外的所有服务...${NC}"
     SERVICES_TO_DEPLOY=("resume-backend" "resume-celery-worker" "resume-celery-beat" "resume-frontend")
     
@@ -44,22 +87,22 @@ else
 fi
 
 # 检查镜像文件是否存在
-IMAGES=(
-    "resume-backend.tar"
-    "resume-celery-worker.tar"
-    "resume-celery-beat.tar"
-    "resume-frontend.tar"
+declare -A IMAGES=(
+    ["resume-backend"]="resume-backend-${VERSION}.tar"
+    ["resume-celery-worker"]="resume-celery-worker-${VERSION}.tar"
+    ["resume-celery-beat"]="resume-celery-beat-${VERSION}.tar"
+    ["resume-frontend"]="resume-frontend-${VERSION}.tar"
 )
 
 # 加载Docker镜像
 echo -e "${YELLOW}加载Docker镜像...${NC}"
-for img in "${IMAGES[@]}"; do
+for service in "${!IMAGES[@]}"; do
+    img="${IMAGES[$service]}"
+    
     # 如果指定了服务名称，只加载对应的镜像
-    if [ -n "$SERVICE_NAME" ] && [[ ! "$img" =~ "$SERVICE_NAME" ]]; then
+    if [ -n "$SERVICE_NAME" ] && [ "$SERVICE_NAME" != "all-except-db" ] && [ "$service" != "$SERVICE_NAME" ]; then
         continue
     fi
-    
-    # 如果是all-except-db模式，则加载所有非数据库的镜像（此时SERVICE_NAME已被清空）
     
     if [ -f "$img" ]; then
         echo -e "正在加载 $img..."
@@ -67,11 +110,11 @@ for img in "${IMAGES[@]}"; do
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}成功加载 $img${NC}"
         else
-            echo -e "加载 $img 失败!"
+            echo -e "${RED}加载 $img 失败!${NC}"
             exit 1
         fi
     else
-        echo -e "警告: $img 不存在于当前目录"
+        echo -e "${RED}警告: $img 不存在于当前目录${NC}"
     fi
 done
 
@@ -97,9 +140,12 @@ if [ -z "$SERVICE_NAME" ] || [ "$SERVICE_NAME" = "resume-backend" ]; then
     mkdir -p ./backend/uploads
 fi
 
+# 导出VERSION环境变量供docker-compose使用
+export VERSION
+
 # 部署服务
 echo -e "${YELLOW}启动Docker容器...${NC}"
-if [ "$1" = "all-except-db" ] || [ "$1" = "-a" ] || [ "$1" = "--all-except-db" ]; then
+if [ "$SERVICE_NAME" = "all-except-db" ]; then
     # 启动除数据库外的所有服务
     for service in "${SERVICES_TO_DEPLOY[@]}"; do
         docker compose up -d "$service"
@@ -122,4 +168,5 @@ if [ -z "$SERVICE_NAME" ]; then
     echo -e "Celery Flower监控: http://localhost:5555"
     echo -e "PostgreSQL: localhost:5420"
     echo -e "Redis: localhost:6379"
+    echo -e "已部署版本: ${VERSION}"
 fi 
